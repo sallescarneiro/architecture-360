@@ -1,4 +1,4 @@
-# Architecture 360 — Importador Vobi (PoC)
+# Architecture 360
 
 Camada complementar de gestão e inteligência da equipe de arquitetura da Rucelle.
 O Vobi continua sendo o sistema operacional oficial; este importador **só lê** as
@@ -29,6 +29,10 @@ Somente biblioteca padrão do Python 3.11+ (SQLite embutido). Sem servidor, sem 
 ## Dados
 Os CSVs contêm dados de clientes e **não são versionados** (`.gitignore`). Guarde-os no local autorizado
 (Google Drive da Rucelle) e mantenha-os fora deste repositório.
+
+## Estrutura
+- `web/` — aplicação (Next.js + Postgres): importação com prévia e confirmação, qualidade dos dados, operação, pessoas. Ver `web/README.md`.
+- `importador/` — PoC em Python (referência validada; a lógica foi portada para `web/src/lib/importador`).
 
 ## Resultado da PoC (05/11/2026)
 Sete critérios da seção 5.2 verificados com os arquivos reais de 04/11/2026 — ver `POC_RESULTADO.md`.
