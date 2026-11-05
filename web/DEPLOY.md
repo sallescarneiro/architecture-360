@@ -1,6 +1,6 @@
 # Architecture 360 — Publicação no Railway (preparação)
 
-Estado: **preparado, não publicado**. Nenhum serviço foi criado no Railway. O deploy depende de autorização expressa.
+Estado: **publicado em 05/11/2026** com autorização expressa de Rodrigo. Projeto Railway `architecture-360` (ID 0a80cf58-decc-4d2a-9a26-76c369c5f1ed), serviços `architecture-360` (web) e `Postgres`. Domínio gerado: https://architecture-360-production.up.railway.app (não divulgar). Primeiro administrador: ainda não criado (seção 7).
 
 ## 1. Arquitetura recomendada
 
@@ -20,7 +20,7 @@ Sem workers, sem filas, sem armazenamento de arquivos: os CSVs ficam no banco s�
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | referência ao serviço Postgres (Railway injeta) |
 | `SESSION_DIAS` | `7` | validade da sessão |
 | `NODE_ENV` | `production` | Railway define no build/start; ativa o cookie `Secure` |
-| `PORT` | definida pelo Railway | o start usa `-p ${PORT}` |
+| `PORT` | definida pelo Railway (**8080** neste serviço) | o start usa `-p ${PORT}`; o domínio gerado deve apontar para a mesma porta (foi ajustado de 3000 para 8080 no deploy) |
 
 Não há chaves de terceiros: o sistema não chama APIs externas (Vobi é lido só por CSV exportado manualmente).
 
@@ -28,7 +28,7 @@ Não há chaves de terceiros: o sistema não chama APIs externas (Vobi é lido s
 
 - Esquema versionado em `drizzle/*.sql` (gerado por `drizzle-kit generate`).
 - Em produção as migrações rodam **no start** (`npm run start:railway` → `node scripts/migrate.mjs && next start`), com dependências de runtime apenas; são idempotentes (tabela `drizzle.__drizzle_migrations`).
-- Backups: o Railway oferece backups de volume para o Postgres gerenciado — **confirmar no painel do projeto qual frequência e retenção valem no plano contratado** (não verificado nesta preparação). Independente disso, recomenda-se um `pg_dump` periódico guardado no Drive da Rucelle (rotina a definir; não implementada).
+- Backups: **no plano Hobby (atual) o Railway não cria backups** do volume do Postgres — a aba Backups informa que backups manuais, agendados e point-in-time exigem o plano Pro (verificado em 05/11/2026). Enquanto isso, a proteção é: os CSVs originais ficam guardados no Drive e qualquer carga pode ser refeita a partir deles; e recomenda-se um `pg_dump` periódico guardado no Drive (rotina a definir; não implementada). Decisão pendente: migrar para Pro ou aceitar a rotina de dump.
 - Persistência: o volume do Postgres é persistente; o serviço `web` é sem estado.
 
 ## 4. Segurança e acesso
@@ -39,7 +39,9 @@ Não há chaves de terceiros: o sistema não chama APIs externas (Vobi é lido s
 - HTTPS: fornecido pelo Railway no domínio gerado (`*.up.railway.app`). Domínio próprio (ex.: `a360.rucelle.com.br`) é opcional e exige um CNAME no DNS da Rucelle; **não configurar até autorização**.
 - O domínio gerado é público na Internet, mas sem login não há acesso a nada além da tela de entrada. Se a direção quiser restringir ainda mais, a alternativa simples é manter o domínio sem divulgação; SSO ou VPN não são necessários agora.
 
-## 5. Estimativa de custo mensal (estimativa, não cotação)
+## 5. Custo (observado em 05/11/2026 e estimativa)
+
+Conta no plano **Hobby** (US$ 5/mês com US$ 5 de uso incluídos; limites de 8 GB RAM / 8 vCPU / 100 GB de disco compartilhado). Uso do ciclo 17/10–17/11 com os três projetos (upbeat-growth, rucelle-360 e architecture-360): **US$ 1,64**, abaixo do incluído. Estimativa anterior:
 
 Preços de lista da Railway lidos em 23/10/2026 (Levantamento de Infraestrutura v0.1): plano Hobby US$ 5/mês com US$ 5 de uso incluídos; uso ≈ US$ 10 por GB de RAM-mês e ≈ US$ 20 por vCPU-mês; volume ≈ US$ 0,16 por GB-mês; saída ≈ US$ 0,05/GB.
 
@@ -67,16 +69,19 @@ Pré-requisitos: acesso ao Railway e ao GitHub `sallescarneiro/architecture-360`
 
 ## 7. Primeiro administrador (sem expor a senha)
 
-No computador do Rodrigo, com o Railway CLI autenticado e o projeto vinculado (`railway login`, `railway link`):
+O Postgres **não tem acesso público** (só rede privada do Railway), então o script precisa rodar de dentro do serviço `web`. No computador do Rodrigo, com o Railway CLI autenticado e vinculado ao projeto `architecture-360`, serviço `architecture-360`:
 
 ```
-cd web
-railway run node scripts/criar-usuario.mjs "Rodrigo Carneiro" rodrigo.carneiro@rucelle.com.br admin
+railway login
+railway link          # escolher o projeto architecture-360 e o serviço architecture-360
+railway ssh           # abre um shell dentro do contêiner do serviço web
+node scripts/criar-usuario.mjs "Rodrigo Carneiro" rodrigo.carneiro@rucelle.com.br admin
+exit
 ```
 
-O script pede a senha no terminal **sem exibir os caracteres** (duas vezes), exige ao menos 10 caracteres e grava só o hash. A senha nunca passa por argumento de linha de comando, histórico, logs ou documentação. `railway run` injeta a `DATABASE_URL` do projeto; nada fica salvo localmente.
+O script pede a senha no terminal **sem exibir os caracteres** (duas vezes), exige ao menos 10 caracteres e grava só o hash. A senha nunca passa por argumento de linha de comando, histórico, logs ou documentação. Acredito que `railway ssh` existe nas versões recentes do CLI; se o seu não tiver, atualize-o (`npm i -g @railway/cli`) — você deve verificar.
 
-Alternativa sem CLI: abrir um shell do serviço `web` no painel do Railway e rodar o mesmo comando com `USUARIO_SENHA` definida só naquela sessão (a variável não é impressa).
+Alternativa se `railway ssh` não estiver disponível: habilitar temporariamente *Public access* no serviço Postgres, rodar localmente `DATABASE_URL="<DATABASE_PUBLIC_URL do Postgres>" node web/scripts/criar-usuario.mjs ...` e **remover o acesso público em seguida**.
 
 Demais usuários (gestão, coordenação, arquitetas): mesmo comando com o perfil correspondente. Troca de senha pelo próprio usuário ainda não existe (pendência).
 
