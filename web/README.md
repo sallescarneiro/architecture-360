@@ -7,7 +7,7 @@ Next.js 15 (App Router) · Drizzle ORM · PostgreSQL · autenticação por usuá
 2. `cp .env.example .env.local` e ajuste `DATABASE_URL`.
 3. `npm install`
 4. `npm run db:migrate` (aplica `drizzle/*.sql`)
-5. `npm run usuario -- "Nome" email@rucelle.com.br senha admin` (perfis: admin, gestao, coordenacao, arquiteta)
+5. `npm run usuario -- "Nome" email@rucelle.com.br admin` (perfis: admin, gestao, coordenacao, arquiteta); a senha é pedida de forma oculta
 6. `npm run dev` e abra http://localhost:3000
 
 ## Módulos
@@ -22,4 +22,4 @@ Next.js 15 (App Router) · Drizzle ORM · PostgreSQL · autenticação por usuá
 - `src/db/schema.ts` — tabelas: usuario, sessao, carga, bruto_projeto, bruto_tarefa, pessoa_vobi, projeto, tarefa, historico_alteracoes, alerta.
 - `src/lib/auth.ts` — sessões e perfis; autorização no servidor.
 
-Dados reais, bancos e `.env.local` não são versionados.
+Dados reais, bancos e `.env.local` não são versionados. Publicação no Railway: ver `DEPLOY.md`.
