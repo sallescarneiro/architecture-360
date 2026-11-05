@@ -20,9 +20,11 @@ Sem workers, sem filas, sem armazenamento de arquivos: os CSVs ficam no banco s�
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | referência ao serviço Postgres (Railway injeta) |
 | `SESSION_DIAS` | `7` | validade da sessão |
 | `NODE_ENV` | `production` | Railway define no build/start; ativa o cookie `Secure` |
+| `PEOPLE_URL` / `PEOPLE_EXPORT_PATH` / `PEOPLE_TOKEN` | **ainda não definidas** | integração de leitura com o People (seção 9); sem elas a hierarquia é "dado ausente" |
+| `EXPORT_TOKEN` | **ainda não definida** | liga `GET /api/export/operacao` para o Rucelle 360° (seção 9); vazia = endpoint desligado (503) |
 | `PORT` | definida pelo Railway (**8080** neste serviço) | o start usa `-p ${PORT}`; o domínio gerado deve apontar para a mesma porta (foi ajustado de 3000 para 8080 no deploy) |
 
-Não há chaves de terceiros: o sistema não chama APIs externas (Vobi é lido só por CSV exportado manualmente).
+Vobi é lido só por CSV exportado manualmente (nunca por API). As únicas chaves são os tokens entre plataformas Rucelle acima, definidos só no Railway.
 
 ## 3. Banco e migrações
 
@@ -35,6 +37,7 @@ Não há chaves de terceiros: o sistema não chama APIs externas (Vobi é lido s
 
 - Login individual por usuário/senha (bcrypt), sessão em tabela com cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção.
 - Sem cadastro público: usuários são criados só pelo script (seção 6) por quem tem acesso ao projeto Railway.
+- **Acesso atual (decisão de 05/11/2026): somente Rodrigo Carneiro, perfil `admin`.** Nenhum outro usuário é criado; gestores, coordenadores e arquitetas não têm acesso. Os perfis `gestao`/`coordenacao`/`arquiteta` existem só como regra de autorização no código, para uso futuro, se e quando a direção decidir.
 - Perfis `admin`, `gestao`, `coordenacao`, `arquiteta`; autorização no servidor em toda página e ação. Sem sessão, todas as rotas gerenciais redirecionam para `/login` (verificado em build de produção); `/api/health` responde só `{ok}`.
 - HTTPS: fornecido pelo Railway no domínio gerado (`*.up.railway.app`). Domínio próprio (ex.: `a360.rucelle.com.br`) é opcional e exige um CNAME no DNS da Rucelle; **não configurar até autorização**.
 - O domínio gerado é público na Internet, mas sem login não há acesso a nada além da tela de entrada. Se a direção quiser restringir ainda mais, a alternativa simples é manter o domínio sem divulgação; SSO ou VPN não são necessários agora.
@@ -83,7 +86,7 @@ O script pede a senha no terminal **sem exibir os caracteres** (duas vezes), exi
 
 Alternativa se `railway ssh` não estiver disponível: habilitar temporariamente *Public access* no serviço Postgres, rodar localmente `DATABASE_URL="<DATABASE_PUBLIC_URL do Postgres>" node web/scripts/criar-usuario.mjs ...` e **remover o acesso público em seguida**.
 
-Demais usuários (gestão, coordenação, arquitetas): mesmo comando com o perfil correspondente. Troca de senha pelo próprio usuário ainda não existe (pendência).
+Demais usuários: **não criar** nesta etapa (acesso exclusivo do administrador). Quando a direção liberar, é o mesmo comando com o perfil correspondente. Troca de senha pelo próprio usuário ainda não existe (pendência).
 
 ## 8. Pendências reais para publicar
 
@@ -91,4 +94,18 @@ Demais usuários (gestão, coordenação, arquitetas): mesmo comando com o perfi
 2. Confirmar o plano/cobrança da conta Railway.
 3. Decidir se haverá domínio próprio (CNAME) ou só o domínio gerado.
 4. Confirmar a política de backup do Postgres no plano contratado.
-5. Definir quem receberá os perfis `gestao` e `coordenacao` e quais arquitetas terão acesso.
+5. (Decidido em 05/11/2026: acesso só do administrador; sem outros usuários por ora.)
+
+## 9. Integrações entre plataformas Rucelle (preparadas, não ativas)
+
+Padrão único, o mesmo já usado entre a Central de Operações e o People: endpoint HTTP de exportação em JSON protegido pelo cabeçalho `x-admin-key` (token em variável de ambiente, comparação em tempo constante). Nada de webhooks, filas ou acesso direto a banco.
+
+| Fluxo | Papel do A360 | Como | Estado |
+| --- | --- | --- | --- |
+| People → A360 (hierarquia, cargos, vínculos) | consumidor | `GET {PEOPLE_URL}{PEOPLE_EXPORT_PATH}` com `x-admin-key: PEOPLE_TOKEN`; espelho somente leitura em `pessoa_people` (origem + data), botão "Atualizar do People" (admin) | **pendente**: o People ainda não expõe esse endpoint (código do People fora do GitHub, Painel T-112). Até lá: "dado ausente". |
+| Vobi → A360 | leitor | CSV exportado manualmente (Importação Vobi) | ativo (sem carga real ainda) |
+| A360 → Rucelle 360° (indicadores, cobertura, recomendações, limitações) | fornecedor | `GET /api/export/operacao` com `x-admin-key: EXPORT_TOKEN`; contrato `a360.operacao.v1` em `src/lib/contratos/a360-v1.ts` | **preparado, desligado** (sem `EXPORT_TOKEN` → 503). Só agregados; nunca dados por pessoa. |
+
+Organização do código para a integração futura (seção 6 do prompt de 05/11/2026): `src/lib/importador` (dados originais do Vobi) · `src/lib/servicos` (regras e indicadores, usados pela tela e pelo endpoint) · `src/lib/contratos` (contratos versionados) · `src/lib/integracoes` (clientes de outras plataformas) · `src/app` (camada visual, só apresenta). Toda informação exportada carrega `origem` (vobi/people/a360), `natureza` (original/calculado/inferencia_ia — este último reservado, sem uso) e `dataReferencia` (data da exportação do Vobi). Identificadores: projeto = Código do Vobi; pessoa = e-mail @rucelle; carga = id sequencial.
+
+Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `web` (valor gerado, nunca versionado) e o mesmo valor no consumidor; confirmar o formato com os padrões atuais do Rucelle 360° antes.

@@ -1,111 +1,89 @@
 import Link from "next/link";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
-import { contagem, selo, ultimaCargaAceita } from "@/lib/consultas";
+import { selo } from "@/lib/consultas";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
+import { panoramaOperacao } from "@/lib/servicos/operacao";
 import { Selo } from "@/components/Selo";
-import { recomendacoes } from "@/lib/recomendacoes";
+import { Badge, Card, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
 
 /**
- * Operação — somente indicadores suportados pelos dados (seção 3.1 da especificação v2.0).
+ * Operação — camada visual apenas: todos os números vêm de `panoramaOperacao` (src/lib/servicos).
  * Não há ranking, nota, eficiência individual nem planejado × realizado (estimativas inexistentes).
  */
 export default async function OperacaoPage() {
   const u = await exigirUsuario();
-  const carga = await ultimaCargaAceita();
-  if (!carga) return <div><h1 className="text-2xl font-bold">Operação</h1><p className="text-sm text-[var(--muted)]">Nenhuma carga aceita ainda. <Link className="underline" href="/importacao">Importar do Vobi</Link>.</p></div>;
-  const cid = carga.id;
-  const hoje = carga.dataCarga; // atualidade = data da exportação
-  const abertas = `status not in ('concluido','cancelado') and orfa=false`;
-
-  const [tot] = await contagem(`select count(*)::int total, sum(case when classe_qualidade='completa' then 1 else 0 end)::int completas,
-     sum(case when sem_fim=false and orfa=false then 1 else 0 end)::int com_fim,
-     sum(case when sem_responsavel=false and orfa=false then 1 else 0 end)::int com_resp from tarefa where ultima_carga=${cid}`);
-  const total = Number(tot.total), comFim = Number(tot.com_fim), comResp = Number(tot.com_resp);
-  const projStatus = await contagem(`select status k, status_classe c, count(*)::int n from projeto where ultima_carga=${cid} group by 1,2 order by 2,3 desc`);
-  const ativos = projStatus.filter((r) => r.c !== "encerrado");
-  const tarStatus = await contagem(`select status k, count(*)::int n from tarefa where ultima_carga=${cid} and orfa=false group by 1 order by 2 desc`);
-  const [prazos] = await contagem(`select
-     sum(case when data_fim < '${hoje}' then 1 else 0 end)::int vencidas,
-     sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7,
-     sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 30 then 1 else 0 end)::int d30
-     from tarefa where ultima_carga=${cid} and ${abertas} and sem_fim=false`);
-  const porEtapa = await contagem(`select etapa_canonica k, count(*)::int abertas, sum(case when data_fim < '${hoje}' and sem_fim=false then 1 else 0 end)::int vencidas from tarefa where ultima_carga=${cid} and ${abertas} group by 1 order by 2 desc`);
-  const porPessoa = veIndicadoresIndividuais(u.perfil)
-    ? await contagem(`select responsavel_nome k, count(*)::int abertas, sum(case when data_fim < '${hoje}' and sem_fim=false then 1 else 0 end)::int vencidas,
-        sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7
-        from tarefa where ultima_carga=${cid} and ${abertas} and sem_responsavel=false group by 1 order by 2 desc`)
-    : await contagem(`select responsavel_nome k, count(*)::int abertas, sum(case when data_fim < '${hoje}' and sem_fim=false then 1 else 0 end)::int vencidas,
-        sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7
-        from tarefa where ultima_carga=${cid} and ${abertas} and responsavel_email='${u.email.replace(/'/g, "''")}' group by 1`);
-  const horasProj = await contagem(`select p.nome k, p.codigo, sum(t.horas_realizadas_min)::int min, sum(case when t.etapa_canonica='Refação' then t.horas_realizadas_min else 0 end)::int refacao
-     from tarefa t join projeto p on p.codigo=t.projeto_codigo where t.ultima_carga=${cid} and t.horas_realizadas_min>0 group by 1,2 order by 3 desc limit 15`);
-  const [horasTot] = await contagem(`select sum(horas_realizadas_min)::int min, sum(case when etapa_canonica='Refação' then horas_realizadas_min else 0 end)::int refacao,
-     count(*) filter (where horas_realizadas_min>0)::int com_horas from tarefa where ultima_carga=${cid}`);
-  const revisoes = await contagem(`select p.nome k, p.codigo, count(*)::int n from tarefa t join projeto p on p.codigo=t.projeto_codigo
-     where t.ultima_carga=${cid} and (t.revisao>=1 or t.etapa_canonica='Refação') group by 1,2 order by 3 desc limit 15`);
-  const minTot = Number(horasTot.min ?? 0), minRef = Number(horasTot.refacao ?? 0);
-  const recs = veIndicadoresIndividuais(u.perfil) ? await recomendacoes(cid, hoje) : [];
+  const gestao = veIndicadoresIndividuais(u.perfil);
+  const p = await panoramaOperacao({ incluirPessoas: gestao, emailRestrito: gestao ? undefined : u.email });
+  if (!p) return (
+    <>
+      <PageHeader eyebrow="Architecture 360" title="Operação" subtitle="Leitura gerencial dos dados exportados do Vobi." />
+      <Empty action={<LinkButton href="/importacao" variant="primary">Importar do Vobi</LinkButton>}>Nenhuma carga aceita ainda.</Empty>
+    </>
+  );
+  const carga = p.carga;
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+  const Lista = ({ itens }: { itens: { rotulo: string; valor: number }[] }) => (
+    <table className="tbl"><tbody>{itens.map((r) => <tr key={r.rotulo}><td>{r.rotulo}</td><td className="text-right font-semibold">{r.valor}</td></tr>)}{!itens.length && <tr><td className="text-[var(--muted)]">nenhum</td></tr>}</tbody></table>
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Operação</h1>
-        <p className="text-sm text-[var(--muted)]">Dados do Vobi, carga {cid} de {carga.dataCarga}. Indicadores só onde há dado; cada bloco informa a base usada.</p>
-      </div>
+    <>
+      <PageHeader eyebrow="Architecture 360" title="Operação"
+        subtitle={<>Dados do Vobi, carga {carga.id} de {carga.dataCarga}. Indicadores só onde há dado; cada bloco informa a base usada. <Badge tone="neutral">Vobi · somente leitura</Badge></>} />
 
-      {veIndicadoresIndividuais(u.perfil) && (
-        <div className="card border-indigo-200">
-          <div className="font-semibold">Recomendações para a gestão <span className="badge ml-2">calculadas · não são conclusões</span></div>
-          <p className="text-xs text-[var(--muted)] mb-3">Sinais derivados dos dados importados, para análise da gestão e coordenação. Não viram tarefas nem cobranças; quantidade não é produtividade, atraso não é desempenho e refação não é culpa.</p>
-          {recs.length ? (
-            <table className="w-full text-sm"><thead><tr><th>Tema</th><th>Sinal (indicador calculado)</th><th>Leitura sugerida</th><th>Cuidado</th></tr></thead><tbody>
-              {recs.map((r, i) => <tr key={i}><td className="whitespace-nowrap">{r.tema}</td><td>{r.sinal}</td><td className="text-[var(--muted)]">{r.leitura}</td><td className="text-xs text-[var(--muted)]">{r.cuidado}</td></tr>)}
-            </tbody></table>
-          ) : <div className="text-sm text-[var(--muted)]">Nenhum sinal acima dos limiares nesta carga.</div>}
-        </div>
+      {gestao && (
+        <Card className="mb-5" title={<>Recomendações para a gestão <Badge tone="info">calculadas · não são conclusões</Badge></>}
+          subtitle="Sinais derivados dos dados importados, para análise da gestão e coordenação. Não viram tarefas nem cobranças; quantidade não é produtividade, atraso não é desempenho e refação não é culpa.">
+          {p.recomendacoes.length ? (
+            <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>Tema</th><th>Sinal (indicador calculado)</th><th>Leitura sugerida</th><th>Cuidado</th></tr></thead><tbody>
+              {p.recomendacoes.map((r, i) => <tr key={i}><td className="whitespace-nowrap font-semibold">{r.tema}</td><td>{r.sinal}</td><td className="text-[var(--txt-2)]">{r.leitura}</td><td className="text-[0.78rem] text-[var(--muted)]">{r.cuidado}</td></tr>)}
+            </tbody></table></div>
+          ) : <Empty>Nenhum sinal acima dos limiares nesta carga.</Empty>}
+        </Card>
       )}
-      <div className="grid md:grid-cols-4 gap-4">
-        <div className="card"><div className="text-xs text-[var(--muted)]">Projetos ativos</div><div className="text-3xl font-bold">{ativos.reduce((a, r) => a + Number(r.n), 0)}</div></div>
-        <div className="card"><div className="text-xs text-[var(--muted)]">Tarefas vencidas</div><div className="text-3xl font-bold">{String(prazos.vencidas ?? 0)}</div><Selo s={selo(comFim, total, carga)} rotulo="tarefas com prazo" /></div>
-        <div className="card"><div className="text-xs text-[var(--muted)]">A vencer em 7 / 30 dias</div><div className="text-3xl font-bold">{String(prazos.d7 ?? 0)} / {String(prazos.d30 ?? 0)}</div><Selo s={selo(comFim, total, carga)} rotulo="tarefas com prazo" /></div>
-        <div className="card"><div className="text-xs text-[var(--muted)]">Tarefas completas</div><div className="text-3xl font-bold">{Number(tot.completas)}</div><div className="selo">de {total} · <Link className="underline" href="/qualidade">ver qualidade</Link></div></div>
+
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Projetos ativos" value={p.projetosAtivos.reduce((a, r) => a + r.valor, 0)} note={`${p.encerrados} encerrados (finalizados/cancelados)`} />
+        <Stat label="Tarefas abertas vencidas" value={p.prazos.vencidas} source="calc" tone={p.prazos.vencidas ? "warn" : "ok"} note={<Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo" />} />
+        <Stat label="A vencer em 7 / 30 dias" value={`${p.prazos.d7} / ${p.prazos.d30}`} source="calc" note={<Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo" />} />
+        <Stat label="Tarefas com dados completos" value={p.completas} source="calc" pill={`${pct(p.completas, p.total)}%`} tone="neutral" note={<>de {p.total} · <Link className="underline" href="/qualidade">ver qualidade</Link></>} href="/qualidade" />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="card"><div className="font-semibold mb-2">Projetos ativos por etapa do fluxo</div>
-          <table className="w-full text-sm"><tbody>{ativos.map((r) => <tr key={String(r.k)}><td>{String(r.k)}</td><td className="text-right">{String(r.n)}</td></tr>)}</tbody></table>
-          <div className="selo mt-2">Encerrados (finalizados/cancelados): {projStatus.filter((r) => r.c === "encerrado").reduce((a, r) => a + Number(r.n), 0)}</div></div>
-        <div className="card"><div className="font-semibold mb-2">Tarefas por status</div>
-          <table className="w-full text-sm"><tbody>{tarStatus.map((r) => <tr key={String(r.k)}><td>{String(r.k)}</td><td className="text-right">{String(r.n)}</td></tr>)}</tbody></table></div>
+      <div className="mb-5 grid gap-4 md:grid-cols-2">
+        <Card title="Projetos ativos por etapa do fluxo"><Lista itens={p.projetosAtivos} /></Card>
+        <Card title="Tarefas por status"><Lista itens={p.tarefasStatus} /></Card>
       </div>
 
-      <div className="card"><div className="font-semibold mb-2">Tarefas abertas por etapa</div>
-        <table className="w-full text-sm"><thead><tr><th>Etapa</th><th>Abertas</th><th>Vencidas</th></tr></thead><tbody>
-          {porEtapa.map((r) => <tr key={String(r.k)}><td>{String(r.k)}</td><td>{String(r.abertas)}</td><td>{String(r.vencidas)}</td></tr>)}</tbody></table>
-        <Selo s={selo(comFim, total, carga)} rotulo="tarefas com prazo (coluna Vencidas)" /></div>
+      <Card className="mb-5" title="Tarefas abertas por etapa">
+        <table className="tbl"><thead><tr><th>Etapa</th><th>Abertas</th><th>Vencidas</th></tr></thead><tbody>
+          {p.porEtapa.map((r) => <tr key={r.rotulo}><td>{r.rotulo}</td><td>{r.abertas}</td><td>{r.vencidas}</td></tr>)}</tbody></table>
+        <Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo (coluna Vencidas)" />
+      </Card>
 
-      <div className="card"><div className="font-semibold mb-2">{veIndicadoresIndividuais(u.perfil) ? "Tarefas abertas por responsável" : "Minhas tarefas abertas"}</div>
-        <p className="text-xs text-[var(--muted)] mb-2">Contagem de tarefas (fato importado), não medida de desempenho: volume sem complexidade, carga e dependências não compara pessoas. Uso: contextualizar carga e distribuição.</p>
-        <table className="w-full text-sm"><thead><tr><th>Responsável</th><th>Abertas</th><th>Vencidas</th><th>Vencem em 7 dias</th></tr></thead><tbody>
-          {porPessoa.map((r) => <tr key={String(r.k)}><td>{String(r.k)}</td><td>{String(r.abertas)}</td><td>{String(r.vencidas)}</td><td>{String(r.d7)}</td></tr>)}
-          {!porPessoa.length && <tr><td colSpan={4} className="text-[var(--muted)]">nenhuma</td></tr>}</tbody></table>
-        <Selo s={selo(comResp, total, carga)} rotulo="tarefas com responsável" /></div>
+      <Card className="mb-5" title={gestao ? "Tarefas abertas por responsável" : "Minhas tarefas abertas"}
+        subtitle="Contagem de tarefas (fato importado), não medida de desempenho: volume sem complexidade, carga e dependências não compara pessoas. Uso: contextualizar carga e distribuição.">
+        <table className="tbl"><thead><tr><th>Responsável</th><th>Abertas</th><th>Vencidas</th><th>Vencem em 7 dias</th></tr></thead><tbody>
+          {p.porPessoa.map((r) => <tr key={r.rotulo}><td>{r.rotulo}</td><td>{r.abertas}</td><td>{r.vencidas}</td><td>{r.d7}</td></tr>)}
+          {!p.porPessoa.length && <tr><td colSpan={4} className="text-[var(--muted)]">nenhuma</td></tr>}</tbody></table>
+        <Selo s={selo(p.comResp, p.total, carga)} rotulo="tarefas com responsável" />
+      </Card>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="card"><div className="font-semibold mb-2">Horas realizadas acumuladas por projeto</div>
-          <p className="text-xs text-[var(--muted)] mb-2">Total {minutosParaHoras(minTot)} h, das quais {minutosParaHoras(minRef)} h em Refação ({minTot ? Math.round((minRef / minTot) * 100) : 0}%). Somente projetos ativos; horas agregadas por tarefa, sem data de lançamento.</p>
-          <table className="w-full text-sm"><thead><tr><th>Projeto</th><th>Horas</th><th>Em Refação</th></tr></thead><tbody>
-            {horasProj.map((r) => <tr key={String(r.codigo)}><td>{String(r.k)}</td><td>{minutosParaHoras(Number(r.min))}</td><td>{minutosParaHoras(Number(r.refacao))}</td></tr>)}</tbody></table>
-          <Selo s={selo(Number(horasTot.com_horas ?? 0), total, carga)} rotulo="tarefas com horas lançadas" /></div>
-        <div className="card"><div className="font-semibold mb-2">Tarefas de revisão por projeto (R01+ ou etapa Refação)</div>
-          <p className="text-xs text-[var(--muted)] mb-2">Sinal de retrabalho, não causa: o motivo (cliente, interno, fornecedor) não existe no Vobi.</p>
-          <table className="w-full text-sm"><thead><tr><th>Projeto</th><th>Tarefas</th></tr></thead><tbody>
-            {revisoes.map((r) => <tr key={String(r.codigo)}><td>{String(r.k)}</td><td>{String(r.n)}</td></tr>)}</tbody></table></div>
+      <div className="mb-5 grid gap-4 md:grid-cols-2">
+        <Card title="Horas realizadas acumuladas por projeto"
+          subtitle={`Total ${minutosParaHoras(p.horas.totalMin)} h, das quais ${minutosParaHoras(p.horas.refacaoMin)} h em Refação (${pct(p.horas.refacaoMin, p.horas.totalMin)}%). Horas agregadas por tarefa, sem data de lançamento.`}>
+          <table className="tbl"><thead><tr><th>Projeto</th><th>Horas</th><th>Em Refação</th></tr></thead><tbody>
+            {p.horas.porProjeto.map((r) => <tr key={r.codigo}><td>{r.rotulo}</td><td>{minutosParaHoras(r.min)}</td><td>{minutosParaHoras(r.refacaoMin)}</td></tr>)}</tbody></table>
+          <Selo s={selo(p.horas.comHoras, p.total, carga)} rotulo="tarefas com horas lançadas" />
+        </Card>
+        <Card title="Tarefas de revisão por projeto (R01+ ou etapa Refação)" subtitle="Sinal de retrabalho, não causa: o motivo (cliente, interno, fornecedor) não existe no Vobi.">
+          <table className="tbl"><thead><tr><th>Projeto</th><th>Tarefas</th></tr></thead><tbody>
+            {p.revisoes.map((r) => <tr key={r.codigo}><td>{r.rotulo}</td><td>{r.valor}</td></tr>)}</tbody></table>
+        </Card>
       </div>
 
-      <div className="card text-sm text-[var(--muted)]">
-        <b>Não disponível com os dados atuais:</b> previsto × realizado em horas (estimativas quase inexistentes), horas por semana por pessoa (exige o CSV de Gestão de Horas), capacidade utilizada, tempo parado por etapa (exige várias cargas), produtividade ou eficiência individual (sem base; não será criado).
-      </div>
-    </div>
+      <Card title="Não disponível com os dados atuais">
+        <ul className="list-disc space-y-1 pl-5 text-[0.85rem] text-[var(--txt-2)]">{p.limitacoes.map((l) => <li key={l.chave}>{l.descricao}</li>)}</ul>
+      </Card>
+    </>
   );
 }

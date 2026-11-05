@@ -139,3 +139,31 @@ export const alertas = pgTable("alerta", {
   chave: text("chave"),
   detalhe: text("detalhe"),
 }, (t) => [index("alerta_carga_idx").on(t.cargaId)]);
+
+// ---------------------------------------------------------------------------
+// Espelho somente leitura do People Rucelle (fonte oficial da estrutura organizacional).
+// Não é cadastro: nenhuma tela edita estas linhas; o A360 só as recebe do People e guarda origem + data.
+// ---------------------------------------------------------------------------
+export const pessoasPeople = pgTable("pessoa_people", {
+  email: text("email").primaryKey(),             // identificador comum entre People, A360 e Vobi (via pessoa_vobi.email_rucelle)
+  idPeople: text("id_people"),                   // identificador da pessoa no People, se fornecido
+  nome: text("nome").notNull(),
+  cargo: text("cargo"),
+  funcao: text("funcao"),
+  equipe: text("equipe"),
+  gestorEmail: text("gestor_email"),
+  coordenadorEmail: text("coordenador_email"),
+  ativo: boolean("ativo"),
+  atualizadoEmPeople: timestamp("atualizado_em_people", { withTimezone: true }),
+  sincronizadoEm: timestamp("sincronizado_em", { withTimezone: true }).notNull().defaultNow(),
+  origem: text("origem").notNull().default("people"),
+});
+
+export const sincronizacoesPeople = pgTable("sincronizacao_people", {
+  id: serial("id").primaryKey(),
+  em: timestamp("em", { withTimezone: true }).notNull().defaultNow(),
+  status: text("status").notNull(),              // ok | indisponivel | erro | nao_configurado
+  pessoas: integer("pessoas"),
+  motivo: text("motivo"),
+  porId: integer("por_id").references(() => usuarios.id),
+});
