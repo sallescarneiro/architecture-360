@@ -1,0 +1,6 @@
+# Dados reais do Vobi (clientes): nunca versionar
+dados/
+*.csv
+*.sqlite
+*.sqlite-journal
+__pycache__/
