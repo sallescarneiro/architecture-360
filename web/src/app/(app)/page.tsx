@@ -3,6 +3,7 @@ import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { contagem, selo, ultimaCargaAceita } from "@/lib/consultas";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { Selo } from "@/components/Selo";
+import { recomendacoes } from "@/lib/recomendacoes";
 
 /**
  * Operação — somente indicadores suportados pelos dados (seção 3.1 da especificação v2.0).
@@ -43,6 +44,7 @@ export default async function OperacaoPage() {
   const revisoes = await contagem(`select p.nome k, p.codigo, count(*)::int n from tarefa t join projeto p on p.codigo=t.projeto_codigo
      where t.ultima_carga=${cid} and (t.revisao>=1 or t.etapa_canonica='Refação') group by 1,2 order by 3 desc limit 15`);
   const minTot = Number(horasTot.min ?? 0), minRef = Number(horasTot.refacao ?? 0);
+  const recs = veIndicadoresIndividuais(u.perfil) ? await recomendacoes(cid, hoje) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +53,17 @@ export default async function OperacaoPage() {
         <p className="text-sm text-[var(--muted)]">Dados do Vobi, carga {cid} de {carga.dataCarga}. Indicadores só onde há dado; cada bloco informa a base usada.</p>
       </div>
 
+      {veIndicadoresIndividuais(u.perfil) && (
+        <div className="card border-indigo-200">
+          <div className="font-semibold">Recomendações para a gestão <span className="badge ml-2">calculadas · não são conclusões</span></div>
+          <p className="text-xs text-[var(--muted)] mb-3">Sinais derivados dos dados importados, para análise da gestão e coordenação. Não viram tarefas nem cobranças; quantidade não é produtividade, atraso não é desempenho e refação não é culpa.</p>
+          {recs.length ? (
+            <table className="w-full text-sm"><thead><tr><th>Tema</th><th>Sinal (indicador calculado)</th><th>Leitura sugerida</th><th>Cuidado</th></tr></thead><tbody>
+              {recs.map((r, i) => <tr key={i}><td className="whitespace-nowrap">{r.tema}</td><td>{r.sinal}</td><td className="text-[var(--muted)]">{r.leitura}</td><td className="text-xs text-[var(--muted)]">{r.cuidado}</td></tr>)}
+            </tbody></table>
+          ) : <div className="text-sm text-[var(--muted)]">Nenhum sinal acima dos limiares nesta carga.</div>}
+        </div>
+      )}
       <div className="grid md:grid-cols-4 gap-4">
         <div className="card"><div className="text-xs text-[var(--muted)]">Projetos ativos</div><div className="text-3xl font-bold">{ativos.reduce((a, r) => a + Number(r.n), 0)}</div></div>
         <div className="card"><div className="text-xs text-[var(--muted)]">Tarefas vencidas</div><div className="text-3xl font-bold">{String(prazos.vencidas ?? 0)}</div><Selo s={selo(comFim, total, carga)} rotulo="tarefas com prazo" /></div>
@@ -72,7 +85,7 @@ export default async function OperacaoPage() {
         <Selo s={selo(comFim, total, carga)} rotulo="tarefas com prazo (coluna Vencidas)" /></div>
 
       <div className="card"><div className="font-semibold mb-2">{veIndicadoresIndividuais(u.perfil) ? "Tarefas abertas por responsável" : "Minhas tarefas abertas"}</div>
-        <p className="text-xs text-[var(--muted)] mb-2">Contagem de tarefas, não medida de desempenho: volume sem complexidade, carga e impedimentos não compara pessoas.</p>
+        <p className="text-xs text-[var(--muted)] mb-2">Contagem de tarefas (fato importado), não medida de desempenho: volume sem complexidade, carga e dependências não compara pessoas. Uso: contextualizar carga e distribuição.</p>
         <table className="w-full text-sm"><thead><tr><th>Responsável</th><th>Abertas</th><th>Vencidas</th><th>Vencem em 7 dias</th></tr></thead><tbody>
           {porPessoa.map((r) => <tr key={String(r.k)}><td>{String(r.k)}</td><td>{String(r.abertas)}</td><td>{String(r.vencidas)}</td><td>{String(r.d7)}</td></tr>)}
           {!porPessoa.length && <tr><td colSpan={4} className="text-[var(--muted)]">nenhuma</td></tr>}</tbody></table>

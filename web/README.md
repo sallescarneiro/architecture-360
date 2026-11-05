@@ -12,8 +12,8 @@ Next.js 15 (App Router) · Drizzle ORM · PostgreSQL · autenticação por usuá
 
 ## Módulos
 - `/importacao` — upload dos CSVs do Vobi (Projetos e Tarefas), prévia com resumo e anomalias, confirmação em transação única, histórico de cargas. Somente admin e gestão importam.
-- `/qualidade` — tarefas por classe de completude, alertas, etapas não mapeadas, pessoas sem e-mail, colisões, órfãs, não encontradas; lista "Corrigir no Vobi" com link direto ao projeto. Arquiteta vê só as próprias pendências.
-- `/` Operação — indicadores suportados pelos dados, cada um com selo de cobertura. Sem ranking, nota ou eficiência individual.
+- `/qualidade` — tarefas por classe de completude, alertas, etapas não mapeadas, pessoas sem e-mail, colisões, órfãs, não encontradas; visão "Dados incompletos na fonte" por projeto e por arquiteta, como contexto gerencial (sem tarefas, cobranças ou notificações); links para o Vobi só para consulta. Arquiteta vê só os próprios dados.
+- `/` Operação — indicadores suportados pelos dados, cada um com selo de cobertura, e recomendações gerenciais calculadas (concentração, padrão de atraso, gargalo por etapa, refação, limitação dos dados) visíveis para gestão e coordenação. Sem ranking, nota ou eficiência individual.
 - `/pessoas` — mapeamento nome no Vobi → e-mail @rucelle (chave comum com o People).
 
 ## Código principal

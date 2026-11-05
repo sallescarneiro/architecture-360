@@ -16,7 +16,7 @@ Especificação: "Architecture 360 — Exploração do Vobi e Especificação do
   (nada é apagado) / possível renomeação (sugestão, um-para-um).
 - Retém cargas anômalas (muitos "não encontrados" ou poucas linhas) e recusa layout desconhecido.
 - Classifica a qualidade de cada tarefa (completa, sem responsável, sem prazo, sem início, órfã, encerrada)
-  e gera a lista "Corrigir no Vobi".
+  e gera a visão "Dados incompletos na fonte" (contexto gerencial, sem tarefas ou cobranças).
 
 ## Uso
 ```

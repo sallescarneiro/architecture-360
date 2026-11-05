@@ -559,7 +559,7 @@ def relatorio(db: str, carga_id: int | None):
 
 
 def pendencias(db: str):
-    """Lista 'Corrigir no Vobi' (seção 2.2)."""
+    """Lista 'Dados incompletos na fonte' (seção 2.2)."""
     con = abrir(db)
     ultima = con.execute("SELECT id FROM carga WHERE status='aceita' ORDER BY id DESC LIMIT 1").fetchone()
     if not ultima:
@@ -574,7 +574,7 @@ def pendencias(db: str):
     print("== Alertas da carga ==")
     for r in con.execute("SELECT tipo, COUNT(*) FROM alerta WHERE carga_id=? GROUP BY tipo", (cid,)):
         print(f"  {r[0]:32s} {r[1]}")
-    print("== Links para corrigir no Vobi (projetos com tarefas incompletas, top 10) ==")
+    print("== Dados incompletos na fonte — projetos com mais tarefas incompletas (top 10; link só para consulta) ==")
     for r in con.execute(
         "SELECT p.codigo, p.nome, COUNT(*) n FROM tarefa t JOIN projeto p ON p.codigo=t.projeto_codigo "
         "WHERE t.ultima_carga=? AND t.classe_qualidade LIKE 'incompleta%' GROUP BY p.codigo ORDER BY n DESC LIMIT 10", (cid,)):
