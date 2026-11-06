@@ -18,12 +18,24 @@ const SA = JSON.parse(env("GDRIVE_SA_JSON"));
 const FOLDER = env("GDRIVE_FOLDER_ID");
 const RET_DIAS = Number(process.env.RETENCAO_DIAS || 30), RET_MESES = Number(process.env.RETENCAO_MENSAL_MESES || 12);
 
+process.on("uncaughtException", (e) => { console.error("erro:", e?.message ?? e); process.exit(1); });
+process.on("unhandledRejection", (e) => { console.error("erro:", e?.message ?? e); process.exit(1); });
+
 const agora = new Date();
 const carimbo = agora.toISOString().replace(/[:T]/g, "-").slice(0, 16); // 2026-11-06-09-05
 const nome = `a360-${carimbo}.dump.enc`;
 
-// 1. dump
-const dump = execFileSync("pg_dump", ["--format=custom", "--no-owner", "--no-privileges", "--dbname", DATABASE_URL], { maxBuffer: 2 * 1024 ** 3 });
+// 1. dump — a conexão vai por variáveis libpq (PGHOST…), nunca por argumento: assim nenhuma mensagem
+//    de erro ou listagem de processos contém a senha. Só o stderr do pg_dump é registrado.
+const u = new URL(DATABASE_URL);
+const envPg = { ...process.env, PGHOST: u.hostname, PGPORT: u.port || "5432", PGUSER: decodeURIComponent(u.username), PGPASSWORD: decodeURIComponent(u.password), PGDATABASE: u.pathname.replace(/^\//, "") };
+let dump;
+try {
+  dump = execFileSync("pg_dump", ["--format=custom", "--no-owner", "--no-privileges"], { env: envPg, maxBuffer: 2 * 1024 ** 3, stdio: ["ignore", "pipe", "pipe"] });
+} catch (e) {
+  console.error("pg_dump falhou:", (e.stderr ? e.stderr.toString() : "").trim() || `código ${e.status}`);
+  process.exit(1);
+}
 if (dump.length < 10_000) { console.error(`dump suspeito: ${dump.length} bytes`); process.exit(1); }
 // 2. cifra
 const enc = cifrar(dump, PUB);
