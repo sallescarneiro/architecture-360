@@ -4,3 +4,8 @@ dados/
 *.sqlite
 *.sqlite-journal
 __pycache__/
+
+# backup: chaves e arquivos de backup nunca entram no repositório
+*.pem
+*.dump
+*.dump.enc

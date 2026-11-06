@@ -30,7 +30,7 @@ Vobi é lido só por CSV exportado manualmente (nunca por API). As únicas chave
 
 - Esquema versionado em `drizzle/*.sql` (gerado por `drizzle-kit generate`).
 - Em produção as migrações rodam **no start** (`npm run start:railway` → `node scripts/migrate.mjs && next start`), com dependências de runtime apenas; são idempotentes (tabela `drizzle.__drizzle_migrations`).
-- Backups: **no plano Hobby (atual) o Railway não cria backups** do volume do Postgres — a aba Backups informa que backups manuais, agendados e point-in-time exigem o plano Pro (verificado em 05/11/2026). Enquanto isso, a proteção é: os CSVs originais ficam guardados no Drive e qualquer carga pode ser refeita a partir deles; e recomenda-se um `pg_dump` periódico guardado no Drive (rotina a definir; não implementada). Decisão pendente: migrar para Pro ou aceitar a rotina de dump.
+- Backups: **no plano Hobby (atual) o Railway não cria backups** do volume do Postgres (Pro exigido, verificado em 05/11/2026). Decisão: manter Hobby e usar a rotina própria em `backup/` (serviço cron no mesmo projeto: `pg_dump` → criptografia com chave pública → Google Drive restrito; retenção 30 dias + mensal 12 meses). Procedimento, variáveis e restauração em `backup/README.md`. Os CSVs originais do Vobi ficam no Drive e qualquer carga pode ser refeita a partir deles.
 - Persistência: o volume do Postgres é persistente; o serviço `web` é sem estado.
 
 ## 4. Segurança e acesso
