@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ] },
     { label: "Dados", items: [
       { href: "/importacao", label: "Importação Vobi", icon: "upload" },
+      { href: "/clientes", label: "Clientes", icon: "tag" },
       ...(veIndicadoresIndividuais(u.perfil) ? [{ href: "/pessoas", label: "Pessoas", icon: "users" as const }] : []),
     ] },
   ];

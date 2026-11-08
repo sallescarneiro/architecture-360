@@ -30,6 +30,7 @@ export const sessoes = pgTable("sessao", {
 export const cargas = pgTable("carga", {
   id: serial("id").primaryKey(),
   status: text("status").notNull(), // previa | aceita | retida | recusada | ignorada | descartada | erro
+  tipo: text("tipo").notNull().default("operacao"), // operacao (Projetos+Tarefas, Clientes opcional) | clientes (só Clientes)
   motivo: text("motivo"),
   dataCarga: text("data_carga").notNull(), // AAAA-MM-DD (data da exportação informada pelo usuário)
   enviadoPorId: integer("enviado_por_id").references(() => usuarios.id),
@@ -42,6 +43,10 @@ export const cargas = pgTable("carga", {
   linhasTarefas: integer("linhas_tarefas"),
   conteudoProjetos: bytea("conteudo_projetos"), // guardado só enquanto a carga está em prévia
   conteudoTarefas: bytea("conteudo_tarefas"),
+  arqClientes: text("arq_clientes"),
+  hashClientes: text("hash_clientes"), // hash do arquivo original exportado do Vobi
+  linhasClientes: integer("linhas_clientes"),
+  conteudoClientes: bytea("conteudo_clientes"), // só colunas autorizadas (CPF/CNPJ, RG/IE, nascimento, endereço e observações nunca entram)
   relatorio: jsonb("relatorio"),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   confirmadoEm: timestamp("confirmado_em", { withTimezone: true }),
@@ -88,7 +93,44 @@ export const projetos = pgTable("projeto", {
   primeiraCarga: integer("primeira_carga").notNull(),
   ultimaCarga: integer("ultima_carga").notNull(),
   naoEncontradoDesde: integer("nao_encontrado_desde"),
-}, (t) => [index("projeto_chave_nome_idx").on(t.chaveNome)]);
+  // Etapa 2 — vínculo com cliente_vobi (derivado do campo "cliente (nome)"; o Vobi não exporta o código do cliente no projeto)
+  clienteCodigo: integer("cliente_codigo"),
+  vinculoClienteStatus: text("vinculo_cliente_status").notNull().default("sem_cliente"), // resolvido | ambiguo | sem_cliente | manual
+}, (t) => [index("projeto_chave_nome_idx").on(t.chaveNome), index("projeto_cliente_idx").on(t.clienteCodigo)]);
+
+// ---------------------------------------------------------------------------
+// Clientes do Vobi (Etapa 1) — espelho somente leitura. Chave = Código do Vobi.
+// Campos autorizados apenas; nunca se apaga cliente ausente numa exportação (fica "não encontrado").
+// ---------------------------------------------------------------------------
+export const clientesVobi = pgTable("cliente_vobi", {
+  codigo: integer("codigo").primaryKey(),
+  nome: text("nome").notNull(),
+  chaveNome: text("chave_nome").notNull(),
+  razaoSocial: text("razao_social"),
+  tipo: text("tipo"),           // pf | pj
+  status: text("status"),       // Ativo | Inativo
+  email: text("email"),
+  telefone: text("telefone"),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  criadoEmVobi: text("criado_em_vobi"), // AAAA-MM-DD
+  origem: text("origem").notNull().default("vobi"),
+  primeiraCarga: integer("primeira_carga").notNull(),
+  ultimaCarga: integer("ultima_carga").notNull(),
+  naoEncontradoDesde: integer("nao_encontrado_desde"),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("cliente_vobi_chave_nome_idx").on(t.chaveNome)]);
+
+// Decisão manual da coordenação para um projeto cujo nome de cliente é ambíguo (ou sem correspondência).
+// Vale enquanto o nome do cliente no projeto continuar o mesmo (chave_nome_csv); se o Vobi mudar o nome, a decisão deixa de ser aplicada.
+export const vinculosClienteManual = pgTable("vinculo_cliente_manual", {
+  projetoCodigo: integer("projeto_codigo").primaryKey(),
+  clienteCodigo: integer("cliente_codigo").notNull(),
+  chaveNomeCsv: text("chave_nome_csv").notNull(),
+  decididoPorId: integer("decidido_por_id").references(() => usuarios.id),
+  decididoEm: timestamp("decidido_em", { withTimezone: true }).notNull().defaultNow(),
+  observacao: text("observacao"),
+});
 
 export const tarefas = pgTable("tarefa", {
   chave: text("chave").primaryKey(), // codigo|etapa|nome|ocorrencia (provisória até a Vobi expor o ID)

@@ -1,8 +1,9 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 
 export async function ultimaCargaAceita() {
-  return (await db.select().from(schema.cargas).where(eq(schema.cargas.status, "aceita")).orderBy(desc(schema.cargas.id)).limit(1))[0] ?? null;
+  // só cargas de operação (Projetos+Tarefas); uma carga só de Clientes não muda a base da Operação
+  return (await db.select().from(schema.cargas).where(and(eq(schema.cargas.status, "aceita"), eq(schema.cargas.tipo, "operacao"))).orderBy(desc(schema.cargas.id)).limit(1))[0] ?? null;
 }
 
 export type Selo = { base: number; total: number; dataCarga: string; cargaId: number };

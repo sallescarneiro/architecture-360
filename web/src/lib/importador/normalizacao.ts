@@ -10,6 +10,15 @@ export const LAYOUT_TAREFAS_V1 = [
   "Responsável", "Horas realizadas (em minutos)", "prioridade", "Status",
 ];
 
+// Clientes (Cadastros › Contatos › Clientes › Ações › Exportar CSV) — layout completo do Vobi, só para validar o cabeçalho.
+export const LAYOUT_CLIENTES_V1 = [
+  "Código", "Nome", "Razão Social", "Email", "CPF/CNPJ", "RG/IE", "Data de nascimento", "Telefone", "Status",
+  "Criado em", "Observações", "CEP", "Rua", "Número", "Complemento", "Bairro", "Cidade", "Estado", "Tipo",
+];
+// Colunas que o A360 pode guardar. CPF/CNPJ, RG/IE, Data de nascimento, Observações e endereço (CEP, Rua, Número,
+// Complemento, Bairro) nunca entram — nem na área bruta, nem no conteúdo temporário da prévia.
+export const LAYOUT_CLIENTES_A360 = ["Código", "Nome", "Razão Social", "Email", "Telefone", "Status", "Criado em", "Cidade", "Estado", "Tipo"];
+
 // Parâmetros ajustáveis pela gestão (seção 4.2)
 export const LIMIAR_NAO_ENCONTRADOS = 0.15;
 export const LIMIAR_LINHAS_MINIMAS = 0.7;

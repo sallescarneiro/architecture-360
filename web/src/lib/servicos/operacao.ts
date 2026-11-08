@@ -24,6 +24,12 @@ export const LIMITACOES_ATUAIS: Limitacao[] = [
   { chave: "motivo_refacao", descricao: "O motivo das revisões (cliente, escopo, interno) não existe no Vobi." },
 ];
 
+/** Cliente do projeto para exibição: nome do cadastro Vobi, ou a situação do vínculo quando não resolvido. */
+function rotuloCliente(r: Record<string, unknown>): string {
+  if (r.cliente) return String(r.cliente);
+  return r.vinculo === "ambiguo" ? "(cliente ambíguo)" : "sem cliente associado";
+}
+
 export type PanoramaInterno = Awaited<ReturnType<typeof panoramaOperacao>>;
 
 export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRestrito?: string }) {
@@ -55,12 +61,12 @@ export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRes
         sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7
         from tarefa where ultima_carga=${cid} and ${abertas} and responsavel_email='${opts.emailRestrito.replace(/'/g, "''")}' group by 1`)
       : [];
-  const horasProj = await contagem(`select p.nome k, p.codigo, sum(t.horas_realizadas_min)::int min, sum(case when t.etapa_canonica='Refação' then t.horas_realizadas_min else 0 end)::int refacao
-     from tarefa t join projeto p on p.codigo=t.projeto_codigo where t.ultima_carga=${cid} and t.horas_realizadas_min>0 group by 1,2 order by 3 desc limit 15`);
+  const horasProj = await contagem(`select p.nome k, p.codigo, c.nome cliente, p.vinculo_cliente_status vinculo, sum(t.horas_realizadas_min)::int min, sum(case when t.etapa_canonica='Refação' then t.horas_realizadas_min else 0 end)::int refacao
+     from tarefa t join projeto p on p.codigo=t.projeto_codigo left join cliente_vobi c on c.codigo=p.cliente_codigo where t.ultima_carga=${cid} and t.horas_realizadas_min>0 group by 1,2,3,4 order by 5 desc limit 15`);
   const [horasTot] = await contagem(`select coalesce(sum(horas_realizadas_min),0)::int min, coalesce(sum(case when etapa_canonica='Refação' then horas_realizadas_min else 0 end),0)::int refacao,
      count(*) filter (where horas_realizadas_min>0)::int com_horas from tarefa where ultima_carga=${cid}`);
-  const revisoes = await contagem(`select p.nome k, p.codigo, count(*)::int n from tarefa t join projeto p on p.codigo=t.projeto_codigo
-     where t.ultima_carga=${cid} and (t.revisao>=1 or t.etapa_canonica='Refação') group by 1,2 order by 3 desc limit 15`);
+  const revisoes = await contagem(`select p.nome k, p.codigo, c.nome cliente, p.vinculo_cliente_status vinculo, count(*)::int n from tarefa t join projeto p on p.codigo=t.projeto_codigo
+     left join cliente_vobi c on c.codigo=p.cliente_codigo where t.ultima_carga=${cid} and (t.revisao>=1 or t.etapa_canonica='Refação') group by 1,2,3,4 order by 5 desc limit 15`);
   const porClasse = await contagem(`select classe_qualidade k, count(*)::int n from tarefa where ultima_carga=${cid} group by 1 order by 2 desc`);
   const recs = opts.incluirPessoas ? await recomendacoes(cid, hoje) : [];
 
@@ -72,8 +78,8 @@ export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRes
     porEtapa: porEtapa.map((r) => ({ rotulo: String(r.k), abertas: Number(r.abertas), vencidas: Number(r.vencidas) })),
     porPessoa: porPessoa.map((r) => ({ rotulo: String(r.k), abertas: Number(r.abertas), vencidas: Number(r.vencidas), d7: Number(r.d7) })),
     horas: { totalMin: Number(horasTot.min), refacaoMin: Number(horasTot.refacao), comHoras: Number(horasTot.com_horas),
-      porProjeto: horasProj.map((r) => ({ rotulo: String(r.k), codigo: Number(r.codigo), min: Number(r.min), refacaoMin: Number(r.refacao) })) },
-    revisoes: revisoes.map((r) => ({ rotulo: String(r.k), codigo: Number(r.codigo), valor: Number(r.n) })),
+      porProjeto: horasProj.map((r) => ({ rotulo: String(r.k), codigo: Number(r.codigo), cliente: rotuloCliente(r), min: Number(r.min), refacaoMin: Number(r.refacao) })) },
+    revisoes: revisoes.map((r) => ({ rotulo: String(r.k), codigo: Number(r.codigo), cliente: rotuloCliente(r), valor: Number(r.n) })),
     qualidade: porClasse.map((r) => ({ classe: String(r.k), tarefas: Number(r.n), entraEm: ENTRA_EM[String(r.k)] ?? "" })),
     recomendacoes: recs,
     limitacoes: LIMITACOES_ATUAIS,

@@ -1,0 +1,1332 @@
+{
+  "id": "3add1d41-1df8-47c3-bbc9-81ce390a33e7",
+  "prevId": "738177fe-80d0-47b9-9a69-6958ebecc14f",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.alerta": {
+      "name": "alerta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "carga_id": {
+          "name": "carga_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidade": {
+          "name": "entidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave": {
+          "name": "chave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detalhe": {
+          "name": "detalhe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "alerta_carga_idx": {
+          "name": "alerta_carga_idx",
+          "columns": [
+            {
+              "expression": "carga_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bruto_projeto": {
+      "name": "bruto_projeto",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "carga_id": {
+          "name": "carga_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linha": {
+          "name": "linha",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dados": {
+          "name": "dados",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "bruto_projeto_carga_idx": {
+          "name": "bruto_projeto_carga_idx",
+          "columns": [
+            {
+              "expression": "carga_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bruto_projeto_carga_id_carga_id_fk": {
+          "name": "bruto_projeto_carga_id_carga_id_fk",
+          "tableFrom": "bruto_projeto",
+          "tableTo": "carga",
+          "columnsFrom": [
+            "carga_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bruto_tarefa": {
+      "name": "bruto_tarefa",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "carga_id": {
+          "name": "carga_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linha": {
+          "name": "linha",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dados": {
+          "name": "dados",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "bruto_tarefa_carga_idx": {
+          "name": "bruto_tarefa_carga_idx",
+          "columns": [
+            {
+              "expression": "carga_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bruto_tarefa_carga_id_carga_id_fk": {
+          "name": "bruto_tarefa_carga_id_carga_id_fk",
+          "tableFrom": "bruto_tarefa",
+          "tableTo": "carga",
+          "columnsFrom": [
+            "carga_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.carga": {
+      "name": "carga",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'operacao'"
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_carga": {
+          "name": "data_carga",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enviado_por_id": {
+          "name": "enviado_por_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmado_por_id": {
+          "name": "confirmado_por_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arq_projetos": {
+          "name": "arq_projetos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hash_projetos": {
+          "name": "hash_projetos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linhas_projetos": {
+          "name": "linhas_projetos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arq_tarefas": {
+          "name": "arq_tarefas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hash_tarefas": {
+          "name": "hash_tarefas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linhas_tarefas": {
+          "name": "linhas_tarefas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conteudo_projetos": {
+          "name": "conteudo_projetos",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conteudo_tarefas": {
+          "name": "conteudo_tarefas",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arq_clientes": {
+          "name": "arq_clientes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hash_clientes": {
+          "name": "hash_clientes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linhas_clientes": {
+          "name": "linhas_clientes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conteudo_clientes": {
+          "name": "conteudo_clientes",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relatorio": {
+          "name": "relatorio",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "confirmado_em": {
+          "name": "confirmado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "carga_enviado_por_id_usuario_id_fk": {
+          "name": "carga_enviado_por_id_usuario_id_fk",
+          "tableFrom": "carga",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "enviado_por_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "carga_confirmado_por_id_usuario_id_fk": {
+          "name": "carga_confirmado_por_id_usuario_id_fk",
+          "tableFrom": "carga",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "confirmado_por_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cliente_vobi": {
+      "name": "cliente_vobi",
+      "schema": "",
+      "columns": {
+        "codigo": {
+          "name": "codigo",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave_nome": {
+          "name": "chave_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "razao_social": {
+          "name": "razao_social",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefone": {
+          "name": "telefone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cidade": {
+          "name": "cidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em_vobi": {
+          "name": "criado_em_vobi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'vobi'"
+        },
+        "primeira_carga": {
+          "name": "primeira_carga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ultima_carga": {
+          "name": "ultima_carga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nao_encontrado_desde": {
+          "name": "nao_encontrado_desde",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cliente_vobi_chave_nome_idx": {
+          "name": "cliente_vobi_chave_nome_idx",
+          "columns": [
+            {
+              "expression": "chave_nome",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.historico_alteracoes": {
+      "name": "historico_alteracoes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "carga_id": {
+          "name": "carga_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidade": {
+          "name": "entidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave": {
+          "name": "chave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campo": {
+          "name": "campo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_anterior": {
+          "name": "valor_anterior",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_novo": {
+          "name": "valor_novo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "hist_carga_idx": {
+          "name": "hist_carga_idx",
+          "columns": [
+            {
+              "expression": "carga_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pessoa_people": {
+      "name": "pessoa_people",
+      "schema": "",
+      "columns": {
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_people": {
+          "name": "id_people",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cargo": {
+          "name": "cargo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "funcao": {
+          "name": "funcao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "equipe": {
+          "name": "equipe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gestor_email": {
+          "name": "gestor_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coordenador_email": {
+          "name": "coordenador_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "atualizado_em_people": {
+          "name": "atualizado_em_people",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sincronizado_em": {
+          "name": "sincronizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "origem": {
+          "name": "origem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'people'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pessoa_vobi": {
+      "name": "pessoa_vobi",
+      "schema": "",
+      "columns": {
+        "nome_vobi": {
+          "name": "nome_vobi",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "chave_nome": {
+          "name": "chave_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_rucelle": {
+          "name": "email_rucelle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "pessoa_vobi_chave_idx": {
+          "name": "pessoa_vobi_chave_idx",
+          "columns": [
+            {
+              "expression": "chave_nome",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.projeto": {
+      "name": "projeto",
+      "schema": "",
+      "columns": {
+        "codigo": {
+          "name": "codigo",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave_nome": {
+          "name": "chave_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cliente": {
+          "name": "cliente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_classe": {
+          "name": "status_classe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metragem": {
+          "name": "metragem",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etiquetas": {
+          "name": "etiquetas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "colaboradores": {
+          "name": "colaboradores",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "primeira_carga": {
+          "name": "primeira_carga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ultima_carga": {
+          "name": "ultima_carga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nao_encontrado_desde": {
+          "name": "nao_encontrado_desde",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cliente_codigo": {
+          "name": "cliente_codigo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vinculo_cliente_status": {
+          "name": "vinculo_cliente_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sem_cliente'"
+        }
+      },
+      "indexes": {
+        "projeto_chave_nome_idx": {
+          "name": "projeto_chave_nome_idx",
+          "columns": [
+            {
+              "expression": "chave_nome",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "projeto_cliente_idx": {
+          "name": "projeto_cliente_idx",
+          "columns": [
+            {
+              "expression": "cliente_codigo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sessao": {
+      "name": "sessao",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expira_em": {
+          "name": "expira_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sessao_usuario_id_usuario_id_fk": {
+          "name": "sessao_usuario_id_usuario_id_fk",
+          "tableFrom": "sessao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sincronizacao_people": {
+      "name": "sincronizacao_people",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "em": {
+          "name": "em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pessoas": {
+          "name": "pessoas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "por_id": {
+          "name": "por_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sincronizacao_people_por_id_usuario_id_fk": {
+          "name": "sincronizacao_people_por_id_usuario_id_fk",
+          "tableFrom": "sincronizacao_people",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "por_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tarefa": {
+      "name": "tarefa",
+      "schema": "",
+      "columns": {
+        "chave": {
+          "name": "chave",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "projeto_codigo": {
+          "name": "projeto_codigo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "projeto_nome_csv": {
+          "name": "projeto_nome_csv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etapa_csv": {
+          "name": "etapa_csv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etapa_canonica": {
+          "name": "etapa_canonica",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etapa_conhecida": {
+          "name": "etapa_conhecida",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome_chave": {
+          "name": "nome_chave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocorrencia": {
+          "name": "ocorrencia",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "revisao": {
+          "name": "revisao",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prioridade": {
+          "name": "prioridade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_inicio": {
+          "name": "data_inicio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_fim": {
+          "name": "data_fim",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "horas_estimadas_min": {
+          "name": "horas_estimadas_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "horas_realizadas_min": {
+          "name": "horas_realizadas_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsavel_nome": {
+          "name": "responsavel_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsavel_email": {
+          "name": "responsavel_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sem_responsavel": {
+          "name": "sem_responsavel",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "sem_inicio": {
+          "name": "sem_inicio",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "sem_fim": {
+          "name": "sem_fim",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "orfa": {
+          "name": "orfa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "colisao": {
+          "name": "colisao",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "classe_qualidade": {
+          "name": "classe_qualidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primeira_carga": {
+          "name": "primeira_carga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ultima_carga": {
+          "name": "ultima_carga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nao_encontrado_desde": {
+          "name": "nao_encontrado_desde",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_nao_encontrado": {
+          "name": "motivo_nao_encontrado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tarefa_projeto_idx": {
+          "name": "tarefa_projeto_idx",
+          "columns": [
+            {
+              "expression": "projeto_codigo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tarefa_ultima_carga_idx": {
+          "name": "tarefa_ultima_carga_idx",
+          "columns": [
+            {
+              "expression": "ultima_carga",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.usuario": {
+      "name": "usuario",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "senha_hash": {
+          "name": "senha_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "perfil": {
+          "name": "perfil",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'arquiteta'"
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "usuario_email_unique": {
+          "name": "usuario_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.vinculo_cliente_manual": {
+      "name": "vinculo_cliente_manual",
+      "schema": "",
+      "columns": {
+        "projeto_codigo": {
+          "name": "projeto_codigo",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cliente_codigo": {
+          "name": "cliente_codigo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave_nome_csv": {
+          "name": "chave_nome_csv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decidido_por_id": {
+          "name": "decidido_por_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decidido_em": {
+          "name": "decidido_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "observacao": {
+          "name": "observacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vinculo_cliente_manual_decidido_por_id_usuario_id_fk": {
+          "name": "vinculo_cliente_manual_decidido_por_id_usuario_id_fk",
+          "tableFrom": "vinculo_cliente_manual",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "decidido_por_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

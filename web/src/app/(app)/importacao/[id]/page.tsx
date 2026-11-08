@@ -35,7 +35,7 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow="Dados · Importação Vobi" title={`Carga ${carga.id}`}
-        subtitle={<><Badge tone={ehPrevia ? "info" : carga.status === "aceita" ? "ok" : carga.status === "retida" ? "warn" : "neutral"}>{ehPrevia ? "prévia" : carga.status}</Badge> Exportação de {carga.dataCarga} · {carga.arqProjetos} ({carga.linhasProjetos} linhas) · {carga.arqTarefas} ({carga.linhasTarefas} linhas)
+        subtitle={<><Badge tone={ehPrevia ? "info" : carga.status === "aceita" ? "ok" : carga.status === "retida" ? "warn" : "neutral"}>{ehPrevia ? "prévia" : carga.status}</Badge> Exportação de {carga.dataCarga}{carga.arqProjetos && <> · {carga.arqProjetos} ({carga.linhasProjetos} linhas) · {carga.arqTarefas} ({carga.linhasTarefas} linhas)</>}{carga.arqClientes && <> · {carga.arqClientes} ({carga.linhasClientes} clientes)</>}
           {carga.motivo && <span className="mt-1 block whitespace-pre-wrap"><b>Motivo:</b> {carga.motivo}</span>}</>}
         actions={<Link href="/importacao" className="btn btn-secondary btn-sm">← Importação</Link>} />
 
@@ -56,19 +56,55 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
 
       {rel && (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="Projetos">
-              <div className="text-sm">{rel.projetos.linhas} linhas · <b>{rel.projetos.novos}</b> novos · <b>{rel.projetos.alterados}</b> alterados · <b>{rel.projetos.naoEncontrados}</b> não encontrados</div>
+          {rel.projetos && rel.tarefas && (<>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card title="Projetos">
+                <div className="text-sm">{rel.projetos.linhas} linhas · <b>{rel.projetos.novos}</b> novos · <b>{rel.projetos.alterados}</b> alterados · <b>{rel.projetos.naoEncontrados}</b> não encontrados</div>
+              </Card>
+              <Card title="Tarefas">
+                <div className="text-sm">{rel.tarefas.linhas} linhas · <b>{rel.tarefas.novas}</b> novas · <b>{rel.tarefas.alteradas}</b> alteradas · <b>{rel.tarefas.naoEncontradas}</b> não encontradas · <b>{rel.tarefas.orfas}</b> órfãs · <b>{rel.tarefas.colisoes}</b> colisões de chave</div>
+              </Card>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Tabela titulo="Projetos por status" dados={rel.projetos.porStatus} />
+              <Tabela titulo="Tarefas por status" dados={rel.tarefas.porStatus} />
+              <Tabela titulo="Qualidade das tarefas" dados={rel.tarefas.qualidade} rotulos={rotuloQualidade} />
+            </div>
+          </>)}
+          {rel.clientes && (
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card title="Clientes (Vobi, somente leitura)">
+                <div className="text-sm">{rel.clientes.linhas} linhas · <b>{rel.clientes.novos}</b> novos · <b>{rel.clientes.alterados}</b> alterados · <b>{rel.clientes.naoEncontrados}</b> não encontrados (mantidos){rel.clientes.semCodigo ? <> · <b>{rel.clientes.semCodigo}</b> sem código (ignorados)</> : null}</div>
+                <p className="mt-2 text-xs text-[var(--muted)]">Só os campos autorizados foram lidos. Nenhum cliente é apagado quando falta na exportação.</p>
+              </Card>
+              <Tabela titulo="Clientes por tipo" dados={rel.clientes.porTipo} rotulos={{ pf: "Pessoa física", pj: "Pessoa jurídica" }} />
+              <Tabela titulo="Clientes por status" dados={rel.clientes.porStatus} />
+            </div>
+          )}
+          {rel.vinculos && (
+            <Card title="Vínculo projeto × cliente (pelo nome normalizado)"
+              subtitle={<>Recalculado nesta carga. <b>{rel.vinculos.resolvidos}</b> resolvidos · <b>{rel.vinculos.manuais}</b> por decisão manual · <b>{rel.vinculos.ambiguos}</b> ambíguos (fila da coordenação) · <b>{rel.vinculos.semCliente}</b> sem cliente associado ({rel.vinculos.semNome} sem nome no Vobi) · <b>{rel.vinculos.alterados}</b> vínculos alterados nesta carga.</>}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="mb-1 text-sm font-semibold">Nomes ambíguos (mais de um cliente com o mesmo nome)</div>
+                  <table className="tbl"><tbody>
+                    {rel.vinculos.nomesAmbiguos.map((a) => <tr key={a.nome}><td>{a.nome}</td><td className="text-right">{a.projetos} proj. · códigos {a.candidatos.join(", ")}</td></tr>)}
+                    {!rel.vinculos.nomesAmbiguos.length && <tr><td className="text-[var(--muted)]">nenhum</td></tr>}
+                  </tbody></table>
+                  {rel.vinculos.nomesAmbiguos.length > 0 && <Link href="/clientes#fila" className="text-xs underline">resolver em Clientes</Link>}
+                </div>
+                <div>
+                  <div className="mb-1 text-sm font-semibold">Nomes sem cadastro correspondente</div>
+                  <table className="tbl"><tbody>
+                    {rel.vinculos.nomesSemCorrespondencia.slice(0, 30).map((a) => <tr key={a.nome}><td>{a.nome}</td><td className="text-right">{a.projetos} proj.</td></tr>)}
+                    {rel.vinculos.nomesSemCorrespondencia.length > 30 && <tr><td className="text-[var(--muted)]">… e mais {rel.vinculos.nomesSemCorrespondencia.length - 30}</td></tr>}
+                    {!rel.vinculos.nomesSemCorrespondencia.length && <tr><td className="text-[var(--muted)]">nenhum</td></tr>}
+                  </tbody></table>
+                </div>
+              </div>
+              {rel.vinculos.manuaisInvalidados.length > 0 && <Alert kind="warn"><b>Decisões manuais não aplicadas:</b> {rel.vinculos.manuaisInvalidados.map((m) => `projeto ${m.projeto} (${m.motivo})`).join("; ")}</Alert>}
             </Card>
-            <Card title="Tarefas">
-              <div className="text-sm">{rel.tarefas.linhas} linhas · <b>{rel.tarefas.novas}</b> novas · <b>{rel.tarefas.alteradas}</b> alteradas · <b>{rel.tarefas.naoEncontradas}</b> não encontradas · <b>{rel.tarefas.orfas}</b> órfãs · <b>{rel.tarefas.colisoes}</b> colisões de chave</div>
-            </Card>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Tabela titulo="Projetos por status" dados={rel.projetos.porStatus} />
-            <Tabela titulo="Tarefas por status" dados={rel.tarefas.porStatus} />
-            <Tabela titulo="Qualidade das tarefas" dados={rel.tarefas.qualidade} rotulos={rotuloQualidade} />
-          </div>
+          )}
           <div className="grid gap-4 md:grid-cols-3">
             <Tabela titulo="Anomalias (alertas por tipo)" dados={rel.alertasPorTipo} />
             <Tabela titulo="Etapas não mapeadas" dados={rel.etapasNaoMapeadas} />

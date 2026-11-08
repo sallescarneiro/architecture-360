@@ -71,13 +71,13 @@ export default async function OperacaoPage() {
       <div className="mb-5 grid gap-4 md:grid-cols-2">
         <Card title="Horas realizadas acumuladas por projeto"
           subtitle={`Total ${minutosParaHoras(p.horas.totalMin)} h, das quais ${minutosParaHoras(p.horas.refacaoMin)} h em Refação (${pct(p.horas.refacaoMin, p.horas.totalMin)}%). Horas agregadas por tarefa, sem data de lançamento.`}>
-          <table className="tbl"><thead><tr><th>Projeto</th><th>Horas</th><th>Em Refação</th></tr></thead><tbody>
-            {p.horas.porProjeto.map((r) => <tr key={r.codigo}><td>{r.rotulo}</td><td>{minutosParaHoras(r.min)}</td><td>{minutosParaHoras(r.refacaoMin)}</td></tr>)}</tbody></table>
+          <table className="tbl"><thead><tr><th>Projeto</th><th>Cliente</th><th>Horas</th><th>Em Refação</th></tr></thead><tbody>
+            {p.horas.porProjeto.map((r) => <tr key={r.codigo}><td><Link className="underline" href={`/projetos/${r.codigo}`}>{r.rotulo}</Link></td><td className="text-[var(--txt-2)]">{r.cliente}</td><td>{minutosParaHoras(r.min)}</td><td>{minutosParaHoras(r.refacaoMin)}</td></tr>)}</tbody></table>
           <Selo s={selo(p.horas.comHoras, p.total, carga)} rotulo="tarefas com horas lançadas" />
         </Card>
         <Card title="Tarefas de revisão por projeto (R01+ ou etapa Refação)" subtitle="Sinal de retrabalho, não causa: o motivo (cliente, interno, fornecedor) não existe no Vobi.">
-          <table className="tbl"><thead><tr><th>Projeto</th><th>Tarefas</th></tr></thead><tbody>
-            {p.revisoes.map((r) => <tr key={r.codigo}><td>{r.rotulo}</td><td>{r.valor}</td></tr>)}</tbody></table>
+          <table className="tbl"><thead><tr><th>Projeto</th><th>Cliente</th><th>Tarefas</th></tr></thead><tbody>
+            {p.revisoes.map((r) => <tr key={r.codigo}><td><Link className="underline" href={`/projetos/${r.codigo}`}>{r.rotulo}</Link></td><td className="text-[var(--txt-2)]">{r.cliente}</td><td>{r.valor}</td></tr>)}</tbody></table>
         </Card>
       </div>
 

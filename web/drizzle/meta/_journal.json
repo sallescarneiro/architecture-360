@@ -15,6 +15,13 @@
       "when": 1793899592843,
       "tag": "0001_people_e_exportacao",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794177588782,
+      "tag": "0002_clientes_vobi",
+      "breakpoints": true
     }
   ]
 }
