@@ -31,11 +31,13 @@ export async function resumoVinculos() {
 
 /** Fila da coordenação: projetos ambíguos (com candidatos de mesmo nome) e sem correspondência, mais os já decididos manualmente. */
 export async function filaVinculos() {
+  const clientes = await db.select({ codigo: schema.clientesVobi.codigo, nome: schema.clientesVobi.nome, chaveNome: schema.clientesVobi.chaveNome, cidade: schema.clientesVobi.cidade, estado: schema.clientesVobi.estado, tipo: schema.clientesVobi.tipo, status: schema.clientesVobi.status, criadoEmVobi: schema.clientesVobi.criadoEmVobi })
+    .from(schema.clientesVobi).orderBy(asc(schema.clientesVobi.nome));
+  // sem clientes importados não há o que decidir: a fila fica vazia em vez de listar todos os projetos
+  if (!clientes.length) return { projetos: [], clientes, manuais: new Map<number, { p: number; c: number; em: Date; por: string | null; obs: string | null }>() };
   const projetos = await db.select().from(schema.projetos)
     .where(and(isNull(schema.projetos.naoEncontradoDesde), sql`${schema.projetos.vinculoClienteStatus} in ('ambiguo','manual') or (${schema.projetos.vinculoClienteStatus}='sem_cliente' and coalesce(${schema.projetos.cliente},'')<>'')`))
     .orderBy(asc(schema.projetos.vinculoClienteStatus), asc(schema.projetos.nome));
-  const clientes = await db.select({ codigo: schema.clientesVobi.codigo, nome: schema.clientesVobi.nome, chaveNome: schema.clientesVobi.chaveNome, cidade: schema.clientesVobi.cidade, estado: schema.clientesVobi.estado, tipo: schema.clientesVobi.tipo, status: schema.clientesVobi.status, criadoEmVobi: schema.clientesVobi.criadoEmVobi })
-    .from(schema.clientesVobi).orderBy(asc(schema.clientesVobi.nome));
   const manuais = new Map((await db.select({ p: schema.vinculosClienteManual.projetoCodigo, c: schema.vinculosClienteManual.clienteCodigo, em: schema.vinculosClienteManual.decididoEm, por: schema.usuarios.nome, obs: schema.vinculosClienteManual.observacao })
     .from(schema.vinculosClienteManual).leftJoin(schema.usuarios, eq(schema.vinculosClienteManual.decididoPorId, schema.usuarios.id))).map((m) => [m.p, m]));
   return { projetos, clientes, manuais };
