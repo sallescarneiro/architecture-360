@@ -8,7 +8,7 @@ Um projeto Railway próprio (`architecture-360`, separado da Central de Operaç�
 
 | Serviço | O que é | Observações |
 | --- | --- | --- |
-| `web` | Next.js 15 (este diretório `web/`), build Nixpacks, 1 réplica | Root Directory = `web`. Start aplica as migrações e sobe o Next. Health check em `/api/health`. |
+| `web` | Next.js 15 (este diretório `web/`), builder **Railpack** (padrão do Railway), 1 réplica | Root Directory = `web`. **Start Command e Healthcheck Path são definidos nas Settings do serviço** (`npm run start:railway` e `/api/health`): o Railway descontinuou o Config-as-code (`railway.json`) e deixou de aplicá-lo — detectado e corrigido em 08/11/2026 (T-181). O start aplica as migrações e sobe o Next. |
 | `Postgres` | PostgreSQL gerenciado do Railway (plugin oficial) | Volume persistente criado pelo Railway. `DATABASE_URL` entregue por referência ao serviço `web`. |
 
 Sem workers, sem filas, sem armazenamento de arquivos: os CSVs ficam no banco só enquanto uma prévia aguarda confirmação e são apagados ao confirmar/descartar.
@@ -62,7 +62,7 @@ Você deve verificar: o plano atual da conta Railway (a Central foi criada em tr
 Pré-requisitos: acesso ao Railway e ao GitHub `sallescarneiro/architecture-360`; Railway CLI instalado localmente (`npm i -g @railway/cli`) para a criação do primeiro admin.
 
 1. **Criar o projeto** no Railway: *New Project → Deploy from GitHub repo* → `sallescarneiro/architecture-360`.
-2. No serviço criado, **Settings → Root Directory** = `web`. O `railway.json` do diretório define build, start e health check.
+2. No serviço criado, **Settings → Root Directory** = `web`; **Settings → Deploy → Custom Start Command** = `npm run start:railway`; **Healthcheck Path** = `/api/health`. (O `railway.json` fica no repositório só como referência; o Railway não o aplica mais.)
 3. **Adicionar o Postgres**: *+ New → Database → PostgreSQL*.
 4. No serviço `web`, **Variables**: `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `SESSION_DIAS` = `7`.
 5. Fazer o deploy (o Railway inicia sozinho após as variáveis). Aguardar o health check verde: o start já aplicou as migrações.
