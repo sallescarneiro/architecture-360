@@ -11,7 +11,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const u = await exigirUsuario();
   const groups: NavGroup[] = [
     { label: "Operação", items: [
-      { href: "/", label: "Operação", icon: "home" },
+      { href: "/meu-dia", label: "Meu dia", icon: "home" },
+      { href: "/panorama", label: "Panorama", icon: "bolt" },
       { href: "/qualidade", label: "Qualidade dos dados", icon: "check" },
     ] },
     { label: "Dados", items: [

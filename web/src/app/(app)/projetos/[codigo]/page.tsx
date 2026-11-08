@@ -36,7 +36,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
       <PageHeader eyebrow="Operação · Projeto" title={p.nome}
         subtitle={<>Cód. Vobi {p.codigo} · <Badge tone={p.statusClasse === "encerrado" ? "neutral" : p.statusClasse === "pausado" ? "warn" : "ok"}>{p.status}</Badge> · criado em {p.criadoEm ?? "—"}{p.metragem ? ` · ${p.metragem} m²` : ""}{p.etiquetas.length ? ` · ${p.etiquetas.join(", ")}` : ""}
           <span className="mt-1 block text-xs">Origem: Vobi{carga ? ` · carga ${carga.id} de ${carga.dataCarga}` : ""}{p.naoEncontradoDesde ? " · não encontrado na última exportação" : ""} <Badge tone="neutral">somente leitura</Badge></span></>}
-        actions={<Link href="/" className="btn btn-secondary btn-sm">← Operação</Link>} />
+        actions={<Link href="/meu-dia" className="btn btn-secondary btn-sm">← Meu dia</Link>} />
 
       <Card title="Cliente"><div className="text-sm">{clienteBloco}</div></Card>
 
