@@ -52,7 +52,17 @@ export async function enviarTranscricao(u: Usuario, r: Reuniao, arquivo: File): 
   return { ok: true, id };
 }
 
-const chaveTexto = (s: string) => createHash("sha1").update(s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim()).digest("hex").slice(0, 16);
+const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const chaveTexto = (s: string) => createHash("sha1").update(normalizar(s)).digest("hex").slice(0, 16);
+const STOP = new Set(["a", "o", "e", "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas", "para", "por", "com", "um", "uma", "que", "se", "ao", "as", "os", "ate", "ser", "foi", "sera", "the", "of"]);
+const palavras = (s: string) => new Set(normalizar(s).split(" ").filter((w) => w.length > 2 && !STOP.has(w)));
+/** Similaridade de Jaccard entre conjuntos de palavras (0–1). Dois itens com ≥ 0,5 são tratados como o mesmo registro. */
+export function similaridade(a: string, b: string): number {
+  const A = palavras(a), B = palavras(b); if (!A.size || !B.size) return 0;
+  let inter = 0; for (const w of A) if (B.has(w)) inter++;
+  return inter / (A.size + B.size - inter);
+}
+const LIMIAR_DUPLICADO = 0.5;
 
 /** Processa a transcrição atual (ou a indicada): gera a ata e alimenta os itens. Nunca duplica um processamento em andamento. */
 export async function processarTranscricao(u: Usuario, r: Reuniao, transcricaoId?: number, forcar = false): Promise<{ ok: true; processamentoId: number; estado: string; reaproveitado?: boolean } | { ok: false; erro: string }> {
@@ -106,14 +116,22 @@ async function contextoDaReuniao(r: Reuniao) {
 
 /** Registra a ata e cria itens não confirmados; itens com texto equivalente a um já existente não são duplicados. */
 async function aplicarAta(u: Usuario, r: Reuniao, ata: AtaEstruturada, processamentoId: number, provedor: string): Promise<number> {
-  const existentes = new Set((await db.select({ texto: schema.itensReuniao.texto, tipo: schema.itensReuniao.tipo }).from(schema.itensReuniao).where(eq(schema.itensReuniao.reuniaoId, r.id))).map((i) => `${i.tipo}:${chaveTexto(i.texto)}`));
+  // Itens extraídos por processamentos anteriores que ninguém confirmou são substituídos (cancelados com registro), nunca duplicados.
+  const anteriores = await db.select().from(schema.itensReuniao).where(and(eq(schema.itensReuniao.reuniaoId, r.id), eq(schema.itensReuniao.confirmado, false)));
+  const substituidos = anteriores.filter((i) => i.processamentoId && i.processamentoId !== processamentoId && i.situacao !== "cancelado");
+  if (substituidos.length) await db.update(schema.itensReuniao).set({ situacao: "cancelado", confirmado: true }).where(and(eq(schema.itensReuniao.reuniaoId, r.id), eq(schema.itensReuniao.confirmado, false)));
+  // Itens vigentes (manuais ou confirmados) — um novo item igual ou muito parecido não entra.
+  const vigentes = (await db.select({ texto: schema.itensReuniao.texto, tipo: schema.itensReuniao.tipo, situacao: schema.itensReuniao.situacao }).from(schema.itensReuniao).where(eq(schema.itensReuniao.reuniaoId, r.id))).filter((i) => i.situacao !== "cancelado");
+  const existentes = new Set(vigentes.map((i) => `${i.tipo}:${chaveTexto(i.texto)}`));
+  const parecido = (tipo: string, texto: string) => vigentes.some((v) => v.tipo === tipo && similaridade(v.texto, texto) >= LIMIAR_DUPLICADO);
   const novos: (typeof schema.itensReuniao.$inferInsert)[] = [];
-  const add = (tipo: string, lista: ItemAta[]) => { for (const i of lista) { const k = `${tipo}:${chaveTexto(i.texto)}`; if (existentes.has(k)) continue; existentes.add(k);
+  const add = (tipo: string, lista: ItemAta[]) => { for (const i of lista) { const k = `${tipo}:${chaveTexto(i.texto)}`; if (existentes.has(k) || parecido(tipo, i.texto)) continue; existentes.add(k); vigentes.push({ texto: i.texto, tipo, situacao: "aberto" });
     novos.push({ reuniaoId: r.id, tipo, texto: i.texto, responsavel: tipo === "encaminhamento" ? i.responsavel ?? null : null, prazo: tipo === "encaminhamento" && i.prazo && /^\d{4}-\d{2}-\d{2}$/.test(i.prazo) ? i.prazo : null, situacao: tipo === "encaminhamento" ? "aberto" : "registrado", criadoPor: u.id, origem: provedor === "regras" ? "regras" : "ia", confianca: i.confianca, trecho: i.trecho ?? null, tempo: i.tempo ?? (i.prazo && !/^\d{4}-\d{2}-\d{2}$/.test(i.prazo) ? `prazo mencionado: ${i.prazo}` : null), processamentoId, confirmado: false }); } };
   add("decisao", ata.decisoes); add("aprovacao", ata.aprovacoes); add("encaminhamento", ata.encaminhamentos);
   const textoAta = ataParaTexto(ata);
   await db.transaction(async (tx) => {
     if (novos.length) await tx.insert(schema.itensReuniao).values(novos);
+    if (substituidos.length) await tx.insert(schema.historicoReuniao).values({ reuniaoId: r.id, usuarioId: u.id, acao: "itens_substituidos", resumo: `${substituidos.length} item(ns) extraído(s) não confirmado(s) substituído(s) pelo reprocessamento #${processamentoId}`, antes: { itens: substituidos.map((i) => i.id) }, depois: { processamentoId } });
     const antes = r.ata;
     // A ata manual, se existir, é preservada abaixo da gerada (nada se perde); versões ficam no histórico.
     const ataFinal = antes && r.ataOrigem === "manual" ? `${textoAta}\n\n— Ata manual anterior —\n${antes}` : textoAta;

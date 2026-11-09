@@ -20,14 +20,18 @@ export async function garantirFlag(f: NovaFlag): Promise<number> {
 
 /** Resolve automaticamente uma flag quando a limitação deixou de existir (ex.: chave de IA configurada). */
 export async function resolverFlag(chave: string, justificativa: string) {
-  await db.update(schema.flagsLimitacao).set({ situacao: "resolvida", justificativa, decididoEm: new Date(), atualizadoEm: new Date() }).where(and(eq(schema.flagsLimitacao.chave, chave), eq(schema.flagsLimitacao.situacao, "aberta")));
+  // Resolve a flag aberta; se já estiver resolvida com justificativa genérica (sem evidência), regrava com a evidência real.
+  const f = (await db.select().from(schema.flagsLimitacao).where(eq(schema.flagsLimitacao.chave, chave)).limit(1))[0];
+  if (!f) return;
+  if (f.situacao === "aberta" || (f.situacao === "resolvida" && (!f.justificativa || /^ANTHROPIC_API_KEY configurada/.test(f.justificativa))))
+    await db.update(schema.flagsLimitacao).set({ situacao: "resolvida", justificativa, decididoEm: new Date(), atualizadoEm: new Date() }).where(eq(schema.flagsLimitacao.id, f.id));
 }
 
 /** Flags gerais da integração (uma por lacuna conhecida) + flag de IA. Idempotente; chamado ao abrir o inventário ou uma análise. */
 export async function garantirFlagsGerais() {
   for (const l of LACUNAS) await garantirFlag({ chave: `geral.${l.chave}`, projetoCodigo: null, comparacao: l.necessarioPara, dadoAusente: l.dado, informacaoNecessaria: l.dado, origemEsperada: "vobi", tipo: l.tipo, analisesComprometidas: l.necessarioPara, alternativa: l.alternativa });
-  if (iaConfigurada()) await resolverFlag(`geral.${LACUNAS_A360.ia.chave}`, "ANTHROPIC_API_KEY configurada no ambiente.");
-  else await garantirFlag({ chave: `geral.${LACUNAS_A360.ia.chave}`, projetoCodigo: null, comparacao: LACUNAS_A360.ia.necessarioPara, dadoAusente: LACUNAS_A360.ia.dado, informacaoNecessaria: LACUNAS_A360.ia.dado, origemEsperada: "a360", tipo: LACUNAS_A360.ia.tipo, analisesComprometidas: "atas automáticas, extração de decisões/encaminhamentos, cruzamento A360×Vobi, identificação de divergências", alternativa: LACUNAS_A360.ia.alternativa });
+  // A flag de IA NÃO se resolve pela presença da chave: só uma chamada real bem-sucedida (processarTranscricao) a encerra, com evidência.
+  if (!iaConfigurada()) await garantirFlag({ chave: `geral.${LACUNAS_A360.ia.chave}`, projetoCodigo: null, comparacao: LACUNAS_A360.ia.necessarioPara, dadoAusente: LACUNAS_A360.ia.dado, informacaoNecessaria: LACUNAS_A360.ia.dado, origemEsperada: "a360", tipo: LACUNAS_A360.ia.tipo, analisesComprometidas: "atas automáticas, extração de decisões/encaminhamentos, cruzamento A360×Vobi, identificação de divergências", alternativa: LACUNAS_A360.ia.alternativa });
 }
 
 /** Flags por projeto: produção não comparável (sempre, com os dados atuais) e, quando faltar, aprovação/apresentação no Vobi. */

@@ -34,7 +34,7 @@ export type RelatorioValidacao = {
   chamada: { httpStatus: number | null; duracaoMs: number | null; modeloRetornado: string | null; tokensEntrada: number | null; tokensSaida: number | null; custoUsd: number | null } | { erro: string };
   ata: { origem: string | null; caracteres: number; resumo: boolean; assuntos: number; decisoes: number; aprovacoes: number; encaminhamentos: number; pendencias: number; duvidas: number; comResponsavel: number; comPrazo: number } | null;
   itensPersistidos: { decisao: number; aprovacao: number; encaminhamento: number; comTrecho: number; comResponsavel: number; comPrazo: number } | null;
-  reprocessamento: { reaproveitadoSemChamada: boolean; forcadoCriouItens: number | null } | null;
+  reprocessamento: { reaproveitadoSemChamada: boolean; forcadoCriouItens: number | null; vigentesAntes: number; vigentesDepois: number; substituidos: number } | null;
   flagIa: string | null;
   ok: boolean; erros: string[];
 };
@@ -69,11 +69,16 @@ export async function validarIntegracaoIA(u: Usuario): Promise<RelatorioValidaca
   if (!a?.decisoes.length || !a?.aprovacoes.length || !a?.encaminhamentos.length) rel.erros.push("A ata não trouxe decisões, aprovações e encaminhamentos (esperados na transcrição de teste).");
   void itens;
   // 8. reprocessamento: sem forçar → reaproveita (nenhuma chamada); forçando → nova chamada, zero itens novos
+  const vigentes = async () => (await db.select({ s: schema.itensReuniao.situacao }).from(schema.itensReuniao).where(eq(schema.itensReuniao.reuniaoId, r.id))).filter((i) => i.s !== "cancelado").length;
+  const vigentesAntes = await vigentes();
   const p2 = await processarTranscricao(u, r, env.id, false);
   const p3 = await processarTranscricao(u, r, env.id, true);
   const novos3 = p3.ok ? (await db.select({ n: schema.processamentos.itensCriados }).from(schema.processamentos).where(eq(schema.processamentos.id, p3.processamentoId)))[0]?.n ?? null : null;
-  rel.reprocessamento = { reaproveitadoSemChamada: Boolean(p2.ok && p2.reaproveitado), forcadoCriouItens: novos3 };
-  if (novos3 && novos3 > 0) rel.erros.push(`Reprocessamento forçado criou ${novos3} itens duplicados.`);
+  const vigentesDepois = await vigentes();
+  const substituidos = (await db.select({ s: schema.itensReuniao.situacao, p: schema.itensReuniao.processamentoId }).from(schema.itensReuniao).where(eq(schema.itensReuniao.reuniaoId, r.id))).filter((i) => i.s === "cancelado" && i.p === proc.processamentoId).length;
+  rel.reprocessamento = { reaproveitadoSemChamada: Boolean(p2.ok && p2.reaproveitado), forcadoCriouItens: novos3, vigentesAntes, vigentesDepois, substituidos };
+  // Critério: o reprocessamento forçado substitui os itens não confirmados (podem ser reescritos), mas o total vigente não cresce.
+  if (vigentesDepois > vigentesAntes) rel.erros.push(`Reprocessamento forçado aumentou os itens vigentes de ${vigentesAntes} para ${vigentesDepois} (duplicidade).`);
   if (!p3.ok) rel.erros.push(`Reprocessamento forçado falhou: ${p3.erro}`);
   rel.flagIa = (await db.select({ s: schema.flagsLimitacao.situacao }).from(schema.flagsLimitacao).where(eq(schema.flagsLimitacao.chave, "geral.a360.ia")).limit(1))[0]?.s ?? null;
   rel.ok = rel.erros.length === 0;
