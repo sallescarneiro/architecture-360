@@ -54,23 +54,36 @@ function Cabecalho({ titulo, ctx, periodo, executiva }: { titulo: string; ctx: C
 // ---------------------------------------------------------------------------
 // Gráficos próprios (sem biblioteca): barras horizontais com rótulo e número sempre visíveis; colunas SVG para as semanas.
 // ---------------------------------------------------------------------------
-type Barra = { rotulo: string; valor: number; destaque?: number; href?: string; tom?: string };
-function Barras({ itens, legenda, cor = "var(--vinho)", corDestaque = "var(--st-relevante)", vazio = "nenhum" }: { itens: Barra[]; legenda?: ReactNode; cor?: string; corDestaque?: string; vazio?: string }) {
+type Barra = { rotulo: string; valor: number; destaque?: number; href?: string; hrefDestaque?: string; tom?: string; tip?: string; tipDestaque?: string };
+/** Barras horizontais: a linha inteira é um link (quando há destino), com tooltip próprio (categoria · valor · %); o trecho "atrasadas" tem clique e tooltip separados. */
+function Barras({ itens, legenda, cor = "var(--vinho)", corDestaque = "var(--st-relevante)", vazio = "nenhum", unidade = "tarefas" }: { itens: Barra[]; legenda?: ReactNode; cor?: string; corDestaque?: string; vazio?: string; unidade?: string }) {
   const max = Math.max(1, ...itens.map((i) => i.valor));
+  const total = itens.reduce((a, i) => a + i.valor, 0);
   if (!itens.length) return <p className="text-sm text-[var(--muted)]">{vazio}</p>;
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       {itens.map((i) => {
         const w = (i.valor / max) * 100, wd = i.destaque ? (i.destaque / max) * 100 : 0;
-        const rot = i.href ? <Link className="truncate underline-offset-2 hover:underline" href={i.href}>{i.rotulo}</Link> : <span className="truncate">{i.rotulo}</span>;
+        const tip = i.tip ?? `${i.rotulo}\n${i.valor} ${unidade} · ${pct(i.valor, total)}% do total${i.destaque ? ` · ${i.destaque} atrasadas` : ""}`;
+        const corpo = (
+          <>
+            <span className="gbar-rot truncate text-[0.8rem]">{i.rotulo}</span>
+            <span className="relative block h-[14px] overflow-hidden rounded-[4px] bg-[var(--surface-2)]">
+              <span className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: `${w}%`, background: i.tom ?? cor, opacity: 0.85 }} />
+              {wd > 0 && <span className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: `${wd}%`, background: corDestaque }} />}
+            </span>
+            <span className="whitespace-nowrap text-right text-[0.8rem] font-semibold tabular-nums">{i.valor}</span>
+          </>
+        );
         return (
-          <div key={i.rotulo} className="grid grid-cols-[minmax(7rem,11rem)_1fr_auto] items-center gap-2 text-[0.8rem]" title={`${i.rotulo}: ${i.valor}${i.destaque ? ` (${i.destaque} atrasadas)` : ""}`}>
-            {rot}
-            <div className="relative h-[14px] overflow-hidden rounded-[4px] bg-[var(--surface-2)]">
-              <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: `${w}%`, background: i.tom ?? cor, opacity: 0.85 }} />
-              {wd > 0 && <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: `${wd}%`, background: corDestaque }} />}
-            </div>
-            <span className="whitespace-nowrap text-right font-semibold tabular-nums">{i.valor}{i.destaque ? <span className="ml-1 font-medium text-[var(--st-relevante)]">· {i.destaque}</span> : null}</span>
+          <div key={i.rotulo} className="flex items-center gap-1">
+            {i.href ? <Link href={i.href} className="gbar tip flex-1" data-tip={tip} aria-label={tip.replace(/\n/g, " · ")}>{corpo}</Link>
+              : <span className="gbar tip flex-1" data-tip={tip} tabIndex={0}>{corpo}</span>}
+            {i.destaque ? (
+              i.hrefDestaque
+                ? <Link href={i.hrefDestaque} className="tip tip-r w-[3.2rem] whitespace-nowrap text-right text-[0.78rem] font-semibold text-[var(--st-relevante)] underline-offset-2 hover:underline" data-tip={i.tipDestaque ?? `${i.rotulo}\n${i.destaque} atrasadas · ${pct(i.destaque, i.valor)}% das ${i.valor} abertas`}>· {i.destaque}</Link>
+                : <span className="w-[3.2rem] text-right text-[0.78rem] font-semibold text-[var(--st-relevante)]">· {i.destaque}</span>
+            ) : <span className="w-[3.2rem]" />}
           </div>
         );
       })}
@@ -79,26 +92,26 @@ function Barras({ itens, legenda, cor = "var(--vinho)", corDestaque = "var(--st-
   );
 }
 
-function Colunas({ semanas, hoje }: { semanas: Semana[]; hoje: string }) {
+/** Colunas das próximas 4 semanas: cada coluna abre /tarefas filtrada pela janela daquela semana. */
+function Colunas({ semanas, hoje, L }: { semanas: Semana[]; hoje: string; L: (base: string, q: Record<string, string | number | null | undefined | boolean>) => string }) {
   const max = Math.max(1, ...semanas.map((s) => s.tarefas));
-  const W = 320, H = 150, pad = 8, gw = (W - pad * 2) / semanas.length;
+  const total = semanas.reduce((a, s) => a + s.tarefas, 0);
   return (
     <figure className="m-0">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Tarefas com prazo nas próximas quatro semanas" className="block h-auto w-full max-w-[420px]">
+      <div className="gcol" role="list" aria-label="Tarefas com prazo nas próximas quatro semanas">
         {semanas.map((s, i) => {
-          const h = Math.round((s.tarefas / max) * (H - 54)), x = pad + i * gw + gw * 0.18, bw = gw * 0.64, y = H - 34 - h;
+          const h = Math.max(2, Math.round((s.tarefas / max) * 100));
+          const tip = `${fmt(s.inicio)} a ${fmt(s.fim)}\n${s.tarefas} tarefas com prazo · ${pct(s.tarefas, total)}% das ${total} nas 4 semanas`;
           return (
-            <g key={s.inicio}>
-              <title>{`${fmt(s.inicio)} a ${fmt(s.fim)}: ${s.tarefas} tarefa(s) com prazo`}</title>
-              <rect x={x} y={y} width={bw} height={h} rx={4} fill={i === 0 ? "var(--st-hoje)" : "var(--vinho)"} opacity={0.88} />
-              <text x={x + bw / 2} y={y - 6} textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--txt)">{s.tarefas}</text>
-              <text x={x + bw / 2} y={H - 18} textAnchor="middle" fontSize="10.5" fill="var(--txt-2)">{fmtCurto(s.inicio)}–{fmtCurto(s.fim)}</text>
-              <text x={x + bw / 2} y={H - 5} textAnchor="middle" fontSize="9.5" fill="var(--muted)">{i === 0 ? "esta semana" : `semana ${i + 1}`}</text>
-            </g>
+            <Link key={s.inicio} role="listitem" href={L("/tarefas", { prazo: "abertas", de: i * 7, janela: i * 7 + 6 })} className="tip" data-tip={tip} aria-label={tip.replace(/\n/g, " · ")}>
+              <span className="gcol-val">{s.tarefas}</span>
+              <span className="gcol-bar" style={{ height: `${h}%`, background: i === 0 ? "var(--st-hoje)" : undefined }} />
+              <span className="gcol-lab">{fmtCurto(s.inicio)}–{fmtCurto(s.fim)}<br />{i === 0 ? "esta semana" : `semana ${i + 1}`}</span>
+            </Link>
           );
         })}
-      </svg>
-      <figcaption className="mt-1 text-[0.72rem] text-[var(--muted)]">Tarefas abertas com prazo em cada janela de 7 dias a partir de hoje ({fmt(hoje)}). Atrasadas não entram aqui.</figcaption>
+      </div>
+      <figcaption className="mt-1 text-[0.72rem] text-[var(--muted)]">Tarefas abertas com prazo em cada janela de 7 dias a partir de hoje ({fmt(hoje)}). Atrasadas não entram aqui. Clique numa coluna para ver a lista.</figcaption>
     </figure>
   );
 }
@@ -135,18 +148,18 @@ function Decisoes({ itens, titulo }: { itens: Item[]; titulo: string }) {
   );
 }
 
-function Criticos({ projetos, total }: { projetos: ProjetoResumo[]; total: number }) {
+function Criticos({ projetos, total, L }: { projetos: ProjetoResumo[]; total: number; L: (b: string, q: Record<string, string | number | null | undefined | boolean>) => string }) {
   const lista = projetos.slice(0, 8);
   return (
     <Bloco titulo="Projetos críticos" sub={`${projetos.length} de ${total} ativos · atrasadas ou refação alta`}
-      acao={<Link className="text-[0.8rem] font-semibold text-[var(--vinho)]" href="/projetos?situacao=acompanhar">Ver todos →</Link>}>
+      acao={<Link className="text-[0.8rem] font-semibold text-[var(--vinho)]" href={L("/projetos", { situacao: "acompanhar" })}>Ver todos →</Link>}>
       {lista.length ? (
         <div className="overflow-x-auto"><table className="tbl">
           <thead><tr><th>Projeto · cliente</th><th>Atras.</th><th>Próx. prazo</th><th>Por quê</th><th></th></tr></thead>
           <tbody>{lista.map((p) => (
             <tr key={p.codigo}>
               <td><Link className="ent" href={`/projetos/${p.codigo}`}>{p.nome}</Link><span className="sub">{p.cliente ?? (p.vinculo === "ambiguo" ? "cliente ambíguo" : "sem cliente associado")}</span></td>
-              <td>{p.atrasadas ? <Link className="num-relevante font-semibold underline" href={urlCom("/tarefas", {}, { projeto: p.codigo, prazo: "atrasadas" })}>{p.atrasadas}</Link> : <span className="text-[var(--muted)]">0</span>}</td>
+              <td>{p.atrasadas ? <Link className="num-relevante font-semibold underline" href={L("/tarefas", { projeto: p.codigo, prazo: "atrasadas" })}>{p.atrasadas}</Link> : <span className="text-[var(--muted)]">0</span>}</td>
               <td className="whitespace-nowrap">{p.proximoPrazo ? <>{fmt(p.proximoPrazo)}<span className="sub">{p.proximaEtapa}</span></> : <span className="text-[var(--muted)]">—</span>}</td>
               <td className="text-[0.8rem] text-[var(--txt-2)]">{p.motivos.map((m) => (m.includes("horas em Refação") ? "refação alta" : m)).join(" · ")}</td>
               <td className="whitespace-nowrap"><a className="text-xs underline" href={linkVobiProjeto(p.codigo)} target="_blank" rel="noreferrer">Vobi ↗</a></td>
@@ -185,51 +198,53 @@ function Painel({ d, periodo, perfil }: { d: PainelCoordenacao | PainelGerencia;
   const pausados = ativos - andamento;
   const semResp = Math.max(0, cont.abertas - p.porPessoa.reduce((a, r) => a + r.abertas, 0)); // abertas sem responsável (fato importado)
   const sinais = g ? g.recomendacoes.length : 0;
+  // Links para as listas levam a origem (volta=painel, vp=período): a lista mostra "← Painel de Gestão" e preserva o contexto.
+  const L = (base: string, q: Record<string, string | number | null | undefined | boolean>) => urlCom(base, { volta: "painel", vp: periodo !== 14 ? periodo : null }, q);
 
   return (
     <div className="flex flex-col gap-3">
       <Cabecalho titulo={executiva ? "Painel de Gestão" : "Painel operacional"} ctx={ctx} periodo={periodo} executiva={executiva} />
 
       <div className={`grid gap-3 sm:grid-cols-2 ${executiva ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
-        <Stat label="Projetos ativos" value={ativos} href="/projetos" note={`${andamento} em andamento · ${pausados} pausados`} />
-        {executiva && <Stat label="Encerrados" value={p.encerrados} tone="neutral" href="/projetos?situacao=encerrados" note={d.encerradosPorTipo.map((e) => `${e.valor} ${e.rotulo.toLowerCase()}`).join(" · ") || "—"} />}
-        <Stat label="Tarefas atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href="/tarefas?prazo=atrasadas"
-          note={<>&gt;30 d <Link className="underline" href="/tarefas?prazo=atrasada_30">{cont.a30}</Link> · 8–30 <Link className="underline" href="/tarefas?prazo=atrasada_8_30">{cont.a8}</Link> · 1–7 <Link className="underline" href="/tarefas?prazo=atrasada_1_7">{cont.a1}</Link></>} />
-        <Stat label={`Entregas em ${periodo} dias`} value={cont.entregasPeriodo} tone={cont.entregasPeriodo ? "warn" : "neutral"} source="calc" href={urlCom("/tarefas", {}, { prazo: "abertas", janela: periodo, entregas: 1 })}
+        <Stat label="Projetos ativos" value={ativos} href={L("/projetos", {})} note={`${andamento} em andamento · ${pausados} pausados`} />
+        {executiva && <Stat label="Encerrados" value={p.encerrados} tone="neutral" href={L("/projetos", { situacao: "encerrados" })} note={d.encerradosPorTipo.map((e) => `${e.valor} ${e.rotulo.toLowerCase()}`).join(" · ") || "—"} />}
+        <Stat label="Tarefas atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href={L("/tarefas", { prazo: "atrasadas" })}
+          note={<>&gt;30 d <Link className="underline" href={L("/tarefas", { prazo: "atrasada_30" })}>{cont.a30}</Link> · 8–30 <Link className="underline" href={L("/tarefas", { prazo: "atrasada_8_30" })}>{cont.a8}</Link> · 1–7 <Link className="underline" href={L("/tarefas", { prazo: "atrasada_1_7" })}>{cont.a1}</Link></>} />
+        <Stat label={`Entregas em ${periodo} dias`} value={cont.entregasPeriodo} tone={cont.entregasPeriodo ? "warn" : "neutral"} source="calc" href={L("/tarefas", { prazo: "abertas", janela: periodo, entregas: 1 })}
           note={<>de {cont.periodo} tarefas com prazo no período <Ajuda texto={`Entrega = tarefa das etapas ${ETAPAS_ENTREGA.join(", ")} com prazo entre hoje e ${periodo} dias. Só ${pct(p.comFim, p.total)}% das tarefas têm prazo no Vobi.`} /></>} />
-        <Stat label="Exigem acompanhamento" value={d.risco.length} tone={d.risco.length ? "warn" : "ok"} source="calc" href="/projetos?situacao=acompanhar" note={<>de {ativos} ativos · atrasadas ou refação alta <Ajuda texto={`Refação alta = ≥ ${Math.round(RISCO_REFACAO_FRACAO * 100)}% das horas lançadas em Refação. O percentual não é exibido porque só ${pct(p.horas.comHoras, p.total)}% das tarefas têm horas (decisão D-C).`} /></>} />
+        <Stat label="Exigem acompanhamento" value={d.risco.length} tone={d.risco.length ? "warn" : "ok"} source="calc" href={L("/projetos", { situacao: "acompanhar" })} note={<>de {ativos} ativos · atrasadas ou refação alta <Ajuda texto={`Refação alta = ≥ ${Math.round(RISCO_REFACAO_FRACAO * 100)}% das horas lançadas em Refação. O percentual não é exibido porque só ${pct(p.horas.comHoras, p.total)}% das tarefas têm horas (decisão D-C).`} /></>} />
         <Stat label="Sem prazo · sem resp." value={`${cont.semPrazo} · ${semResp}`} tone="neutral" href="/qualidade" note={`de ${cont.abertas} abertas · limitação da fonte, não falha de alguém`} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
         <Bloco titulo="Atraso por faixa" sub={`${cont.atrasadas} tarefas · dias desde o prazo`}>
           <Barras itens={[
-            { rotulo: "mais de 30 dias", valor: cont.a30, href: "/tarefas?prazo=atrasada_30", tom: "var(--st-critico)" },
-            { rotulo: "8 a 30 dias", valor: cont.a8, href: "/tarefas?prazo=atrasada_8_30", tom: "var(--st-relevante)" },
-            { rotulo: "1 a 7 dias", valor: cont.a1, href: "/tarefas?prazo=atrasada_1_7", tom: "var(--st-recente)" },
-          ]} legenda="Regra única de prazo; a cor nunca é o único sinal." />
+            { rotulo: "mais de 30 dias", valor: cont.a30, href: L("/tarefas", { prazo: "atrasada_30" }), tom: "var(--st-critico)", tip: `Atrasadas há mais de 30 dias\n${cont.a30} tarefas · ${pct(cont.a30, cont.atrasadas)}% das ${cont.atrasadas} atrasadas` },
+            { rotulo: "8 a 30 dias", valor: cont.a8, href: L("/tarefas", { prazo: "atrasada_8_30" }), tom: "var(--st-relevante)", tip: `Atrasadas há 8 a 30 dias\n${cont.a8} tarefas · ${pct(cont.a8, cont.atrasadas)}% das ${cont.atrasadas} atrasadas` },
+            { rotulo: "1 a 7 dias", valor: cont.a1, href: L("/tarefas", { prazo: "atrasada_1_7" }), tom: "var(--st-recente)", tip: `Atrasadas há 1 a 7 dias\n${cont.a1} tarefas · ${pct(cont.a1, cont.atrasadas)}% das ${cont.atrasadas} atrasadas` },
+          ]} legenda="Regra única de prazo; a cor nunca é o único sinal. Clique numa faixa para ver as tarefas." />
         </Bloco>
         <Bloco titulo="Prazos nas próximas 4 semanas" sub="tarefas abertas com prazo">
-          <Colunas semanas={d.semanas} hoje={ctx.hoje} />
+          <Colunas semanas={d.semanas} hoje={ctx.hoje} L={L} />
         </Bloco>
         <Bloco titulo="Projetos ativos por etapa" sub="status do projeto no Vobi">
-          <Barras itens={p.projetosAtivos.map((r) => ({ rotulo: r.rotulo, valor: r.valor, href: r.rotulo.toLowerCase() === "pausado" ? "/projetos?situacao=pausados" : undefined }))} legenda="Etapa = status atual do projeto no Vobi (fato importado)." />
+          <Barras unidade="projetos" itens={p.projetosAtivos.map((r) => ({ rotulo: r.rotulo, valor: r.valor, href: L("/projetos", { status: r.rotulo }), tip: `${r.rotulo}\n${r.valor} projetos · ${pct(r.valor, ativos)}% dos ${ativos} ativos` }))} legenda="Etapa = status atual do projeto no Vobi (fato importado). Clique para ver os projetos." />
         </Bloco>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Bloco titulo="Gargalos por etapa" sub="tarefas abertas · atrasadas em destaque">
-          <Barras itens={p.porEtapa.slice(0, 8).map((r) => ({ rotulo: r.rotulo, valor: r.abertas, destaque: r.vencidas, href: urlCom("/tarefas", {}, { etapa: r.rotulo }) }))}
-            legenda={<>Barra = abertas · trecho em vermelho = atrasadas. {p.porEtapa.length > 8 ? `Mostrando as 8 etapas com mais tarefas de ${p.porEtapa.length}.` : ""}</>} />
+          <Barras itens={p.porEtapa.slice(0, 8).map((r) => ({ rotulo: r.rotulo, valor: r.abertas, destaque: r.vencidas, href: L("/tarefas", { etapa: r.rotulo }), hrefDestaque: L("/tarefas", { etapa: r.rotulo, prazo: "atrasadas" }), tip: `${r.rotulo}\n${r.abertas} abertas · ${pct(r.abertas, cont.abertas)}% das ${cont.abertas} abertas · ${r.vencidas} atrasadas` }))}
+            legenda={<>Barra = abertas · trecho em vermelho = atrasadas. Clique na barra para as abertas, no número vermelho para as atrasadas. {p.porEtapa.length > 8 ? `Mostrando as 8 etapas com mais tarefas de ${p.porEtapa.length}.` : ""}</>} />
         </Bloco>
         <Bloco titulo="Carga operacional por responsável" sub="informação importada do Vobi · não é desempenho">
-          <Barras itens={p.porPessoa.slice(0, 10).map((r) => ({ rotulo: r.rotulo, valor: r.abertas, destaque: r.vencidas, href: urlCom("/tarefas", {}, { resp: r.rotulo }) }))}
-            legenda={<>Abertas · atrasadas em vermelho. {semResp} tarefas abertas sem responsável no Vobi ficam fora deste gráfico. Volume não considera complexidade, dependências nem alocação: não compara pessoas.</>} vazio="Nenhuma tarefa com responsável nesta carga." />
+          <Barras itens={p.porPessoa.slice(0, 10).map((r) => ({ rotulo: r.rotulo, valor: r.abertas, destaque: r.vencidas, href: L("/tarefas", { resp: r.rotulo }), hrefDestaque: L("/tarefas", { resp: r.rotulo, prazo: "atrasadas" }), tip: `${r.rotulo}\n${r.abertas} tarefas abertas no Vobi · ${r.vencidas} atrasadas\ninformação importada, não desempenho` }))}
+            legenda={<>Abertas · atrasadas em vermelho. Clique na barra para as abertas, no número vermelho para as atrasadas. {semResp} tarefas abertas sem responsável no Vobi ficam fora deste gráfico. Volume não considera complexidade, dependências nem alocação: não compara pessoas.</>} vazio="Nenhuma tarefa com responsável nesta carga." />
         </Bloco>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
-        <Criticos projetos={d.risco} total={ativos} />
+        <Criticos projetos={d.risco} total={ativos} L={L} />
         {g ? (
           <Decisoes titulo="Decisões gerenciais" itens={[
             { n: d.decisoes.ambiguos, texto: "vínculos de cliente aguardam decisão", href: "/clientes#fila", destino: "Clientes" },

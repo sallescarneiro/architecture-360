@@ -12,7 +12,7 @@ const esc = (s: string) => s.replace(/'/g, "''");
 export const TAMANHOS = [25, 50, 100];
 
 export type FiltrosTarefas = {
-  q: string; prazo: string; etapa: string; resp: string; projeto: number | null; cliente: number | null; janela: number | null; ate: number | null; entregas: boolean;
+  q: string; prazo: string; etapa: string; resp: string; projeto: number | null; cliente: number | null; janela: number | null; ate: number | null; de: number | null; entregas: boolean; volta: string; vp: number | null;
   ord: string; dir: "asc" | "desc"; pag: number; n: number;
 };
 
@@ -21,7 +21,8 @@ export function lerFiltrosTarefas(sp: ParamsLista): FiltrosTarefas {
   return {
     q: um(sp.q).slice(0, 80), prazo: prazo in FILTROS_PRAZO ? prazo : "abertas", etapa: um(sp.etapa).slice(0, 60), resp: um(sp.resp).slice(0, 80),
     projeto: /^\d+$/.test(um(sp.projeto)) ? Number(um(sp.projeto)) : null, cliente: /^\d+$/.test(um(sp.cliente)) ? Number(um(sp.cliente)) : null,
-    janela: ["7", "14", "30"].includes(um(sp.janela)) ? Number(um(sp.janela)) : null, ate: ["7", "14", "30"].includes(um(sp.ate)) ? Number(um(sp.ate)) : null, entregas: um(sp.entregas) === "1",
+    janela: /^\d{1,2}$/.test(um(sp.janela)) && Number(um(sp.janela)) > 0 ? Number(um(sp.janela)) : null, ate: ["7", "14", "30"].includes(um(sp.ate)) ? Number(um(sp.ate)) : null,
+    de: /^\d{1,2}$/.test(um(sp.de)) ? Number(um(sp.de)) : null, entregas: um(sp.entregas) === "1", ...lerVolta(sp),
     ord: ["prazo", "tarefa", "etapa", "projeto", "resp", "status"].includes(ord) ? ord : "prazo", dir: um(sp.dir) === "desc" ? "desc" : "asc",
     pag: Math.max(1, Number(um(sp.pag)) || 1), n: TAMANHOS.includes(Number(um(sp.n))) ? Number(um(sp.n)) : 25,
   };
@@ -52,6 +53,7 @@ export async function listarTarefas(f: FiltrosTarefas, restricao?: { email: stri
   // janela = vence de hoje até N dias (só futuro); ate = prazo até N dias incluindo as atrasadas
   if (f.janela) where.push(`t.sem_fim=false and t.data_fim::date >= date '${hoje}' and t.data_fim::date <= date '${hoje}' + ${f.janela}`);
   if (f.ate) where.push(`t.sem_fim=false and t.data_fim::date <= date '${hoje}' + ${f.ate}`);
+  if (f.de != null) where.push(`t.sem_fim=false and t.data_fim::date >= date '${hoje}' + ${f.de}`); // início da janela (semana N do Painel)
   if (f.entregas) where.push(`t.etapa_canonica in (${ETAPAS_ENTREGA.map((e) => `'${esc(e)}'`).join(",")})`);
   if (restricao) where.push(`t.responsavel_email = '${esc(restricao.email)}'`);
   const ordem: Record<string, string> = {
@@ -77,14 +79,23 @@ export async function listarTarefas(f: FiltrosTarefas, restricao?: { email: stri
 }
 
 // ---------------------------------------------------------------------------
-export type FiltrosProjetos = { q: string; situacao: string; cliente: number | null; vinculo: string; ord: string; dir: "asc" | "desc"; pag: number; n: number };
+export type FiltrosProjetos = { q: string; situacao: string; cliente: number | null; vinculo: string; status: string; volta: string; vp: number | null; ord: string; dir: "asc" | "desc"; pag: number; n: number };
 export const SITUACOES_PROJETO: Record<string, string> = { ativos: "Ativos", acompanhar: "Exigem acompanhamento", pausados: "Pausados", encerrados: "Encerrados", todos: "Todos" };
+
+/** Origem da navegação (T-199): volta=painel mantém o botão "← Painel de Gestão" com o período (vp) nas listas. */
+export function lerVolta(sp: ParamsLista): { volta: string; vp: number | null } {
+  return { volta: um(sp.volta) === "painel" ? "painel" : "", vp: ["7", "14", "30"].includes(um(sp.vp)) ? Number(um(sp.vp)) : null };
+}
+export function urlVolta(f: { volta: string; vp: number | null }): string | null {
+  return f.volta === "painel" ? (f.vp && f.vp !== 14 ? `/painel?periodo=${f.vp}` : "/painel") : null;
+}
 
 export function lerFiltrosProjetos(sp: ParamsLista): FiltrosProjetos {
   const ord = um(sp.ord) || "atrasadas";
   return {
     q: um(sp.q).slice(0, 80), situacao: um(sp.situacao) in SITUACOES_PROJETO ? um(sp.situacao) : "ativos",
     cliente: /^\d+$/.test(um(sp.cliente)) ? Number(um(sp.cliente)) : null, vinculo: ["resolvido", "manual", "ambiguo", "sem_cliente"].includes(um(sp.vinculo)) ? um(sp.vinculo) : "",
+    status: um(sp.status).slice(0, 60), ...lerVolta(sp),
     ord: ["atrasadas", "projeto", "cliente", "abertas", "prazo", "status"].includes(ord) ? ord : "atrasadas", dir: um(sp.dir) === "asc" ? "asc" : "desc",
     pag: Math.max(1, Number(um(sp.pag)) || 1), n: TAMANHOS.includes(Number(um(sp.n))) ? Number(um(sp.n)) : 25,
   };
@@ -111,6 +122,7 @@ export async function listarProjetos(f: FiltrosProjetos, restricao?: Restricao) 
   if (f.q) { const k = esc(chaveTexto(f.q)); where.push(`(p.chave_nome like '%${k}%' or lower(coalesce(c.chave_nome,'')) like '%${k}%' or p.codigo::text = '${k}')`); }
   if (f.cliente) where.push(`p.cliente_codigo = ${f.cliente}`);
   if (f.vinculo) where.push(`p.vinculo_cliente_status = '${f.vinculo}'`);
+  if (f.status) where.push(`p.status = '${esc(f.status)}'`); // etapa/status do projeto no Vobi (clique no gráfico do Painel)
   if (restricao) where.push(sqlParticipa(restricao.email, restricao.nomes, cid, "p")); // D-A: arquiteta vê só projetos em que participa (dados do Vobi)
   const agreg = `select p.codigo, p.nome, c.nome cliente, p.cliente_codigo, p.vinculo_cliente_status vinculo, p.status, p.status_classe,
       count(t.chave) filter (where ${ABERTA})::int abertas,

@@ -191,3 +191,21 @@ details.mnav > summary { list-style: none; cursor: pointer; }
 details.mnav > summary::-webkit-details-marker { display: none; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* T-199 · tooltip dos gráficos do Painel: aparece no hover e no foco de teclado; o texto vem de data-tip */
+.tip{position:relative}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%) translateY(4px);
+  background:var(--txt);color:#fff;font-size:.74rem;font-weight:500;line-height:1.3;padding:6px 9px;border-radius:8px;white-space:pre-line;
+  width:max-content;max-width:min(280px,80vw);text-align:left;box-shadow:0 4px 14px rgba(0,0,0,.14);opacity:0;pointer-events:none;z-index:30;transition:opacity .12s,transform .12s}
+.tip:hover::after,.tip:focus-visible::after{opacity:1;transform:translateX(-50%) translateY(0)}
+.tip.tip-r::after{left:auto;right:0;transform:translateY(4px)}
+.tip.tip-r:hover::after,.tip.tip-r:focus-visible::after{transform:translateY(0)}
+a.gbar{display:grid;grid-template-columns:minmax(7rem,11rem) 1fr auto;align-items:center;gap:8px;color:inherit;text-decoration:none;border-radius:6px;padding:1px 4px;margin:0 -4px}
+a.gbar:hover,a.gbar:focus-visible{background:var(--surface-2);outline:none}
+a.gbar:hover .gbar-rot{text-decoration:underline}
+.gcol{display:flex;align-items:flex-end;gap:10px;height:170px;max-width:440px;padding:0 4px}
+.gcol a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;color:inherit;text-decoration:none;border-radius:6px;min-width:0}
+.gcol a:hover,.gcol a:focus-visible{background:var(--surface-2);outline:none}
+.gcol .gcol-bar{width:70%;border-radius:4px 4px 0 0;background:var(--vinho);opacity:.88;min-height:2px}
+.gcol .gcol-val{font-size:.82rem;font-weight:700;margin-bottom:4px}
+.gcol .gcol-lab{font-size:.68rem;color:var(--txt-2);margin-top:6px;text-align:center;line-height:1.25}
