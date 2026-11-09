@@ -85,3 +85,46 @@ export async function situacaoItemAction(fd: FormData) {
   revalidatePath("/reunioes");
   redirect(`/reunioes/${r.id}?volta=${encodeURIComponent(volta)}#encaminhamento`);
 }
+
+// ---------------------------------------------------------------------------
+// Evolução T-188: transcrição, processamento, confirmação de itens, análise do projeto
+// ---------------------------------------------------------------------------
+export async function enviarTranscricaoAction(fd: FormData) {
+  const { u, r, volta } = await carregar(fd);
+  const { enviarTranscricao, processarTranscricao } = await import("@/lib/transcricao/processar");
+  const arquivo = fd.get("arquivo");
+  if (!(arquivo instanceof File)) redirect(`/reunioes/${r.id}?erro=${encodeURIComponent("Selecione o arquivo da transcrição.")}&volta=${encodeURIComponent(volta)}#transcricao`);
+  const res = await enviarTranscricao(u, r, arquivo);
+  if (!res.ok) redirect(`/reunioes/${r.id}?erro=${encodeURIComponent(res.erro)}&volta=${encodeURIComponent(volta)}#transcricao`);
+  const proc = fd.get("processar") === "1" ? await processarTranscricao(u, r, res.id) : null;
+  revalidatePath("/reunioes");
+  redirect(`/reunioes/${r.id}?transcricao=1${proc ? (proc.ok ? `&processado=${proc.estado}` : `&erro=${encodeURIComponent(proc.erro)}`) : ""}&volta=${encodeURIComponent(volta)}#transcricao`);
+}
+
+export async function processarTranscricaoAction(fd: FormData) {
+  const { u, r, volta } = await carregar(fd);
+  const { processarTranscricao } = await import("@/lib/transcricao/processar");
+  const tid = Number(fd.get("transcricao"));
+  const proc = await processarTranscricao(u, r, Number.isInteger(tid) && tid > 0 ? tid : undefined);
+  revalidatePath("/reunioes");
+  redirect(`/reunioes/${r.id}?${proc.ok ? `processado=${proc.estado}` : `erro=${encodeURIComponent(proc.erro)}`}&volta=${encodeURIComponent(volta)}#ata`);
+}
+
+export async function confirmarItemAction(fd: FormData) {
+  const { u, r, volta } = await carregar(fd);
+  const { confirmarItem } = await import("@/lib/transcricao/processar");
+  await confirmarItem(u, r, Number(fd.get("item")), fd.get("confirmar") === "1");
+  revalidatePath("/reunioes");
+  redirect(`/reunioes/${r.id}?volta=${encodeURIComponent(volta)}#${String(fd.get("tipo") ?? "decisao")}`);
+}
+
+export async function analisarProjetoAction(fd: FormData) {
+  const u = await exigirUsuario(["admin", "gestao", "coordenacao"]);
+  const codigo = Number(fd.get("projeto"));
+  const volta = seguro(fd.get("volta"));
+  if (!Number.isInteger(codigo)) redirect("/projetos");
+  const { analisarProjeto } = await import("@/lib/analise");
+  const r = await analisarProjeto(u, codigo);
+  revalidatePath(`/projetos/${codigo}`); revalidatePath("/alertas"); revalidatePath("/painel");
+  redirect(`${volta}${volta.includes("?") ? "&" : "?"}analise=${r.estado}&novos=${r.alertasNovos}${r.erro ? `&erro=${encodeURIComponent(r.erro)}` : ""}`);
+}

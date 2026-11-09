@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       { href: "/projetos", label: "Projetos", icon: "bolt" },
       { href: "/agenda", label: "Agenda", icon: "calendar" as const }, // T-187: própria agenda (todos os perfis)
       { href: "/reunioes", label: "Reuniões", icon: "users" as const }, // T-188: reuniões com pauta, ata e encaminhamentos
+      ...(gestao ? [{ href: "/alertas", label: "Alertas", icon: "bell" as const }] : []), // T-188: divergências e correção de rota
       { href: "/qualidade", label: "Qualidade dos dados", icon: "check" },
     ] },
     { label: "Dados", items: [

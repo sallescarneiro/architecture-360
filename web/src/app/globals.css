@@ -276,3 +276,16 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
   .cal-cel .ev-chip b{display:none}
   .cal-regua>div{font-size:.6rem;padding-right:3px}
 }
+
+/* ===== T-188 · linha do tempo e alertas ===== */
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tl-item{display:grid;grid-template-columns:minmax(9rem,12rem) 1fr;gap:10px;padding:8px 0 8px 14px;border-left:3px solid var(--line);position:relative}
+.tl-item::before{content:"";position:absolute;left:-7px;top:14px;width:11px;height:11px;border-radius:50%;background:#fff;border:3px solid var(--muted)}
+.tl-a360{border-left-color:var(--vinho)}.tl-a360::before{border-color:var(--vinho)}
+.tl-vobi{border-left-color:#8a9bb0}.tl-vobi::before{border-color:#8a9bb0}
+.tl-critico::before{background:var(--st-critico);border-color:var(--st-critico)}.tl-alto::before{background:var(--st-relevante);border-color:var(--st-relevante)}
+.tl-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:.74rem;color:var(--txt-2)}
+.tl-origem{font-size:.66rem;font-weight:800;letter-spacing:.05em;padding:1px 6px;border-radius:4px;color:#fff}
+.tl-origem-a360{background:var(--vinho)}.tl-origem-vobi{background:#8a9bb0}
+.tl-corpo{min-width:0;font-size:.86rem}
+@media (max-width:700px){.tl-item{grid-template-columns:1fr}}

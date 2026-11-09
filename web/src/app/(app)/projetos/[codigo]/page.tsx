@@ -6,6 +6,8 @@ import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { contagem, linkVobiProjeto, ultimaCargaAceita } from "@/lib/consultas";
 import { restricaoDe, sqlParticipa } from "@/lib/participacao";
 import { STATUS_REUNIAO, encaminhamentosAbertosDe, fmtPeriodo, reunioesDoProjeto } from "@/lib/reunioes";
+import { alertasDoProjeto, PRIORIDADES, SITUACOES } from "@/lib/alertas";
+import { flagsDoProjeto } from "@/lib/flags";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { hojeIso, statusPrazo } from "@/lib/prazo";
@@ -23,6 +25,8 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const carga = await ultimaCargaAceita();
   const reunioes = await reunioesDoProjeto(p.codigo); // T-188
   const encaminhamentos = await encaminhamentosAbertosDe(reunioes.map((r) => r.id));
+  const alertasProj = await alertasDoProjeto(p.codigo); const flagsProj = await flagsDoProjeto(p.codigo);
+  const alertasAbertos = alertasProj.filter((a) => SITUACOES[a.situacao]?.aberto);
   if (!gestao) {
     // D-A (08/11/2026): arquiteta só abre projetos em que participa (colaboradora no Vobi ou responsável por tarefa). Verificado no servidor.
     const r = await restricaoDe(u.email);
@@ -50,7 +54,11 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
       <PageHeader eyebrow="Operação · Projeto" title={p.nome}
         subtitle={<>Cód. Vobi {p.codigo} · <Badge tone={p.statusClasse === "encerrado" ? "neutral" : p.statusClasse === "pausado" ? "warn" : "ok"}>{p.status}</Badge> · criado em {p.criadoEm ?? "—"}{p.metragem ? ` · ${p.metragem} m²` : ""}{p.etiquetas.length ? ` · ${p.etiquetas.join(", ")}` : ""}
           <span className="mt-1 block text-xs">Origem: Vobi{carga ? ` · exportação de ${carga.dataCarga.split("-").reverse().join("/")} (carga ${carga.id})` : ""} · prazos comparados com hoje{p.naoEncontradoDesde ? " · não encontrado na última exportação" : ""} <Badge tone="neutral">somente leitura</Badge></span></>}
-        actions={<div className="flex gap-2"><a className="btn btn-secondary btn-sm" href={linkVobiProjeto(p.codigo)} target="_blank" rel="noreferrer">Abrir no Vobi ↗</a><Link href="/projetos" className="btn btn-secondary btn-sm">← Projetos</Link></div>} />
+        actions={<div className="flex gap-2"><Link href={`/projetos/${p.codigo}/linha-do-tempo`} className="btn btn-primary btn-sm">Linha do tempo</Link><a className="btn btn-secondary btn-sm" href={linkVobiProjeto(p.codigo)} target="_blank" rel="noreferrer">Abrir no Vobi ↗</a><Link href="/projetos" className="btn btn-secondary btn-sm">← Projetos</Link></div>} />
+
+      {(alertasAbertos.length > 0 || flagsProj.some((f) => f.situacao === "aberta")) && (
+        <div className="leitura"><b>Atenção</b>{alertasAbertos.length ? <>{alertasAbertos.length} alerta(s) de divergência aberto(s){alertasAbertos.some((a) => a.prioridade === "critico") ? " (há crítico)" : ""}: {alertasAbertos.slice(0, 2).map((a) => <Link key={a.id} className="underline" href={`/alertas/${a.id}`}>{a.titulo.slice(0, 70)}</Link>).reduce<React.ReactNode[]>((acc, x, i) => (i ? [...acc, " · ", x] : [x]), [])}. </> : null}{flagsProj.filter((f) => f.situacao === "aberta").length ? <>{flagsProj.filter((f) => f.situacao === "aberta").length} flag(s) de limitação de dados — <Link className="underline" href={`/projetos/${p.codigo}/linha-do-tempo#flags`}>ver na linha do tempo</Link>.</> : null}</div>
+      )}
 
       <Card title="Cliente"><div className="text-sm">{clienteBloco}</div></Card>
 

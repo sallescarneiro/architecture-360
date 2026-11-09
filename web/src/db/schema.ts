@@ -288,6 +288,8 @@ export const reunioes = pgTable("reuniao", {
   participantes: jsonb("participantes").$type<{ email: string | null; nome: string; externo: boolean }[]>().notNull().default([]),
   pauta: text("pauta"),
   ata: text("ata"),
+  ataOrigem: text("ata_origem"),                            // manual | ia | regras
+  ataEstruturada: jsonb("ata_estruturada"),                 // resultado estruturado do processamento (ver tipos)
   status: text("status").notNull().default("planejada"),    // planejada | realizada | cancelada
   eventoGoogleId: text("evento_google_id"),                 // id do evento no Google Calendar (quando ligada à Agenda)
   eventoUsuarioId: integer("evento_usuario_id"),            // dono da conexão em que o evento vive
@@ -306,6 +308,13 @@ export const itensReuniao = pgTable("reuniao_item", {
   situacao: text("situacao").notNull().default("aberto"),   // aberto | feito | cancelado (encaminhamento) · registrado (demais)
   criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  // evolução T-188: itens extraídos da transcrição
+  origem: text("origem").notNull().default("manual"),       // manual | ia | regras
+  confianca: text("confianca"),                             // mencionado | sintese | inferencia | confirmar | nao_identificado
+  trecho: text("trecho"),                                   // trecho original da transcrição
+  tempo: text("tempo"),                                     // marcação de tempo na transcrição (quando houver)
+  processamentoId: integer("processamento_id"),
+  confirmado: boolean("confirmado").notNull().default(true), // itens de IA começam não confirmados; a pessoa confirma ou descarta
 }, (t) => [index("reuniao_item_reuniao_idx").on(t.reuniaoId)]);
 
 /** Histórico imutável da reunião: cada alteração é uma linha nova; nunca se edita nem apaga. */
@@ -319,3 +328,109 @@ export const historicoReuniao = pgTable("reuniao_historico", {
   depois: jsonb("depois"),
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("reuniao_historico_reuniao_idx").on(t.reuniaoId)]);
+
+// ---------------------------------------------------------------------------
+// T-188 (evolução, 09/11/2026): transcrições do Google Meet, atas por IA, alertas de divergência, flags de limitação e análises.
+// Documentos ficam no banco (bytea), protegidos pelas permissões da reunião. IA identifica e recomenda; a gestão decide.
+// ---------------------------------------------------------------------------
+export const transcricoes = pgTable("reuniao_transcricao", {
+  id: serial("id").primaryKey(),
+  reuniaoId: integer("reuniao_id").notNull().references(() => reunioes.id),
+  versao: integer("versao").notNull().default(1),
+  atual: boolean("atual").notNull().default(true),
+  nomeArquivo: text("nome_arquivo").notNull(),
+  tipoMime: text("tipo_mime").notNull(),
+  tamanho: integer("tamanho").notNull(),
+  conteudo: customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" })("conteudo").notNull(),
+  texto: text("texto"),                                     // texto extraído (preservado tal qual, sem edição)
+  formato: text("formato"),                                 // txt | docx | pdf | vtt | srt | md | desconhecido
+  enviadoPor: integer("enviado_por").notNull().references(() => usuarios.id),
+  enviadoEm: timestamp("enviado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("transcricao_reuniao_idx").on(t.reuniaoId)]);
+
+export const processamentos = pgTable("reuniao_processamento", {
+  id: serial("id").primaryKey(),
+  reuniaoId: integer("reuniao_id").notNull().references(() => reunioes.id),
+  transcricaoId: integer("transcricao_id").notNull().references(() => transcricoes.id),
+  estado: text("estado").notNull().default("pendente"),     // pendente | processando | concluido | erro | regras
+  provedor: text("provedor"),                               // anthropic | regras
+  modelo: text("modelo"),
+  resultado: jsonb("resultado"),                            // ata estruturada (ver src/lib/transcricao/tipos.ts)
+  erro: text("erro"),
+  itensCriados: integer("itens_criados").notNull().default(0),
+  iniciadoPor: integer("iniciado_por").notNull().references(() => usuarios.id),
+  iniciadoEm: timestamp("iniciado_em", { withTimezone: true }).notNull().defaultNow(),
+  concluidoEm: timestamp("concluido_em", { withTimezone: true }),
+}, (t) => [index("processamento_reuniao_idx").on(t.reuniaoId)]);
+
+/** Alertas de divergência por projeto (gerados pela IA ou registrados pela gestão). Tratamento humano com histórico imutável. */
+export const alertasProjeto = pgTable("projeto_alerta", {
+  id: serial("id").primaryKey(),
+  projetoCodigo: integer("projeto_codigo").notNull(),
+  chave: text("chave").notNull(),                           // dedupe (hash da ocorrência)
+  categoria: text("categoria").notNull(),                   // material | especificacao | layout | ambientes | equipamentos | dimensoes | quantitativos | solucao_tecnica | escopo | condicao_aprovacao | solicitacao_cliente | decisao_posterior | prazo | outro
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao").notNull(),
+  classificacao: text("classificacao").notNull(),           // divergencia_confirmada | possivel_divergencia | alteracao_aprovada | inconclusivo | corrigida | limitacao_dados
+  prioridade: text("prioridade").notNull(),                 // critico | alto | moderado | informativo
+  confianca: integer("confianca"),                          // 0–100 (da IA)
+  evidencias: jsonb("evidencias").$type<{ origem: "a360" | "vobi"; tipo: string; ref: string; rotulo: string; trecho?: string; data?: string; link?: string }[]>().notNull().default([]),
+  impacto: text("impacto"),
+  situacao: text("situacao").notNull().default("aberto"),   // aberto | em_analise | esclarecimento | em_tratamento | resolvido | descartado
+  responsavel: text("responsavel"),
+  prazo: text("prazo"),
+  direcionamento: text("direcionamento"),
+  origem: text("origem").notNull().default("ia"),           // ia | humano
+  analiseId: integer("analise_id"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  encerradoEm: timestamp("encerrado_em", { withTimezone: true }),
+}, (t) => [uniqueIndex("projeto_alerta_chave_uq").on(t.projetoCodigo, t.chave), index("projeto_alerta_situacao_idx").on(t.situacao)]);
+
+export const historicoAlerta = pgTable("projeto_alerta_historico", {
+  id: serial("id").primaryKey(),
+  alertaId: integer("alerta_id").notNull().references(() => alertasProjeto.id),
+  usuarioId: integer("usuario_id").references(() => usuarios.id), // null = IA
+  acao: text("acao").notNull(),                             // criado | confirmado | descartado | esclarecimento | alteracao_aprovada | correcao_rota | responsavel | prazo | providencia | encerrado | reaberto | reclassificado
+  justificativa: text("justificativa"),
+  antes: jsonb("antes"),
+  depois: jsonb("depois"),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("alerta_hist_idx").on(t.alertaId)]);
+
+/** Flags de limitação de dados: o que o A360 não consegue comparar e por quê. Encerram só com resolução ou aceite consciente. */
+export const flagsLimitacao = pgTable("flag_limitacao", {
+  id: serial("id").primaryKey(),
+  projetoCodigo: integer("projeto_codigo"),                 // null = limitação geral da integração
+  chave: text("chave").notNull(),
+  comparacao: text("comparacao").notNull(),                 // qual comparação não pôde ser feita
+  dadoAusente: text("dado_ausente").notNull(),
+  informacaoDisponivel: text("informacao_disponivel"),
+  informacaoNecessaria: text("informacao_necessaria").notNull(),
+  origemEsperada: text("origem_esperada").notNull(),        // vobi | a360 | google
+  tipo: text("tipo").notNull(),                             // disponibilidade | integracao | permissao | formato | ausencia_registro | falha_tecnica
+  analisesComprometidas: text("analises_comprometidas"),
+  alternativa: text("alternativa"),
+  situacao: text("situacao").notNull().default("aberta"),   // aberta | aceita | resolvida
+  decididoPor: integer("decidido_por").references(() => usuarios.id),
+  decididoEm: timestamp("decidido_em", { withTimezone: true }),
+  justificativa: text("justificativa"),
+  identificadoEm: timestamp("identificado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("flag_limitacao_chave_uq").on(t.chave)]);
+
+/** Análises de projeto (cruzamento A360 × Vobi pela IA): registro de cada execução, com entradas e resultado. */
+export const analisesProjeto = pgTable("projeto_analise", {
+  id: serial("id").primaryKey(),
+  projetoCodigo: integer("projeto_codigo").notNull(),
+  estado: text("estado").notNull().default("pendente"),     // pendente | processando | concluida | erro | sem_ia
+  provedor: text("provedor"),
+  modelo: text("modelo"),
+  entradas: jsonb("entradas"),                              // resumo do que foi enviado (contagens e referências, não o conteúdo)
+  resultado: jsonb("resultado"),
+  alertasNovos: integer("alertas_novos").notNull().default(0),
+  erro: text("erro"),
+  iniciadoPor: integer("iniciado_por").references(() => usuarios.id),
+  iniciadoEm: timestamp("iniciado_em", { withTimezone: true }).notNull().defaultNow(),
+  concluidoEm: timestamp("concluido_em", { withTimezone: true }),
+}, (t) => [index("projeto_analise_projeto_idx").on(t.projetoCodigo)]);

@@ -67,7 +67,7 @@ export async function listarReunioes(u: Usuario, f: FiltrosReuniao): Promise<Reu
   return (q.rows as Record<string, unknown>[]).map((x) => ({
     id: Number(x.id), titulo: String(x.titulo), projetoCodigo: x.projeto_codigo == null ? null : Number(x.projeto_codigo), clienteCodigo: x.cliente_codigo == null ? null : Number(x.cliente_codigo),
     inicio: new Date(String(x.inicio)), fim: new Date(String(x.fim)), local: (x.local as string | null) ?? null, participantes: (x.participantes as Participante[]) ?? [],
-    pauta: (x.pauta as string | null) ?? null, ata: (x.ata as string | null) ?? null, status: String(x.status), eventoGoogleId: (x.evento_google_id as string | null) ?? null, eventoUsuarioId: x.evento_usuario_id == null ? null : Number(x.evento_usuario_id),
+    pauta: (x.pauta as string | null) ?? null, ata: (x.ata as string | null) ?? null, ataOrigem: (x.ata_origem as string | null) ?? null, ataEstruturada: x.ata_estruturada ?? null, status: String(x.status), eventoGoogleId: (x.evento_google_id as string | null) ?? null, eventoUsuarioId: x.evento_usuario_id == null ? null : Number(x.evento_usuario_id),
     criadoPor: Number(x.criado_por), criadoEm: new Date(String(x.criado_em)), atualizadoEm: new Date(String(x.atualizado_em)),
     projetoNome: (x.projeto_nome as string | null) ?? null, clienteNome: (x.cliente_nome as string | null) ?? null, decisoes: Number(x.decisoes), encaminhamentosAbertos: Number(x.encaminhamentos_abertos),
   }));

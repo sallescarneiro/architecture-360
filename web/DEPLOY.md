@@ -139,3 +139,9 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - Rotas `/reunioes`, `/reunioes/nova` (`?projeto=` ou `?evento=` da Agenda), `/reunioes/[id]` (ata, decisões, aprovações, encaminhamentos, histórico), `/reunioes/[id]/editar`. Botão "Registrar reunião"/"Abrir reunião" no detalhe do compromisso da Agenda; seção "Reuniões" no detalhe do projeto.
 - Opcional ao criar: compromisso na Google Agenda do usuário (reutiliza a Agenda; só com permissão de edição). Vobi segue só leitura; encaminhamentos não viram tarefas do Vobi nem geram cobrança/notificação.
 - Visibilidade: coordenação/gestão/admin veem tudo; arquiteta vê o que criou, de que participa ou de projetos em que participa (regra D-A).
+
+## T-188 · evolução — transcrições, atas por IA, linha do tempo, flags, divergências e alertas (09/11/2026)
+- Migração `0006_inteligencia.sql` (`reuniao_transcricao` com o arquivo em bytea, `reuniao_processamento`, `projeto_alerta` + histórico, `flag_limitacao`, `projeto_analise`; colunas de origem/confiança/trecho em `reuniao_item` e ata estruturada em `reuniao`); reversão em `drizzle/reversao/`.
+- Variáveis opcionais: `ANTHROPIC_API_KEY` (atas por IA e análise de divergências; sem ela, extração por regras marcada "confirmar" e flag aberta), `ANTHROPIC_MODEL` (padrão `claude-sonnet-5-5`).
+- Formatos de transcrição: .txt, .md, .docx, .pdf, .vtt, .srt (até 15 MB); download do original em `/api/reunioes/transcricao?id=` (só quem vê a reunião).
+- Rotas novas: `/projetos/[codigo]/linha-do-tempo`, `/alertas`, `/alertas/[id]`, `/integracao-vobi`. Painel ganhou o bloco "Divergências e limitações de dados". Vobi continua só leitura; a IA identifica, a gestão decide.

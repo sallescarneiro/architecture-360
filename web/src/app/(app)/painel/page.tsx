@@ -6,6 +6,8 @@ import { STATUS_PRAZO, rotuloCurto } from "@/lib/prazo";
 import { urlCom } from "@/lib/listas";
 import { CADENCIA_AVISO_DIAS, ETAPAS_ENTREGA, PERIODOS, RISCO_REFACAO_FRACAO, type ContextoCarga, type Periodo, type ProjetoResumo, type TarefaResumo } from "@/lib/servicos/meu-dia";
 import { painelExecutivo, painelOperacional, type PainelCoordenacao, type PainelGerencia, type Semana } from "@/lib/servicos/painel";
+import { indicadoresAlertas } from "@/lib/alertas";
+import { contagemFlags } from "@/lib/flags";
 import { Ajuda, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
 
 /**
@@ -17,12 +19,13 @@ export default async function PainelPage({ searchParams }: { searchParams: Promi
   const u = await exigirUsuario(["admin", "gestao", "coordenacao"]);
   const sp = await searchParams;
   const periodo = (PERIODOS as readonly number[]).includes(Number(sp.periodo)) ? (Number(sp.periodo) as Periodo) : 14;
+  const [ind, cf] = await Promise.all([indicadoresAlertas(), contagemFlags()]);
   if (u.perfil === "coordenacao") {
     const d = await painelOperacional(periodo);
-    return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} /> : <SemCarga />;
+    return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} ind={ind} cf={cf} /> : <SemCarga />;
   }
   const d = await painelExecutivo(periodo);
-  return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} /> : <SemCarga />;
+  return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} ind={ind} cf={cf} /> : <SemCarga />;
 }
 
 const fmt = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -189,7 +192,7 @@ function TabelaTarefas({ tarefas, vazio }: { tarefas: TarefaResumo[]; vazio: str
 }
 
 // ---------------------------------------------------------------------------
-function Painel({ d, periodo, perfil }: { d: PainelCoordenacao | PainelGerencia; periodo: Periodo; perfil: Perfil }) {
+function Painel({ d, periodo, perfil, ind, cf }: { d: PainelCoordenacao | PainelGerencia; periodo: Periodo; perfil: Perfil; ind: Awaited<ReturnType<typeof indicadoresAlertas>>; cf: Awaited<ReturnType<typeof contagemFlags>> }) {
   const executiva = perfil !== "coordenacao";
   const g = executiva ? (d as PainelGerencia) : null;
   const { ctx, panorama: p, cont } = d;
@@ -242,6 +245,27 @@ function Painel({ d, periodo, perfil }: { d: PainelCoordenacao | PainelGerencia;
             legenda={<>Abertas · atrasadas em vermelho. Clique na barra para as abertas, no número vermelho para as atrasadas. {semResp} tarefas abertas sem responsável no Vobi ficam fora deste gráfico. Volume não considera complexidade, dependências nem alocação: não compara pessoas.</>} vazio="Nenhuma tarefa com responsável nesta carga." />
         </Bloco>
       </div>
+
+      <Bloco titulo="Divergências e limitações de dados" sub="T-188 · a IA identifica, a gestão decide · nada altera o Vobi" acao={<Link className="text-[0.8rem] font-semibold text-[var(--vinho)]" href="/alertas">Central de alertas →</Link>}>
+        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          {[
+            { r: "Alertas abertos", v: ind.abertos, h: "/alertas?abertos=1", t: ind.abertos ? "relevante" : "ok" },
+            { r: "Críticos", v: ind.criticos, h: "/alertas?abertos=1&prioridade=critico", t: ind.criticos ? "critico" : "ok" },
+            { r: "Alta prioridade", v: ind.altos, h: "/alertas?abertos=1&prioridade=alto", t: ind.altos ? "relevante" : "ok" },
+            { r: "Aguardando análise", v: ind.aguardando, h: "/alertas?situacao=aberto", t: "neutro" },
+            { r: "Em tratamento", v: ind.tratamento, h: "/alertas?situacao=em_tratamento", t: "neutro" },
+            { r: "Resolvidos", v: ind.resolvidos, h: "/alertas?situacao=resolvido", t: "ok" },
+          ].map((k) => <Link key={k.r} href={k.h} className="tip rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 no-underline" data-tip={`${k.r}: ${k.v}`}><div className="text-[0.72rem] font-semibold text-[var(--muted)]">{k.r}</div><div className={`text-[1.3rem] font-bold num-${k.t}`}>{k.v}</div></Link>)}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.78rem] text-[var(--txt-2)]">
+          <Link className="underline" href="/alertas#flags">{cf.abertas} flag(s) de limitação de dados abertas</Link>
+          <span>{cf.projetosSemCobertura} projeto(s) sem cobertura suficiente para comparação</span>
+          {ind.diasTratamento ? <span>tempo médio de tratamento: {ind.diasTratamento} dia(s)</span> : null}
+          {ind.recorrentes.length ? <span>recorrentes: {ind.recorrentes.map((r) => `${r.categoria.replace(/_/g, " ")} (${r.n})`).join(", ")}</span> : null}
+          <Link className="underline" href="/integracao-vobi">cobertura da integração Vobi</Link>
+        </div>
+        <p className="mt-1 text-[0.72rem] text-[var(--muted)]">Comparação antes/depois do início da produção não disponível: o Vobi exportado não informa quando a produção começa (flag registrada).</p>
+      </Bloco>
 
       <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
         <Criticos projetos={d.risco} total={ativos} L={L} />

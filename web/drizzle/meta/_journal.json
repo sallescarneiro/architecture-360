@@ -43,6 +43,13 @@
       "when": 1794253033766,
       "tag": "0005_reunioes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794254505707,
+      "tag": "0006_inteligencia",
+      "breakpoints": true
     }
   ]
 }
