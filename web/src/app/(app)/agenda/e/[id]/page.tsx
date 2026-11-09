@@ -9,6 +9,7 @@ import { voltaDe } from "@/lib/agenda/formulario";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { Tipo } from "@/components/agenda/Calendario";
 import { Button, Card, LinkButton, PageHeader } from "@/components/ui";
+import { reuniaoPorEvento } from "@/lib/reunioes";
 import { associarProjetoAction } from "../../actions";
 
 const RESPOSTA: Record<string, string> = { accepted: "aceito", declined: "recusou", tentative: "talvez", needsAction: "sem resposta" };
@@ -32,13 +33,17 @@ export default async function EventoPage({ params, searchParams }: { params: Pro
   if (sp.editado) avisos.push("Alterações gravadas no Google Agenda.");
   if (sp.associado) avisos.push("Associação a projeto atualizada.");
   const mesmoDia = diaDe(e.inicio) === diaDe(new Date(e.fim.getTime() - 1));
+  const reuniao = e.privado ? null : await reuniaoPorEvento(e.googleId); // T-188: reunião ligada a este compromisso
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <PageHeader eyebrow="Architecture 360 · Agenda" title={e.privado ? "Ocupado" : e.titulo ?? "(sem título)"}
         subtitle={<>{dataLonga(diaDe(e.inicio))}{e.diaInteiro ? " · dia inteiro" : <> · {hora(e.inicio)}–{mesmoDia ? "" : `${dataLonga(diaDe(new Date(e.fim.getTime() - 1)))} `}{hora(e.fim)} · {duracao(e.inicio, e.fim)}</>}</>}
         actions={<div className="flex flex-wrap gap-2">
-          {editavel && <LinkButton href={`/agenda/e/${e.id}/editar?volta=${encodeURIComponent(volta)}`} variant="primary">Editar</LinkButton>}
+          {!e.privado && (reuniao
+            ? <LinkButton href={`/reunioes/${reuniao.id}?volta=${encodeURIComponent(`/agenda/e/${e.id}?volta=${encodeURIComponent(volta)}`)}`} variant="primary">Abrir reunião</LinkButton>
+            : <LinkButton href={`/reunioes/nova?evento=${e.id}&volta=${encodeURIComponent(`/agenda/e/${e.id}?volta=${encodeURIComponent(volta)}`)}`} variant="primary">Registrar reunião</LinkButton>)}
+          {editavel && <LinkButton href={`/agenda/e/${e.id}/editar?volta=${encodeURIComponent(volta)}`}>Editar</LinkButton>}
           {editavel && <LinkButton href={`/agenda/e/${e.id}/excluir?volta=${encodeURIComponent(volta)}`}>Excluir</LinkButton>}
           <LinkButton href={volta}>← Voltar</LinkButton>
         </div>} />

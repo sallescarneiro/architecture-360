@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { contagem, linkVobiProjeto, ultimaCargaAceita } from "@/lib/consultas";
 import { restricaoDe, sqlParticipa } from "@/lib/participacao";
+import { STATUS_REUNIAO, encaminhamentosAbertosDe, fmtPeriodo, reunioesDoProjeto } from "@/lib/reunioes";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { hojeIso, statusPrazo } from "@/lib/prazo";
@@ -20,6 +21,8 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const p = (await db.select().from(schema.projetos).where(eq(schema.projetos.codigo, Number(codigo))).limit(1))[0];
   if (!p) notFound();
   const carga = await ultimaCargaAceita();
+  const reunioes = await reunioesDoProjeto(p.codigo); // T-188
+  const encaminhamentos = await encaminhamentosAbertosDe(reunioes.map((r) => r.id));
   if (!gestao) {
     // D-A (08/11/2026): arquiteta só abre projetos em que participa (colaboradora no Vobi ou responsável por tarefa). Verificado no servidor.
     const r = await restricaoDe(u.email);
@@ -50,6 +53,16 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
         actions={<div className="flex gap-2"><a className="btn btn-secondary btn-sm" href={linkVobiProjeto(p.codigo)} target="_blank" rel="noreferrer">Abrir no Vobi ↗</a><Link href="/projetos" className="btn btn-secondary btn-sm">← Projetos</Link></div>} />
 
       <Card title="Cliente"><div className="text-sm">{clienteBloco}</div></Card>
+
+      <Card title={`Reuniões (${reunioes.length})`} subtitle="registradas no A360 · pauta, ata, decisões e encaminhamentos · não altera o Vobi">
+        <div className="flex flex-col gap-2 text-sm">
+          {reunioes.length ? (
+            <ul className="flex flex-col divide-y divide-[var(--line)]">{reunioes.slice(0, 8).map((r) => <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 py-1.5"><span><Link className="underline" href={`/reunioes/${r.id}?volta=${encodeURIComponent(`/projetos/${p.codigo}`)}`}>{r.titulo}</Link> <span className="text-xs text-[var(--muted)]">· {STATUS_REUNIAO[r.status]?.rotulo}</span></span><span className="text-xs text-[var(--muted)]">{fmtPeriodo(r.inicio, r.fim)}</span></li>)}</ul>
+          ) : <p className="text-[var(--muted)]">Nenhuma reunião registrada para este projeto.</p>}
+          {encaminhamentos.length > 0 && <p className="text-xs text-[var(--txt-2)]"><b>{encaminhamentos.length}</b> encaminhamento(s) em aberto: {encaminhamentos.slice(0, 3).map((i) => i.texto.slice(0, 60)).join(" · ")}{encaminhamentos.length > 3 ? " …" : ""}</p>}
+          <div className="flex gap-3 text-xs"><Link className="underline" href={`/reunioes/nova?projeto=${p.codigo}&volta=${encodeURIComponent(`/projetos/${p.codigo}`)}`}>+ Registrar reunião</Link>{reunioes.length > 0 && <Link className="underline" href={`/reunioes?projeto=${p.codigo}`}>ver todas</Link>}</div>
+        </div>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Tarefas abertas" value={abertas.length} note={`de ${tarefas.length} na carga`} href={urlCom("/tarefas", {}, { projeto: p.codigo })} />

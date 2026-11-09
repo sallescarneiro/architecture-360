@@ -19,7 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...(gestao ? [{ href: "/painel", label: "Painel de Gestão", icon: "ads" as const }] : []), // T-199: coordenação, gestão e admin
       { href: "/tarefas", label: "Tarefas", icon: "tasks" },
       { href: "/projetos", label: "Projetos", icon: "bolt" },
-      { href: "/agenda", label: "Agenda", icon: "calendar" as const }, // T-187 · Etapa 1: própria agenda (todos os perfis)
+      { href: "/agenda", label: "Agenda", icon: "calendar" as const }, // T-187: própria agenda (todos os perfis)
+      { href: "/reunioes", label: "Reuniões", icon: "users" as const }, // T-188: reuniões com pauta, ata e encaminhamentos
       { href: "/qualidade", label: "Qualidade dos dados", icon: "check" },
     ] },
     { label: "Dados", items: [

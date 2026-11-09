@@ -133,3 +133,9 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - Escopo OAuth: `calendar.readonly` + `calendar.events`. Conexões antigas (só leitura) continuam funcionando; a tela pede "Reautorizar com edição" para criar/editar/excluir. Mesmas variáveis do Railway.
 - `/agenda` (mês/semana/dia, `?v=&d=`), `/agenda/conexao`, `/agenda/novo`, `/agenda/e/[id]` (+ `/editar`, `/excluir`). Escritas vão ao Google primeiro (If-Match quando há ETag) e o espelho é atualizado com a resposta; auditoria em `agenda_acao` sem conteúdo.
 - Só o organizador edita/exclui; eventos privados só como "ocupado"; associação a projeto no A360 + propriedade privada `a360_projeto` no evento do Google. Vobi segue só leitura.
+
+## T-188 · Reuniões (09/11/2026)
+- Migração `0005_reunioes.sql` (`reuniao`, `reuniao_item`, `reuniao_historico` só-acréscimo); reversão em `drizzle/reversao/`.
+- Rotas `/reunioes`, `/reunioes/nova` (`?projeto=` ou `?evento=` da Agenda), `/reunioes/[id]` (ata, decisões, aprovações, encaminhamentos, histórico), `/reunioes/[id]/editar`. Botão "Registrar reunião"/"Abrir reunião" no detalhe do compromisso da Agenda; seção "Reuniões" no detalhe do projeto.
+- Opcional ao criar: compromisso na Google Agenda do usuário (reutiliza a Agenda; só com permissão de edição). Vobi segue só leitura; encaminhamentos não viram tarefas do Vobi nem geram cobrança/notificação.
+- Visibilidade: coordenação/gestão/admin veem tudo; arquiteta vê o que criou, de que participa ou de projetos em que participa (regra D-A).

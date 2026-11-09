@@ -272,3 +272,50 @@ export const acoesAgenda = pgTable("agenda_acao", {
   resultado: text("resultado").notNull(),                  // ok | erro:<código>
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Reuniões (T-188, Fase 4) — reunião ligada a projeto/cliente do Vobi (só leitura) e, opcionalmente, a um evento da Agenda.
+// Pauta, ata, decisões, aprovações e encaminhamentos ficam no A360; nada vira tarefa no Vobi. Histórico é só-acréscimo.
+// ---------------------------------------------------------------------------
+export const reunioes = pgTable("reuniao", {
+  id: serial("id").primaryKey(),
+  titulo: text("titulo").notNull(),
+  projetoCodigo: integer("projeto_codigo"),                 // projeto do Vobi (fato importado)
+  clienteCodigo: integer("cliente_codigo"),                 // cliente do Vobi, normalmente derivado do projeto
+  inicio: timestamp("inicio", { withTimezone: true }).notNull(),
+  fim: timestamp("fim", { withTimezone: true }).notNull(),
+  local: text("local"),
+  participantes: jsonb("participantes").$type<{ email: string | null; nome: string; externo: boolean }[]>().notNull().default([]),
+  pauta: text("pauta"),
+  ata: text("ata"),
+  status: text("status").notNull().default("planejada"),    // planejada | realizada | cancelada
+  eventoGoogleId: text("evento_google_id"),                 // id do evento no Google Calendar (quando ligada à Agenda)
+  eventoUsuarioId: integer("evento_usuario_id"),            // dono da conexão em que o evento vive
+  criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("reuniao_projeto_idx").on(t.projetoCodigo), index("reuniao_inicio_idx").on(t.inicio), index("reuniao_evento_idx").on(t.eventoGoogleId)]);
+
+export const itensReuniao = pgTable("reuniao_item", {
+  id: serial("id").primaryKey(),
+  reuniaoId: integer("reuniao_id").notNull().references(() => reunioes.id),
+  tipo: text("tipo").notNull(),                             // decisao | aprovacao | encaminhamento
+  texto: text("texto").notNull(),
+  responsavel: text("responsavel"),                         // nome ou e-mail (encaminhamento)
+  prazo: text("prazo"),                                     // AAAA-MM-DD (encaminhamento)
+  situacao: text("situacao").notNull().default("aberto"),   // aberto | feito | cancelado (encaminhamento) · registrado (demais)
+  criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("reuniao_item_reuniao_idx").on(t.reuniaoId)]);
+
+/** Histórico imutável da reunião: cada alteração é uma linha nova; nunca se edita nem apaga. */
+export const historicoReuniao = pgTable("reuniao_historico", {
+  id: serial("id").primaryKey(),
+  reuniaoId: integer("reuniao_id").notNull().references(() => reunioes.id),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  acao: text("acao").notNull(),                             // criada | editada | ata | status | item_novo | item_situacao | agenda
+  resumo: text("resumo").notNull(),
+  antes: jsonb("antes"),
+  depois: jsonb("depois"),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("reuniao_historico_reuniao_idx").on(t.reuniaoId)]);
