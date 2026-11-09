@@ -9,3 +9,4 @@ __pycache__/
 *.pem
 *.dump
 *.dump.enc
+web/.local/
