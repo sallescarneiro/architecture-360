@@ -3,6 +3,7 @@ import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { RISCO_REFACAO_FRACAO, SITUACOES_PROJETO, lerFiltrosProjetos, listarProjetos, urlCom, type ParamsLista } from "@/lib/listas";
+import { restricaoDe } from "@/lib/participacao";
 import { Chips, Paginacao, Th, VazioFiltrado } from "@/components/lista";
 import { Badge, Button, Empty, Input, LinkButton, PageHeader, Select } from "@/components/ui";
 
@@ -13,7 +14,9 @@ export default async function ProjetosPage({ searchParams }: { searchParams: Pro
   const u = await exigirUsuario();
   const gestao = veIndicadoresIndividuais(u.perfil);
   const f = lerFiltrosProjetos(await searchParams);
-  const r = await listarProjetos(f);
+  // D-A (08/11/2026): arquiteta vê só projetos em que participa (colaboradora no Vobi ou responsável por tarefa); decidido no servidor.
+  const restricao = gestao ? undefined : await restricaoDe(u.email);
+  const r = await listarProjetos(f, restricao);
   const base = "/projetos";
   const atual = { q: f.q, situacao: f.situacao !== "ativos" ? f.situacao : null, cliente: f.cliente, vinculo: f.vinculo, ord: f.ord !== "atrasadas" ? f.ord : null, dir: f.dir !== "desc" ? f.dir : null, pag: f.pag > 1 ? f.pag : null, n: f.n !== 25 ? f.n : null };
   if (!r.carga) return <><PageHeader eyebrow="Operação" title="Projetos" /><Empty action={<LinkButton href="/importacao" variant="primary">Importar do Vobi</LinkButton>}>Nenhuma carga aceita ainda.</Empty></>;
@@ -27,7 +30,7 @@ export default async function ProjetosPage({ searchParams }: { searchParams: Pro
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Operação" title="Projetos"
-        subtitle={<>Dados do Vobi de <b>{fmt(r.carga.dataCarga)}</b> (carga {r.carga.id}) · prazos comparados com hoje, {fmt(r.hoje)}. &ldquo;Exigem acompanhamento&rdquo; = alguma tarefa atrasada ou ≥ {Math.round(RISCO_REFACAO_FRACAO * 100)}% das horas em Refação; tarefas sem responsável não contam (limitação da fonte).</>}
+        subtitle={<>Dados do Vobi de <b>{fmt(r.carga.dataCarga)}</b> (carga {r.carga.id}) · prazos comparados com hoje, {fmt(r.hoje)}. {restricao && <>Você vê os projetos em que participa no Vobi (colaboradora ou responsável por tarefa){!restricao.nomes.length && <> — <b>seu e-mail ainda não está associado a um nome do Vobi</b>; peça à gestão em Pessoas</>}. </>}&ldquo;Exigem acompanhamento&rdquo; = alguma tarefa atrasada ou ≥ {Math.round(RISCO_REFACAO_FRACAO * 100)}% das horas em Refação; tarefas sem responsável não contam (limitação da fonte).</>}
         actions={<LinkButton href="/meu-dia">← Meu dia</LinkButton>} />
 
       <form method="get" action={base} className="card flex flex-wrap items-end gap-3 p-3 md:p-4">

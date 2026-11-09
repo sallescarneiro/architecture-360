@@ -114,3 +114,10 @@ Padrão único, o mesmo já usado entre a Central de Operações e o People: end
 Organização do código para a integração futura (seção 6 do prompt de 05/11/2026): `src/lib/importador` (dados originais do Vobi) · `src/lib/servicos` (regras e indicadores, usados pela tela e pelo endpoint) · `src/lib/contratos` (contratos versionados) · `src/lib/integracoes` (clientes de outras plataformas) · `src/app` (camada visual, só apresenta). Toda informação exportada carrega `origem` (vobi/people/a360), `natureza` (original/calculado/inferencia_ia — este último reservado, sem uso) e `dataReferencia` (data da exportação do Vobi). Identificadores: projeto = Código do Vobi; pessoa = e-mail @rucelle; carga = id sequencial.
 
 Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `web` (valor gerado, nunca versionado) e o mesmo valor no consumidor; confirmar o formato com os padrões atuais do Rucelle 360° antes.
+
+## T-199 · Painel de Gestão (08/11/2026)
+- Nova rota `/painel` (perfis admin, gestão → visão executiva; coordenação → visão operacional; arquiteta → `/sem-permissao`). Autorização em `exigirUsuario(["admin","gestao","coordenacao"])`.
+- `/panorama` redireciona para `/painel` (D-B); página inicial `/` por perfil: arquiteta → `/meu-dia`, demais → `/painel` (D-D).
+- D-A: arquiteta vê em `/projetos` e `/projetos/[codigo]` só projetos em que participa segundo o Vobi — nome em "Colaboradores" do projeto OU responsável por tarefa na última carga (`src/lib/participacao.ts`); sem associação e-mail↔nome Vobi, não vê projeto nenhum até o mapeamento em Pessoas.
+- D-C: refação só como contagem de tarefas de revisão; percentual de horas não exibido no painel.
+- Nenhuma migração; nenhum dado alterado; Meu Dia inalterado (só o menu ganhou "Painel de Gestão").

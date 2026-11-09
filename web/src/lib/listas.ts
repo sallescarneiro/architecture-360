@@ -3,6 +3,7 @@
 // (meu-dia.ts / operacao.ts) e não dependem destes parâmetros.
 import { contagem, ultimaCargaAceita } from "@/lib/consultas";
 import { chaveTexto } from "@/lib/importador/normalizacao";
+import { sqlParticipa, type Restricao } from "@/lib/participacao";
 import { FILTROS_PRAZO, hojeIso, sqlStatusPrazo, type StatusPrazo } from "@/lib/prazo";
 
 export type ParamsLista = Record<string, string | string[] | undefined>;
@@ -96,7 +97,7 @@ export type LinhaProjeto = {
 
 export const RISCO_REFACAO_FRACAO = 0.3;
 
-export async function listarProjetos(f: FiltrosProjetos) {
+export async function listarProjetos(f: FiltrosProjetos, restricao?: Restricao) {
   const carga = await ultimaCargaAceita();
   const hoje = hojeIso();
   if (!carga) return { carga: null, hoje, linhas: [] as LinhaProjeto[], total: 0 };
@@ -110,6 +111,7 @@ export async function listarProjetos(f: FiltrosProjetos) {
   if (f.q) { const k = esc(chaveTexto(f.q)); where.push(`(p.chave_nome like '%${k}%' or lower(coalesce(c.chave_nome,'')) like '%${k}%' or p.codigo::text = '${k}')`); }
   if (f.cliente) where.push(`p.cliente_codigo = ${f.cliente}`);
   if (f.vinculo) where.push(`p.vinculo_cliente_status = '${f.vinculo}'`);
+  if (restricao) where.push(sqlParticipa(restricao.email, restricao.nomes, cid, "p")); // D-A: arquiteta vê só projetos em que participa (dados do Vobi)
   const agreg = `select p.codigo, p.nome, c.nome cliente, p.cliente_codigo, p.vinculo_cliente_status vinculo, p.status, p.status_classe,
       count(t.chave) filter (where ${ABERTA})::int abertas,
       count(t.chave) filter (where ${ABERTA} and ${sp} in ('atrasada_30','atrasada_8_30','atrasada_1_7'))::int atrasadas,

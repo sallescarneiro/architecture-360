@@ -52,7 +52,7 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
         </div></Alert>
       )}
       {carga.status === "retida" && <Alert kind="warn">Carga retida como anômala e <b>não gravada</b>. Confira no Vobi se a exportação saiu sem filtros e envie novamente.</Alert>}
-      {carga.status === "aceita" && <Alert kind="success"><span>Carga aceita e gravada{carga.confirmadoEm ? ` em ${carga.confirmadoEm.toLocaleString("pt-BR")}` : ""}. Veja a <Link className="underline" href="/qualidade">qualidade dos dados</Link> e a <Link className="underline" href="/panorama">panorama</Link>.</span></Alert>}
+      {carga.status === "aceita" && <Alert kind="success"><span>Carga aceita e gravada{carga.confirmadoEm ? ` em ${carga.confirmadoEm.toLocaleString("pt-BR")}` : ""}. Veja a <Link className="underline" href="/qualidade">qualidade dos dados</Link> e o <Link className="underline" href="/painel">Painel de Gestão</Link>.</span></Alert>}
 
       {rel && (
         <>

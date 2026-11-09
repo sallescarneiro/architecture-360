@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
-import { linkVobiProjeto, ultimaCargaAceita } from "@/lib/consultas";
+import { contagem, linkVobiProjeto, ultimaCargaAceita } from "@/lib/consultas";
+import { restricaoDe, sqlParticipa } from "@/lib/participacao";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { hojeIso, statusPrazo } from "@/lib/prazo";
@@ -19,6 +20,12 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const p = (await db.select().from(schema.projetos).where(eq(schema.projetos.codigo, Number(codigo))).limit(1))[0];
   if (!p) notFound();
   const carga = await ultimaCargaAceita();
+  if (!gestao) {
+    // D-A (08/11/2026): arquiteta só abre projetos em que participa (colaboradora no Vobi ou responsável por tarefa). Verificado no servidor.
+    const r = await restricaoDe(u.email);
+    const ok = carga ? (await contagem(`select 1 from projeto p where p.codigo=${p.codigo} and ${sqlParticipa(r.email, r.nomes, carga.id, "p")}`)).length > 0 : false;
+    if (!ok) redirect("/sem-permissao");
+  }
   const cliente = p.clienteCodigo ? (await db.select().from(schema.clientesVobi).where(eq(schema.clientesVobi.codigo, p.clienteCodigo)).limit(1))[0] : null;
   const tarefas = await db.select().from(schema.tarefas)
     .where(and(eq(schema.tarefas.projetoCodigo, p.codigo), isNull(schema.tarefas.naoEncontradoDesde)))

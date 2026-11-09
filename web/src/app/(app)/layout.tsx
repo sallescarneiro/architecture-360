@@ -16,9 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const groups: NavGroup[] = [
     { label: "Central de Trabalho", items: [
       { href: "/meu-dia", label: "Meu dia", icon: "home" },
+      ...(gestao ? [{ href: "/painel", label: "Painel de Gestão", icon: "ads" as const }] : []), // T-199: coordenação, gestão e admin
       { href: "/tarefas", label: "Tarefas", icon: "tasks" },
       { href: "/projetos", label: "Projetos", icon: "bolt" },
-      { href: "/panorama", label: "Panorama", icon: "ads" },
       { href: "/qualidade", label: "Qualidade dos dados", icon: "check" },
     ] },
     { label: "Dados", items: [
@@ -28,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ] },
   ];
   const marca = (
-    <Link href="/meu-dia" className="marca flex items-baseline gap-2">
+    <Link href="/" className="marca flex items-baseline gap-2">
       <span className="text-[var(--vinho)]">RUCELLE <span>360°</span></span>
       <small className="hidden sm:inline">Architecture 360 · Central de Trabalho</small>
     </Link>
