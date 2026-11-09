@@ -51,12 +51,12 @@ export function Badge({ children, tone, color }: { children: ReactNode; tone?: "
 
 export function Card({ children, className = "", title, subtitle, actions, id }: { children: ReactNode; className?: string; title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode; id?: string }) {
   return (
-    <section id={id} className={`card p-4 md:p-5 ${className}`}>
+    <section id={id} className={`card p-4 md:p-[18px] ${className}`}>
       {(title || actions) && (
-        <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            {title && <h2 className="text-[1rem] font-semibold leading-tight tracking-[-0.01em]">{title}</h2>}
-            {subtitle && <p className="mt-1 text-[0.78rem] leading-snug text-[var(--muted)]">{subtitle}</p>}
+            {title && <h2 className="text-[0.95rem] font-bold leading-tight tracking-[-0.01em]">{title}</h2>}
+            {subtitle && <p className="mt-0.5 text-[0.76rem] leading-snug text-[var(--muted)]">{subtitle}</p>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </header>
@@ -69,11 +69,11 @@ export function Card({ children, className = "", title, subtitle, actions, id }:
 /** Cabeçalho de página: rótulo da seção (eyebrow), título editorial, apoio e ações. */
 export function PageHeader({ title, subtitle, actions, eyebrow }: { title: string; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--line)] pb-5">
-      <div className="min-w-0 max-w-3xl">
-        {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
-        <h1 className="display text-[1.95rem] leading-[1.1] text-[var(--grafite)] md:text-[2.2rem]">{title}</h1>
-        {subtitle && <p className="mt-2 text-[0.9rem] leading-relaxed text-[var(--txt-2)]">{subtitle}</p>}
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0 max-w-4xl">
+        {eyebrow && <div className="eyebrow mb-1">{eyebrow}</div>}
+        <h1 className="display text-[1.45rem] leading-[1.2] text-[var(--grafite)] md:text-[1.55rem]">{title}</h1>
+        {subtitle && <p className="mt-1 text-[0.82rem] leading-relaxed text-[var(--muted)]">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -84,22 +84,27 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: strin
 export function Stat({ label, value, note, tone, pill, href, source }: { label: string; value: ReactNode; note?: ReactNode; tone?: "ok" | "warn" | "bad" | "info" | "neutral"; pill?: ReactNode; href?: string; source?: "meta" | "calc" }) {
   const body = (
     <>
-      <div className="flex items-center justify-between gap-2 text-[0.78rem] font-semibold text-[var(--txt-2)]">
+      <div className="flex items-center justify-between gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-[var(--muted)]">
         <span className="flex items-center gap-1.5">{label}{source && <SourceTag source={source} />}</span>
         {href && <span aria-hidden className="text-[var(--muted)]">→</span>}
       </div>
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1"><span className="kpi-val">{value}</span>{pill && <span className="pill" style={{ background: `var(--${tone ?? "neutral"}-bg)`, color: `var(--${tone ?? "neutral"})` }}>{pill}</span>}</div>
-      {note && <div className="mt-1.5 text-[0.75rem] leading-snug text-[var(--muted)]">{note}</div>}
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-1"><span className={`kpi-val ${tone && tone !== "neutral" && tone !== "info" ? `num-${tone === "bad" ? "relevante" : tone === "warn" ? "hoje" : "ok"}` : ""}`}>{value}</span>{pill && <span className="pill" style={{ background: `var(--${tone ?? "neutral"}-bg)`, color: `var(--${tone ?? "neutral"})` }}>{pill}</span>}</div>
+      {note && <div className="mt-1 text-[0.74rem] leading-snug text-[var(--muted)]">{note}</div>}
     </>
   );
-  return href ? <Link href={href} className="card card-link block p-4 md:p-5">{body}</Link> : <div className="card p-4 md:p-5">{body}</div>;
+  return href ? <Link href={href} className="card card-link block p-3.5 md:p-4">{body}</Link> : <div className="card p-3.5 md:p-4">{body}</div>;
 }
 
-/** Origem do número: "Meta" (veio da Meta) ou "calculado" (conta feita pela Central). */
+/** Origem do número: "Vobi" (fato importado) ou "calculado" (conta feita pelo A360 sobre os dados importados). */
 export function SourceTag({ source }: { source: "meta" | "calc" }) {
   return source === "meta"
-    ? <span className="tag text-[#2c4a7a]" title="Número informado pela Meta">Meta</span>
-    : <span className="tag text-[var(--muted)]" title="Calculado pela Central a partir dos números da Meta">calculado</span>;
+    ? <span className="tag text-[var(--vinho)]" title="Fato importado do Vobi">Vobi</span>
+    : <span className="tag text-[var(--muted)]" title="Calculado pelo A360 a partir dos dados importados do Vobi">calc.</span>;
+}
+
+/** Ícone de ajuda com explicação no hover/foco (title nativo). */
+export function Ajuda({ texto }: { texto: string }) {
+  return <span className="ajuda" tabIndex={0} title={texto} aria-label={texto}>?</span>;
 }
 
 /** Filtro ativo removível: o "×" é um link para a mesma página sem esse filtro. */

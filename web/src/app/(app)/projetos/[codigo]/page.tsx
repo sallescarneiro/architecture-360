@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
-import { ultimaCargaAceita } from "@/lib/consultas";
+import { linkVobiProjeto, ultimaCargaAceita } from "@/lib/consultas";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
+import { hojeIso, statusPrazo } from "@/lib/prazo";
+import { StatusPrazo } from "@/components/StatusPrazo";
+import { urlCom } from "@/lib/listas";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 
 /** Detalhe do projeto (somente leitura): dados do Vobi, cliente vinculado e tarefas da última carga. */
@@ -20,9 +23,10 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const tarefas = await db.select().from(schema.tarefas)
     .where(and(eq(schema.tarefas.projetoCodigo, p.codigo), isNull(schema.tarefas.naoEncontradoDesde)))
     .orderBy(asc(schema.tarefas.etapaCanonica), asc(schema.tarefas.dataFim), asc(schema.tarefas.nome));
-  const abertas = tarefas.filter((t) => t.status !== "concluido" && t.status !== "cancelado");
-  const hoje = new Date().toISOString().slice(0, 10);
-  const vencidas = abertas.filter((t) => t.dataFim && t.dataFim < hoje).length;
+  const hoje = hojeIso();
+  const prazos = new Map(tarefas.map((t) => [t.chave, statusPrazo(t.status, t.dataFim, hoje)]));
+  const abertas = tarefas.filter((t) => prazos.get(t.chave)!.aberta);
+  const vencidas = abertas.filter((t) => prazos.get(t.chave)!.atrasada).length;
   const horas = tarefas.reduce((a, t) => a + (t.horasRealizadasMin ?? 0), 0);
 
   const clienteBloco = p.vinculoClienteStatus === "ambiguo"
@@ -35,14 +39,14 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow="Operação · Projeto" title={p.nome}
         subtitle={<>Cód. Vobi {p.codigo} · <Badge tone={p.statusClasse === "encerrado" ? "neutral" : p.statusClasse === "pausado" ? "warn" : "ok"}>{p.status}</Badge> · criado em {p.criadoEm ?? "—"}{p.metragem ? ` · ${p.metragem} m²` : ""}{p.etiquetas.length ? ` · ${p.etiquetas.join(", ")}` : ""}
-          <span className="mt-1 block text-xs">Origem: Vobi{carga ? ` · carga ${carga.id} de ${carga.dataCarga}` : ""}{p.naoEncontradoDesde ? " · não encontrado na última exportação" : ""} <Badge tone="neutral">somente leitura</Badge></span></>}
-        actions={<Link href="/meu-dia" className="btn btn-secondary btn-sm">← Meu dia</Link>} />
+          <span className="mt-1 block text-xs">Origem: Vobi{carga ? ` · exportação de ${carga.dataCarga.split("-").reverse().join("/")} (carga ${carga.id})` : ""} · prazos comparados com hoje{p.naoEncontradoDesde ? " · não encontrado na última exportação" : ""} <Badge tone="neutral">somente leitura</Badge></span></>}
+        actions={<div className="flex gap-2"><a className="btn btn-secondary btn-sm" href={linkVobiProjeto(p.codigo)} target="_blank" rel="noreferrer">Abrir no Vobi ↗</a><Link href="/projetos" className="btn btn-secondary btn-sm">← Projetos</Link></div>} />
 
       <Card title="Cliente"><div className="text-sm">{clienteBloco}</div></Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Tarefas abertas" value={abertas.length} note={`de ${tarefas.length} na carga`} />
-        <Stat label="Vencidas" value={vencidas} tone={vencidas ? "warn" : "ok"} source="calc" />
+        <Stat label="Tarefas abertas" value={abertas.length} note={`de ${tarefas.length} na carga`} href={urlCom("/tarefas", {}, { projeto: p.codigo })} />
+        <Stat label="Atrasadas" value={vencidas} tone={vencidas ? "bad" : "ok"} source="calc" href={urlCom("/tarefas", {}, { projeto: p.codigo, prazo: "atrasadas" })} />
         <Stat label="Horas realizadas" value={minutosParaHoras(horas)} note="acumuladas nas tarefas" />
         <Stat label="Colaboradores (Vobi)" value={p.colaboradores.length} note={p.colaboradores.join(", ") || "—"} />
       </div>
@@ -50,11 +54,12 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
       <Card title="Tarefas (última carga)" subtitle="Fato importado do Vobi; não é medida de desempenho.">
         {tarefas.length ? (
           <div className="overflow-x-auto"><table className="tbl">
-            <thead><tr><th>Etapa</th><th>Tarefa</th><th>Status</th>{gestao && <th>Responsável</th>}<th>Início</th><th>Fim</th><th>Horas</th></tr></thead>
+            <thead><tr><th>Etapa</th><th>Tarefa</th><th>Situação</th><th>Status Vobi</th>{gestao && <th>Responsável</th>}<th>Início</th><th>Fim</th><th>Horas</th></tr></thead>
             <tbody>{tarefas.map((t) => (
               <tr key={t.chave}>
                 <td>{t.etapaCanonica}</td><td>{t.nome}</td>
-                <td><Badge tone={t.status === "concluido" ? "ok" : t.status === "cancelado" ? "neutral" : t.dataFim && t.dataFim < hoje ? "warn" : "info"}>{t.status}</Badge></td>
+                <td><StatusPrazo info={prazos.get(t.chave)!} /></td>
+                <td className="text-[var(--txt-2)]">{t.status}</td>
                 {gestao && <td>{t.responsavelNome ?? "—"}</td>}
                 <td>{t.dataInicio ?? "—"}</td><td>{t.dataFim ?? "—"}</td><td>{t.horasRealizadasMin ? minutosParaHoras(t.horasRealizadasMin) : "—"}</td>
               </tr>

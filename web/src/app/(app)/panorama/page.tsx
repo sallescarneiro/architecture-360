@@ -29,7 +29,7 @@ export default async function OperacaoPage() {
   return (
     <>
       <PageHeader eyebrow="Architecture 360" title="Panorama da operação"
-        subtitle={<>Dados do Vobi, carga {carga.id} de {carga.dataCarga}; prazos avaliados na data da exportação. Indicadores só onde há dado; cada bloco informa a base usada. <Badge tone="neutral">Vobi · somente leitura</Badge></>}
+        subtitle={<>Dados do Vobi exportados em {carga.dataCarga.split("-").reverse().join("/")} (carga {carga.id}); prazos comparados com hoje, {p.hoje.split("-").reverse().join("/")} (regra única de prazo). Indicadores só onde há dado; cada bloco informa a base usada. <Badge tone="neutral">Vobi · somente leitura</Badge></>}
         actions={<LinkButton href="/meu-dia">← Meu dia</LinkButton>} />
 
       {gestao && (
@@ -44,9 +44,9 @@ export default async function OperacaoPage() {
       )}
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Projetos ativos" value={p.projetosAtivos.reduce((a, r) => a + r.valor, 0)} note={`${p.encerrados} encerrados (finalizados/cancelados)`} />
-        <Stat label="Tarefas abertas vencidas" value={p.prazos.vencidas} source="calc" tone={p.prazos.vencidas ? "warn" : "ok"} note={<Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo" />} />
-        <Stat label="A vencer em 7 / 30 dias" value={`${p.prazos.d7} / ${p.prazos.d30}`} source="calc" note={<Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo" />} />
+        <Stat label="Projetos ativos" value={p.projetosAtivos.reduce((a, r) => a + r.valor, 0)} href="/projetos" note={`${p.encerrados} encerrados (finalizados/cancelados)`} />
+        <Stat label="Tarefas abertas atrasadas" value={p.prazos.vencidas} source="calc" tone={p.prazos.vencidas ? "bad" : "ok"} href="/tarefas?prazo=atrasadas" note={<>&gt;30 d: {p.prazos.faixas.a30} · 8–30: {p.prazos.faixas.a8} · 1–7: {p.prazos.faixas.a1}<Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo" /></>} />
+        <Stat label="Vencem hoje + 7 dias / 30 dias" value={`${p.prazos.d7} / ${p.prazos.d30}`} source="calc" href="/tarefas?prazo=proximas" note={<>{p.prazos.hoje} vencem hoje · {p.prazos.semPrazo} sem prazo<Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo" /></>} />
         <Stat label="Tarefas com dados completos" value={p.completas} source="calc" pill={`${pct(p.completas, p.total)}%`} tone="neutral" note={<>de {p.total} · <Link className="underline" href="/qualidade">ver qualidade</Link></>} href="/qualidade" />
       </div>
 
@@ -56,14 +56,14 @@ export default async function OperacaoPage() {
       </div>
 
       <Card className="mb-5" title="Tarefas abertas por etapa">
-        <table className="tbl"><thead><tr><th>Etapa</th><th>Abertas</th><th>Vencidas</th></tr></thead><tbody>
+        <table className="tbl"><thead><tr><th>Etapa</th><th>Abertas</th><th>Atrasadas</th></tr></thead><tbody>
           {p.porEtapa.map((r) => <tr key={r.rotulo}><td>{r.rotulo}</td><td>{r.abertas}</td><td>{r.vencidas}</td></tr>)}</tbody></table>
-        <Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo (coluna Vencidas)" />
+        <Selo s={selo(p.comFim, p.total, carga)} rotulo="tarefas com prazo (coluna Atrasadas)" />
       </Card>
 
       <Card className="mb-5" title={gestao ? "Tarefas abertas por responsável" : "Minhas tarefas abertas"}
         subtitle="Contagem de tarefas (fato importado), não medida de desempenho: volume sem complexidade, carga e dependências não compara pessoas. Uso: contextualizar carga e distribuição.">
-        <table className="tbl"><thead><tr><th>Responsável</th><th>Abertas</th><th>Vencidas</th><th>Vencem em 7 dias</th></tr></thead><tbody>
+        <table className="tbl"><thead><tr><th>Responsável</th><th>Abertas</th><th>Atrasadas</th><th>Hoje + 7 dias</th></tr></thead><tbody>
           {p.porPessoa.map((r) => <tr key={r.rotulo}><td>{r.rotulo}</td><td>{r.abertas}</td><td>{r.vencidas}</td><td>{r.d7}</td></tr>)}
           {!p.porPessoa.length && <tr><td colSpan={4} className="text-[var(--muted)]">nenhuma</td></tr>}</tbody></table>
         <Selo s={selo(p.comResp, p.total, carga)} rotulo="tarefas com responsável" />

@@ -1,4 +1,5 @@
 import { contagem } from "@/lib/consultas";
+import { sqlStatusPrazo } from "@/lib/prazo";
 
 /**
  * Recomendações gerenciais (seção 3 das diretrizes de 05/11/2026): sinais calculados a partir dos dados
@@ -12,14 +13,16 @@ const LIMIAR_VENCIDAS_PESSOA = 0.50;     // fração vencida entre as tarefas co
 const LIMIAR_REFACAO_HORAS = 0.25;       // fração das horas de um projeto em Refação
 const MIN_TAREFAS = 8;                   // evita sinais sobre bases muito pequenas
 
+/** `hoje` = data real (AAAA-MM-DD, fuso da Rucelle); atraso pela regra única de src/lib/prazo.ts. */
 export async function recomendacoes(cid: number, hoje: string): Promise<Recomendacao[]> {
   const out: Recomendacao[] = [];
   const abertas = `ultima_carga=${cid} and orfa=false and status not in ('concluido','cancelado')`;
+  const atrasada = `${sqlStatusPrazo(hoje, "tarefa")} in ('atrasada_30','atrasada_8_30','atrasada_1_7')`;
 
   // Concentração / possível sobrecarga por pessoa
   const pessoas = await contagem(`select responsavel_nome k, count(*)::int abertas,
      sum(case when sem_fim=false then 1 else 0 end)::int com_prazo,
-     sum(case when sem_fim=false and data_fim < '${hoje}' then 1 else 0 end)::int vencidas,
+     count(*) filter (where ${atrasada})::int vencidas,
      count(distinct projeto_codigo)::int projetos
      from tarefa where ${abertas} and sem_responsavel=false group by 1`);
   const totalComResp = pessoas.reduce((a, r) => a + Number(r.abertas), 0);
@@ -38,7 +41,7 @@ export async function recomendacoes(cid: number, hoje: string): Promise<Recomend
   }
 
   // Gargalo por etapa
-  const etapas = await contagem(`select etapa_canonica k, count(*)::int abertas, sum(case when sem_fim=false and data_fim < '${hoje}' then 1 else 0 end)::int vencidas
+  const etapas = await contagem(`select etapa_canonica k, count(*)::int abertas, count(*) filter (where ${atrasada})::int vencidas
      from tarefa where ${abertas} group by 1 order by 2 desc`);
   const totalAb = etapas.reduce((a, r) => a + Number(r.abertas), 0);
   const top = etapas[0];

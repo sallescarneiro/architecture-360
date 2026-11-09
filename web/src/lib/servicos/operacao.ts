@@ -1,4 +1,5 @@
 import { contagem, ultimaCargaAceita } from "@/lib/consultas";
+import { hojeIso, sqlStatusPrazo } from "@/lib/prazo";
 import { recomendacoes } from "@/lib/recomendacoes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { estadoOrganizacao } from "@/lib/integracoes/people";
@@ -35,8 +36,12 @@ export type PanoramaInterno = Awaited<ReturnType<typeof panoramaOperacao>>;
 export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRestrito?: string }) {
   const carga = await ultimaCargaAceita();
   if (!carga) return null;
-  const cid = carga.id, hoje = carga.dataCarga;
+  // Prazos sempre pela data real (regra única em src/lib/prazo.ts); a data da exportação fica como proveniência (carga.dataCarga).
+  const cid = carga.id, hoje = hojeIso();
   const abertas = `status not in ('concluido','cancelado') and orfa=false`;
+  const sp = sqlStatusPrazo(hoje, "tarefa");
+  const ATRASADA = `${sp} in ('atrasada_30','atrasada_8_30','atrasada_1_7')`;
+  const PROXIMA7 = `${sp} in ('vence_hoje','vence_7')`;
 
   const [tot] = await contagem(`select count(*)::int total, sum(case when classe_qualidade='completa' then 1 else 0 end)::int completas,
      sum(case when sem_fim=false and orfa=false then 1 else 0 end)::int com_fim,
@@ -47,18 +52,21 @@ export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRes
   const encerrados = projStatus.filter((r) => r.c === "encerrado").reduce((a, r) => a + Number(r.n), 0);
   const tarStatus = await contagem(`select status k, count(*)::int n from tarefa where ultima_carga=${cid} and orfa=false group by 1 order by 2 desc`);
   const [prazos] = await contagem(`select
-     sum(case when data_fim::date < date '${hoje}' then 1 else 0 end)::int vencidas,
-     sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7,
-     sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 30 then 1 else 0 end)::int d30
-     from tarefa where ultima_carga=${cid} and ${abertas} and sem_fim=false`);
-  const porEtapa = await contagem(`select etapa_canonica k, count(*)::int abertas, sum(case when data_fim::date < date '${hoje}' and sem_fim=false then 1 else 0 end)::int vencidas from tarefa where ultima_carga=${cid} and ${abertas} group by 1 order by 2 desc`);
+     count(*) filter (where ${ATRASADA})::int vencidas,
+     count(*) filter (where ${sp} = 'atrasada_30')::int a30, count(*) filter (where ${sp} = 'atrasada_8_30')::int a8, count(*) filter (where ${sp} = 'atrasada_1_7')::int a1,
+     count(*) filter (where ${sp} = 'vence_hoje')::int hoje_n,
+     count(*) filter (where ${PROXIMA7})::int d7,
+     count(*) filter (where sem_fim=false and data_fim::date >= date '${hoje}' and data_fim::date <= date '${hoje}' + 30)::int d30,
+     count(*) filter (where ${sp} = 'sem_prazo')::int sem_prazo
+     from tarefa where ultima_carga=${cid} and ${abertas}`);
+  const porEtapa = await contagem(`select etapa_canonica k, count(*)::int abertas, count(*) filter (where ${ATRASADA})::int vencidas from tarefa where ultima_carga=${cid} and ${abertas} group by 1 order by 2 desc`);
   const porPessoa = opts.incluirPessoas
-    ? await contagem(`select responsavel_nome k, count(*)::int abertas, sum(case when data_fim::date < date '${hoje}' and sem_fim=false then 1 else 0 end)::int vencidas,
-        sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7
+    ? await contagem(`select responsavel_nome k, count(*)::int abertas, count(*) filter (where ${ATRASADA})::int vencidas, count(*) filter (where ${PROXIMA7})::int d7,
+        count(*) filter (where ${sp} = 'sem_prazo')::int sem_prazo
         from tarefa where ultima_carga=${cid} and ${abertas} and sem_responsavel=false group by 1 order by 2 desc`)
     : opts.emailRestrito
-      ? await contagem(`select responsavel_nome k, count(*)::int abertas, sum(case when data_fim::date < date '${hoje}' and sem_fim=false then 1 else 0 end)::int vencidas,
-        sum(case when data_fim::date >= date '${hoje}' and data_fim::date < date '${hoje}' + 7 then 1 else 0 end)::int d7
+      ? await contagem(`select responsavel_nome k, count(*)::int abertas, count(*) filter (where ${ATRASADA})::int vencidas, count(*) filter (where ${PROXIMA7})::int d7,
+        count(*) filter (where ${sp} = 'sem_prazo')::int sem_prazo
         from tarefa where ultima_carga=${cid} and ${abertas} and responsavel_email='${opts.emailRestrito.replace(/'/g, "''")}' group by 1`)
       : [];
   const horasProj = await contagem(`select p.nome k, p.codigo, c.nome cliente, p.vinculo_cliente_status vinculo, sum(t.horas_realizadas_min)::int min, sum(case when t.etapa_canonica='Refação' then t.horas_realizadas_min else 0 end)::int refacao
@@ -71,12 +79,14 @@ export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRes
   const recs = opts.incluirPessoas ? await recomendacoes(cid, hoje) : [];
 
   return {
-    carga, total, completas, comFim, comResp,
+    carga, hoje, total, completas, comFim, comResp,
     projetosAtivos: ativos.map((r) => ({ rotulo: String(r.k), valor: Number(r.n) })), encerrados,
     tarefasStatus: tarStatus.map((r) => ({ rotulo: String(r.k), valor: Number(r.n) })),
-    prazos: { vencidas: Number(prazos.vencidas ?? 0), d7: Number(prazos.d7 ?? 0), d30: Number(prazos.d30 ?? 0) },
+    // vencidas = atrasadas (3 faixas somadas); d7 = vence hoje + 1–7 dias; d30 = prazo entre hoje e 30 dias; faixas para detalhe
+    prazos: { vencidas: Number(prazos.vencidas ?? 0), d7: Number(prazos.d7 ?? 0), d30: Number(prazos.d30 ?? 0), hoje: Number(prazos.hoje_n ?? 0), semPrazo: Number(prazos.sem_prazo ?? 0),
+      faixas: { a30: Number(prazos.a30 ?? 0), a8: Number(prazos.a8 ?? 0), a1: Number(prazos.a1 ?? 0) } },
     porEtapa: porEtapa.map((r) => ({ rotulo: String(r.k), abertas: Number(r.abertas), vencidas: Number(r.vencidas) })),
-    porPessoa: porPessoa.map((r) => ({ rotulo: String(r.k), abertas: Number(r.abertas), vencidas: Number(r.vencidas), d7: Number(r.d7) })),
+    porPessoa: porPessoa.map((r) => ({ rotulo: String(r.k), abertas: Number(r.abertas), vencidas: Number(r.vencidas), d7: Number(r.d7), semPrazo: Number(r.sem_prazo) })),
     horas: { totalMin: Number(horasTot.min), refacaoMin: Number(horasTot.refacao), comHoras: Number(horasTot.com_horas),
       porProjeto: horasProj.map((r) => ({ rotulo: String(r.k), codigo: Number(r.codigo), cliente: rotuloCliente(r), min: Number(r.min), refacaoMin: Number(r.refacao) })) },
     revisoes: revisoes.map((r) => ({ rotulo: String(r.k), codigo: Number(r.codigo), cliente: rotuloCliente(r), valor: Number(r.n) })),
