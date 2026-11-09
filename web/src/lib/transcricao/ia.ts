@@ -35,7 +35,7 @@ async function chamarAnthropic(system: string, user: string, maxTokens = 8000): 
   const t0 = Date.now();
   let r: Response;
   try {
-    r = await fetch(API, { method: "POST", headers: cabecalhos(key), body: JSON.stringify({ model: MODELO_PADRAO, max_tokens: maxTokens, temperature: 0, system, messages: [{ role: "user", content: user }] }) });
+    r = await fetch(API, { method: "POST", headers: cabecalhos(key), body: JSON.stringify({ model: MODELO_PADRAO, max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }) });
   } catch (e) { throw new ErroIA("rede", e instanceof Error ? e.message.replace(key, "***").slice(0, 120) : "falha de rede"); }
   if (!r.ok) { let m = `HTTP ${r.status}`; try { m += ` ${String((await r.json()).error?.message ?? "").replace(key, "***").slice(0, 160)}`; } catch { /* sem corpo */ } throw new ErroIA("http", m); }
   const j = (await r.json()) as { model?: string; usage?: { input_tokens?: number; output_tokens?: number }; content?: { type: string; text?: string }[] };
