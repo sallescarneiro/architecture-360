@@ -209,3 +209,41 @@ export const sincronizacoesPeople = pgTable("sincronizacao_people", {
   motivo: text("motivo"),
   porId: integer("por_id").references(() => usuarios.id),
 });
+
+// ---------------------------------------------------------------------------
+// Agenda (T-187, Fase 3) — Google Calendar somente leitura, OAuth por usuário (D1).
+// Tokens cifrados (AES-256-GCM, chave só em variável de ambiente), um registro por usuário, escopo calendar.readonly.
+// Eventos privados do Google são guardados só como "ocupado" (sem título, participantes, local ou links) — D2 e acréscimo 6.
+// ---------------------------------------------------------------------------
+export const conexoesAgenda = pgTable("conexao_agenda", {
+  usuarioId: integer("usuario_id").primaryKey().references(() => usuarios.id),
+  emailGoogle: text("email_google"),
+  refreshTokenCifrado: text("refresh_token_cifrado"),
+  accessTokenCifrado: text("access_token_cifrado"),
+  accessExpiraEm: timestamp("access_expira_em", { withTimezone: true }),
+  estado: text("estado").notNull().default("conectada"), // conectada | revogada | erro
+  erro: text("erro"),                                      // mensagem curta e sem dados sensíveis
+  conectadoEm: timestamp("conectado_em", { withTimezone: true }).notNull().defaultNow(),
+  ultimaSincEm: timestamp("ultima_sinc_em", { withTimezone: true }),      // última tentativa
+  ultimaSincOkEm: timestamp("ultima_sinc_ok_em", { withTimezone: true }), // última sincronização bem-sucedida
+  eventos: integer("eventos").notNull().default(0),
+});
+
+export const eventosAgenda = pgTable("evento_agenda", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  googleId: text("google_id").notNull(),
+  inicio: timestamp("inicio", { withTimezone: true }).notNull(),
+  fim: timestamp("fim", { withTimezone: true }).notNull(),
+  diaInteiro: boolean("dia_inteiro").notNull().default(false),
+  privado: boolean("privado").notNull().default(false),
+  titulo: text("titulo"),
+  local: text("local"),
+  participantes: jsonb("participantes").$type<{ email: string; nome: string | null; externo: boolean }[]>().notNull().default([]),
+  externos: integer("externos").notNull().default(0),
+  meetLink: text("meet_link"),
+  htmlLink: text("html_link"),
+  status: text("status"),                                  // confirmed | tentative
+  atualizadoGoogleEm: timestamp("atualizado_google_em", { withTimezone: true }),
+  sincronizadoEm: timestamp("sincronizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("evento_agenda_usuario_google_uq").on(t.usuarioId, t.googleId), index("evento_agenda_usuario_inicio_idx").on(t.usuarioId, t.inicio)]);

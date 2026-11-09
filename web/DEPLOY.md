@@ -121,3 +121,9 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - D-A: arquiteta vê em `/projetos` e `/projetos/[codigo]` só projetos em que participa segundo o Vobi — nome em "Colaboradores" do projeto OU responsável por tarefa na última carga (`src/lib/participacao.ts`); sem associação e-mail↔nome Vobi, não vê projeto nenhum até o mapeamento em Pessoas.
 - D-C: refação só como contagem de tarefas de revisão; percentual de horas não exibido no painel.
 - Nenhuma migração; nenhum dado alterado; Meu Dia inalterado (só o menu ganhou "Painel de Gestão").
+
+## T-187 · Agenda — Etapa 1 (09/11/2026)
+- Migração `0003_agenda.sql` (tabelas `conexao_agenda`, `evento_agenda`); reversão em `drizzle/reversao/0003_agenda.down.sql`.
+- Variáveis no Railway: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `AGENDA_TOKEN_KEY` (32 bytes base64, cifra AES-256-GCM dos tokens). Sem elas a tela mostra "integração não configurada". `APP_URL` é opcional (padrão: `RAILWAY_PUBLIC_DOMAIN`).
+- Redirect URI registrado no Google: `https://architecture-360-production.up.railway.app/api/agenda/callback`. Escopo `calendar.readonly` + `openid email`. Consentimento interno (`hd=rucelle.com.br`).
+- OAuth por usuário (D1): `/api/agenda/conectar` → Google → `/api/agenda/callback`. Sincronização sob demanda ao abrir `/agenda`, cache 10 min (D5), botão "Atualizar agora"; janela −7/+60 dias. Eventos privados guardados só como "ocupado". Token expirado renova; refresh recusado → estado "revogada" (tokens apagados); falha HTTP → estado "erro", eventos anteriores mantidos. Desconectar revoga no Google e apaga tudo do usuário. Logs sem tokens, códigos ou dados de evento.

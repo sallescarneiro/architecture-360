@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type IconName = "home" | "tasks" | "bell" | "ads" | "insta" | "users" | "tag" | "upload" | "mail" | "plug" | "shield" | "plus" | "bolt" | "check";
+export type IconName = "home" | "tasks" | "bell" | "ads" | "insta" | "users" | "tag" | "upload" | "mail" | "plug" | "shield" | "plus" | "bolt" | "check" | "calendar";
 export type NavItem = { href: string; label: string; icon: IconName; count?: number };
 export type NavGroup = { label: string; items: NavItem[] };
 
@@ -22,6 +22,7 @@ const PATHS: Record<IconName, string> = {
   plus: "M12 5v14M5 12h14",
   bolt: "M13 2 4 14h7l-1 8 9-12h-7z",
   check: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+  calendar: "M3 5h18v16H3zM3 10h18M8 3v4M16 3v4",
 };
 
 /** Ícone de traço simples (decorativo: o texto ao lado é o rótulo). */

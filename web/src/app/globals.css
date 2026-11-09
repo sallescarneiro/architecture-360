@@ -209,3 +209,5 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .gcol .gcol-bar{width:70%;border-radius:4px 4px 0 0;background:var(--vinho);opacity:.88;min-height:2px}
 .gcol .gcol-val{font-size:.82rem;font-weight:700;margin-bottom:4px}
 .gcol .gcol-lab{font-size:.68rem;color:var(--txt-2);margin-top:6px;text-align:center;line-height:1.25}
+.leitura.leitura-bad { border-left-color: var(--st-critico); background: linear-gradient(90deg, #f8dcd7, rgba(248, 220, 215, 0) 75%); }
+.leitura.leitura-bad > b:first-child { color: var(--st-critico); }
