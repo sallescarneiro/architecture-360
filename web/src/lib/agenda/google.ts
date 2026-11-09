@@ -1,11 +1,16 @@
-// Acesso ao Google (OAuth 2.0 por usuário + Calendar API v3), somente leitura. T-187 Etapa 1.
-// Regras: escopo mínimo (calendar.readonly + e-mail para identificar a conta); nenhum token, código ou evento vai para logs;
-// nada é criado, alterado ou apagado no Google.
+// Acesso ao Google (OAuth 2.0 por usuário + Calendar API v3). T-187 Etapas 1 e 2.
+// Etapa 2 (decisão D6 de Rodrigo, 09/11/2026): o A360 cria, edita e exclui eventos no Google do usuário conectado, com o
+// escopo calendar.events; calendar.readonly segue para listar calendários. Nenhum token, código ou dado de evento vai para logs.
+// Toda escrita usa If-Match (ETag) quando há versão conhecida, para não sobrescrever o que mudou no Google.
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import type { CalendarioGoogle } from "@/db/schema";
 import { cifrar, decifrar } from "./cifra";
 
-export const ESCOPOS = ["openid", "email", "https://www.googleapis.com/auth/calendar.readonly"];
+export const ESCOPO_LEITURA = "https://www.googleapis.com/auth/calendar.readonly";
+export const ESCOPO_ESCRITA = "https://www.googleapis.com/auth/calendar.events";
+export const ESCOPOS = ["openid", "email", ESCOPO_LEITURA, ESCOPO_ESCRITA];
+export const podeEscrever = (escopos: string | null | undefined) => (escopos ?? "").includes(ESCOPO_ESCRITA);
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -62,12 +67,12 @@ function emailDoIdToken(idToken?: string): string | null {
 export async function concluirConexao(usuarioId: number, code: string, req?: Request) {
   const t = await pedirToken({ code, client_id: process.env.GOOGLE_OAUTH_CLIENT_ID!, client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET!, redirect_uri: urlRedirecionamento(req), grant_type: "authorization_code" });
   if (!t.refresh_token) throw new Error("Google não devolveu refresh_token (autorize novamente com consentimento)");
-  if (!(t.scope ?? "").includes("calendar.readonly")) throw new Error("permissão de leitura da agenda não concedida");
+  if (!(t.scope ?? "").includes("calendar.readonly") && !(t.scope ?? "").includes("calendar.events")) throw new Error("permissão de leitura da agenda não concedida");
   const email = emailDoIdToken(t.id_token);
   const valores = {
     emailGoogle: email, refreshTokenCifrado: cifrar(t.refresh_token), accessTokenCifrado: cifrar(t.access_token),
     accessExpiraEm: new Date(Date.now() + (t.expires_in - 60) * 1000), estado: "conectada", erro: null, conectadoEm: new Date(),
-    ultimaSincEm: null, ultimaSincOkEm: null, eventos: 0,
+    ultimaSincEm: null, ultimaSincOkEm: null, eventos: 0, escopos: t.scope ?? null, calendarios: [] as CalendarioGoogle[],
   };
   await db.insert(schema.conexoesAgenda).values({ usuarioId, ...valores }).onConflictDoUpdate({ target: schema.conexoesAgenda.usuarioId, set: valores });
   // Reconexão: o espelho anterior é descartado e refeito na próxima sincronização.
@@ -101,21 +106,78 @@ export async function desconectar(usuarioId: number) {
 }
 
 export type EventoGoogle = {
-  id: string; status?: string; summary?: string; location?: string; visibility?: string; htmlLink?: string; updated?: string;
-  start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string };
-  attendees?: { email?: string; displayName?: string; self?: boolean; responseStatus?: string }[];
-  hangoutLink?: string; conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[] };
-  eventType?: string; transparency?: string;
+  id: string; etag?: string; status?: string; summary?: string; description?: string; location?: string; visibility?: string; htmlLink?: string; updated?: string;
+  start?: { date?: string; dateTime?: string; timeZone?: string }; end?: { date?: string; dateTime?: string; timeZone?: string };
+  attendees?: { email?: string; displayName?: string; self?: boolean; responseStatus?: string; organizer?: boolean }[];
+  organizer?: { email?: string; displayName?: string; self?: boolean };
+  hangoutLink?: string; conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[]; createRequest?: unknown };
+  eventType?: string; transparency?: string; recurringEventId?: string; recurrence?: string[];
+  extendedProperties?: { private?: Record<string, string> };
 };
 
+/** Erro de escrita com código tratável na interface: permissao (403), conflito (412), nao_encontrado (404), outro. */
+export class ErroEscrita extends Error { constructor(public codigo: "permissao" | "conflito" | "nao_encontrado" | "invalido" | "outro", msg: string) { super(msg); } }
+
+async function chamar(accessToken: string, metodo: string, url: string, corpo?: unknown, etag?: string | null): Promise<Response> {
+  const headers: Record<string, string> = { authorization: `Bearer ${accessToken}` };
+  if (corpo !== undefined) headers["content-type"] = "application/json";
+  if (etag) headers["if-match"] = etag;
+  const r = await fetch(url, { method: metodo, headers, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
+  if (r.status === 401) throw new ErroAutorizacao("http_401");
+  if (r.status === 403) { let m = "sem permissão"; try { m = String((await r.json()).error?.message ?? m).slice(0, 120); } catch { /* sem corpo */ } if (/insufficient|scope/i.test(m)) throw new ErroAutorizacao("escopo_insuficiente"); throw new ErroEscrita("permissao", m); }
+  if (r.status === 412) throw new ErroEscrita("conflito", "o evento foi alterado no Google depois da última sincronização");
+  if (r.status === 404 || r.status === 410) throw new ErroEscrita("nao_encontrado", "evento não encontrado no Google (pode ter sido excluído)");
+  if (r.status === 400) { let m = "dados inválidos"; try { m = String((await r.json()).error?.message ?? m).slice(0, 160); } catch { /* sem corpo */ } throw new ErroEscrita("invalido", m); }
+  if (!r.ok) throw new ErroEscrita("outro", `Google Calendar: HTTP ${r.status}`);
+  return r;
+}
+
+/** Calendários do usuário (lista do próprio Google Calendar), com o nível de acesso. Só leitura. */
+export async function listarCalendarios(accessToken: string): Promise<CalendarioGoogle[]> {
+  const r = await chamar(accessToken, "GET", `${API}/users/me/calendarList?minAccessRole=freeBusyReader&showHidden=false&maxResults=100`);
+  const j = (await r.json()) as { items?: { id: string; summary?: string; summaryOverride?: string; primary?: boolean; accessRole?: string; backgroundColor?: string; selected?: boolean }[] };
+  return (j.items ?? []).filter((c) => c.selected !== false || c.primary).map((c) => ({ id: c.id, nome: c.summaryOverride ?? c.summary ?? c.id, primario: Boolean(c.primary), acesso: (c.accessRole as CalendarioGoogle["acesso"]) ?? "reader", cor: c.backgroundColor ?? null }));
+}
+
+export type CorpoEvento = {
+  summary: string; description?: string; location?: string;
+  start: { dateTime: string; timeZone: string } | { date: string }; end: { dateTime: string; timeZone: string } | { date: string };
+  attendees?: { email: string }[]; conferenceData?: { createRequest: { requestId: string; conferenceSolutionKey: { type: "hangoutsMeet" } } };
+  extendedProperties?: { private: Record<string, string> };
+};
+
+export async function obterEvento(accessToken: string, calendarioId: string, eventoId: string): Promise<EventoGoogle> {
+  const r = await chamar(accessToken, "GET", `${API}/calendars/${encodeURIComponent(calendarioId)}/events/${encodeURIComponent(eventoId)}`);
+  return (await r.json()) as EventoGoogle;
+}
+
+/** Cria um evento no calendário indicado (D6). sendUpdates: all | none. */
+export async function criarEvento(accessToken: string, calendarioId: string, corpo: CorpoEvento, enviarConvites: boolean): Promise<EventoGoogle> {
+  const p = new URLSearchParams({ sendUpdates: enviarConvites ? "all" : "none", conferenceDataVersion: "1" });
+  const r = await chamar(accessToken, "POST", `${API}/calendars/${encodeURIComponent(calendarioId)}/events?${p}`, corpo);
+  return (await r.json()) as EventoGoogle;
+}
+
+/** Atualiza campos de um evento (PATCH) com If-Match quando o ETag é conhecido. */
+export async function atualizarEvento(accessToken: string, calendarioId: string, eventoId: string, corpo: Partial<CorpoEvento> & { attendees?: { email: string }[] }, etag: string | null, enviarConvites: boolean): Promise<EventoGoogle> {
+  const p = new URLSearchParams({ sendUpdates: enviarConvites ? "all" : "none", conferenceDataVersion: "1" });
+  const r = await chamar(accessToken, "PATCH", `${API}/calendars/${encodeURIComponent(calendarioId)}/events/${encodeURIComponent(eventoId)}?${p}`, corpo, etag);
+  return (await r.json()) as EventoGoogle;
+}
+
+export async function excluirEvento(accessToken: string, calendarioId: string, eventoId: string, etag: string | null, enviarConvites: boolean): Promise<void> {
+  const p = new URLSearchParams({ sendUpdates: enviarConvites ? "all" : "none" });
+  await chamar(accessToken, "DELETE", `${API}/calendars/${encodeURIComponent(calendarioId)}/events/${encodeURIComponent(eventoId)}?${p}`, undefined, etag);
+}
+
 /** Lista eventos da agenda principal entre duas datas (instâncias de recorrência expandidas). Só leitura. */
-export async function listarEventos(accessToken: string, timeMin: Date, timeMax: Date): Promise<EventoGoogle[]> {
+export async function listarEventos(accessToken: string, timeMin: Date, timeMax: Date, calendarioId = "primary"): Promise<EventoGoogle[]> {
   const itens: EventoGoogle[] = [];
   let pageToken: string | undefined;
   do {
     const p = new URLSearchParams({ singleEvents: "true", orderBy: "startTime", timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString(), maxResults: "250", showDeleted: "false" });
     if (pageToken) p.set("pageToken", pageToken);
-    const r = await fetch(`${API}/calendars/primary/events?${p}`, { headers: { authorization: `Bearer ${accessToken}` } });
+    const r = await fetch(`${API}/calendars/${encodeURIComponent(calendarioId)}/events?${p}`, { headers: { authorization: `Bearer ${accessToken}` } });
     if (r.status === 401 || r.status === 403) throw new ErroAutorizacao(`http_${r.status}`);
     if (!r.ok) throw new Error(`Google Calendar: HTTP ${r.status}`);
     const j = (await r.json()) as { items?: EventoGoogle[]; nextPageToken?: string };

@@ -227,7 +227,11 @@ export const conexoesAgenda = pgTable("conexao_agenda", {
   ultimaSincEm: timestamp("ultima_sinc_em", { withTimezone: true }),      // última tentativa
   ultimaSincOkEm: timestamp("ultima_sinc_ok_em", { withTimezone: true }), // última sincronização bem-sucedida
   eventos: integer("eventos").notNull().default(0),
+  escopos: text("escopos"),                                // escopos concedidos (separados por espaço); escrita exige calendar.events
+  calendarios: jsonb("calendarios").$type<CalendarioGoogle[]>().notNull().default([]), // calendários do usuário (lista, acesso)
 });
+
+export type CalendarioGoogle = { id: string; nome: string; primario: boolean; acesso: "owner" | "writer" | "reader" | "freeBusyReader"; cor: string | null };
 
 export const eventosAgenda = pgTable("evento_agenda", {
   id: serial("id").primaryKey(),
@@ -239,11 +243,32 @@ export const eventosAgenda = pgTable("evento_agenda", {
   privado: boolean("privado").notNull().default(false),
   titulo: text("titulo"),
   local: text("local"),
-  participantes: jsonb("participantes").$type<{ email: string; nome: string | null; externo: boolean }[]>().notNull().default([]),
+  participantes: jsonb("participantes").$type<{ email: string; nome: string | null; externo: boolean; resposta?: string | null }[]>().notNull().default([]),
   externos: integer("externos").notNull().default(0),
   meetLink: text("meet_link"),
   htmlLink: text("html_link"),
   status: text("status"),                                  // confirmed | tentative
   atualizadoGoogleEm: timestamp("atualizado_google_em", { withTimezone: true }),
   sincronizadoEm: timestamp("sincronizado_em", { withTimezone: true }).notNull().defaultNow(),
+  // Etapa 2
+  calendarioId: text("calendario_id").notNull().default("primary"),
+  descricao: text("descricao"),
+  organizadorEmail: text("organizador_email"),
+  souOrganizador: boolean("sou_organizador").notNull().default(false),
+  etag: text("etag"),
+  recorrenteDe: text("recorrente_de"),                     // id da série, quando é uma ocorrência
+  tipo: text("tipo").notNull().default("outro"),           // cliente | interna | visita | outro | ocupado
+  projetoCodigo: integer("projeto_codigo"),                // associação a projeto do Vobi (nunca escreve no Vobi)
+  projetoOrigem: text("projeto_origem"),                   // manual | sugestao | google (propriedade privada a360_projeto)
 }, (t) => [uniqueIndex("evento_agenda_usuario_google_uq").on(t.usuarioId, t.googleId), index("evento_agenda_usuario_inicio_idx").on(t.usuarioId, t.inicio)]);
+
+/** Auditoria interna das escritas no Google (D6): quem, quando, o quê — sem título, participantes ou descrição. */
+export const acoesAgenda = pgTable("agenda_acao", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  acao: text("acao").notNull(),                            // criar | editar | excluir | associar
+  calendarioId: text("calendario_id"),
+  googleId: text("google_id"),
+  resultado: text("resultado").notNull(),                  // ok | erro:<código>
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+});

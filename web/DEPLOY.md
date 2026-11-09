@@ -127,3 +127,9 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - Variáveis no Railway: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `AGENDA_TOKEN_KEY` (32 bytes base64, cifra AES-256-GCM dos tokens). Sem elas a tela mostra "integração não configurada". `APP_URL` é opcional (padrão: `RAILWAY_PUBLIC_DOMAIN`).
 - Redirect URI registrado no Google: `https://architecture-360-production.up.railway.app/api/agenda/callback`. Escopo `calendar.readonly` + `openid email`. Consentimento interno (`hd=rucelle.com.br`).
 - OAuth por usuário (D1): `/api/agenda/conectar` → Google → `/api/agenda/callback`. Sincronização sob demanda ao abrir `/agenda`, cache 10 min (D5), botão "Atualizar agora"; janela −7/+60 dias. Eventos privados guardados só como "ocupado". Token expirado renova; refresh recusado → estado "revogada" (tokens apagados); falha HTTP → estado "erro", eventos anteriores mantidos. Desconectar revoga no Google e apaga tudo do usuário. Logs sem tokens, códigos ou dados de evento.
+
+## T-187 · Agenda — Etapa 2 (09/11/2026, decisão D6)
+- Migração `0004_agenda_etapa2.sql` (colunas novas em `conexao_agenda`/`evento_agenda`, tabela `agenda_acao`); reversão em `drizzle/reversao/`.
+- Escopo OAuth: `calendar.readonly` + `calendar.events`. Conexões antigas (só leitura) continuam funcionando; a tela pede "Reautorizar com edição" para criar/editar/excluir. Mesmas variáveis do Railway.
+- `/agenda` (mês/semana/dia, `?v=&d=`), `/agenda/conexao`, `/agenda/novo`, `/agenda/e/[id]` (+ `/editar`, `/excluir`). Escritas vão ao Google primeiro (If-Match quando há ETag) e o espelho é atualizado com a resposta; auditoria em `agenda_acao` sem conteúdo.
+- Só o organizador edita/exclui; eventos privados só como "ocupado"; associação a projeto no A360 + propriedade privada `a360_projeto` no evento do Google. Vobi segue só leitura.
