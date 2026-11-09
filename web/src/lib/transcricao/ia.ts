@@ -10,17 +10,50 @@ export type Provedor = "anthropic" | "regras";
 
 export class ErroIA extends Error { constructor(public codigo: "sem_chave" | "http" | "formato" | "rede", msg: string) { super(msg); } }
 
+// Preços públicos (platform.claude.com/docs/en/models/overview, consultado em 09/11/2026), US$ por milhão de tokens [entrada, saída].
+// Haiku aparece como "a partir de"; valor aproximado. Modelo fora da tabela → custo não estimado (null).
+export const PRECOS_USD_MTOK: Record<string, [number, number]> = { "claude-sonnet-5-5": [2, 10], "claude-opus-5-5": [4, 20], "claude-fable-5-2": [8, 40], "claude-haiku-5-5": [0.1, 0.5] };
+export function custoEstimado(modelo: string | null, entrada: number | null, saida: number | null): number | null {
+  const p = modelo ? PRECOS_USD_MTOK[modelo] : undefined; if (!p || entrada == null || saida == null) return null;
+  return Math.round(((entrada * p[0] + saida * p[1]) / 1_000_000) * 1_000_000) / 1_000_000;
+}
+/** Limites de consumo (T-188): texto máximo enviado à IA e teto diário estimado (variável IA_LIMITE_DIARIO_USD, padrão 10). */
+export const LIMITE_CHARS_IA = 300_000;
+export const limiteDiarioUsd = () => { const v = Number(process.env.IA_LIMITE_DIARIO_USD); return Number.isFinite(v) && v > 0 ? v : 10; };
+
+export type Uso = { modelo: string; tokensEntrada: number | null; tokensSaida: number | null; custoUsd: number | null; duracaoMs: number; httpStatus: number; modeloRetornado: string | null };
+export type Chamada = { texto: string; uso: Uso };
+let ultimoUso: Uso | null = null;
+/** Uso da última chamada bem-sucedida neste processo (para quem registra o processamento). */
+export const consumirUltimoUso = () => { const u = ultimoUso; ultimoUso = null; return u; };
+
+const cabecalhos = (key: string) => ({ "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" });
+
 async function chamarAnthropic(system: string, user: string, maxTokens = 8000): Promise<string> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new ErroIA("sem_chave", "ANTHROPIC_API_KEY não configurada");
+  const t0 = Date.now();
   let r: Response;
   try {
-    r = await fetch(API, { method: "POST", headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELO_PADRAO, max_tokens: maxTokens, temperature: 0, system, messages: [{ role: "user", content: user }] }) });
-  } catch (e) { throw new ErroIA("rede", e instanceof Error ? e.message.slice(0, 120) : "falha de rede"); }
-  if (!r.ok) { let m = `HTTP ${r.status}`; try { m += ` ${String((await r.json()).error?.message ?? "").slice(0, 160)}`; } catch { /* sem corpo */ } throw new ErroIA("http", m); }
-  const j = (await r.json()) as { content?: { type: string; text?: string }[] };
+    r = await fetch(API, { method: "POST", headers: cabecalhos(key), body: JSON.stringify({ model: MODELO_PADRAO, max_tokens: maxTokens, temperature: 0, system, messages: [{ role: "user", content: user }] }) });
+  } catch (e) { throw new ErroIA("rede", e instanceof Error ? e.message.replace(key, "***").slice(0, 120) : "falha de rede"); }
+  if (!r.ok) { let m = `HTTP ${r.status}`; try { m += ` ${String((await r.json()).error?.message ?? "").replace(key, "***").slice(0, 160)}`; } catch { /* sem corpo */ } throw new ErroIA("http", m); }
+  const j = (await r.json()) as { model?: string; usage?: { input_tokens?: number; output_tokens?: number }; content?: { type: string; text?: string }[] };
+  const te = j.usage?.input_tokens ?? null, ts = j.usage?.output_tokens ?? null;
+  ultimoUso = { modelo: MODELO_PADRAO, tokensEntrada: te, tokensSaida: ts, custoUsd: custoEstimado(MODELO_PADRAO, te, ts), duracaoMs: Date.now() - t0, httpStatus: r.status, modeloRetornado: j.model ?? null };
   return (j.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n");
+}
+
+/** Lista os modelos disponíveis para a chave (GET /v1/models). Devolve ids e se o modelo configurado está entre eles. */
+export async function verificarModelo(): Promise<{ httpStatus: number; duracaoMs: number; modelos: string[]; disponivel: boolean; modelo: string }> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new ErroIA("sem_chave", "ANTHROPIC_API_KEY não configurada");
+  const t0 = Date.now();
+  const r = await fetch("https://api.anthropic.com/v1/models?limit=100", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } });
+  if (!r.ok) { let m = `HTTP ${r.status}`; try { m += ` ${String((await r.json()).error?.message ?? "").replace(key, "***").slice(0, 160)}`; } catch { /* sem corpo */ } throw new ErroIA("http", m); }
+  const j = (await r.json()) as { data?: { id: string }[] };
+  const modelos = (j.data ?? []).map((m) => m.id);
+  return { httpStatus: r.status, duracaoMs: Date.now() - t0, modelos, disponivel: modelos.includes(MODELO_PADRAO), modelo: MODELO_PADRAO };
 }
 
 function extrairJson(s: string): unknown {
@@ -65,7 +98,8 @@ onde item = {"texto":string,"confianca":string,"trecho":string|null,"tempo":stri
 Escreva em português do Brasil.`;
 
 export async function gerarAta(transcricao: string, contexto: { titulo: string; projeto: string | null; cliente: string | null; data: string; participantesConhecidos: string[]; reunioesAnteriores: { data: string; titulo: string; decisoes: string[] }[] }): Promise<{ ata: AtaEstruturada; provedor: Provedor; modelo: string | null }> {
-  const texto = transcricao.length > 180_000 ? transcricao.slice(0, 180_000) + "\n[transcrição truncada para processamento]" : transcricao;
+  if (transcricao.length > LIMITE_CHARS_IA) throw new ErroIA("formato", `transcrição com ${transcricao.length.toLocaleString("pt-BR")} caracteres excede o limite de ${LIMITE_CHARS_IA.toLocaleString("pt-BR")} para processamento por IA; divida o arquivo`);
+  const texto = transcricao;
   if (process.env.ANTHROPIC_API_KEY) {
     const user = `Reunião: ${contexto.titulo}\nData: ${contexto.data}\nProjeto: ${contexto.projeto ?? "não informado"}\nCliente: ${contexto.cliente ?? "não informado"}\nParticipantes cadastrados: ${contexto.participantesConhecidos.join(", ") || "nenhum"}\n` +
       (contexto.reunioesAnteriores.length ? `Reuniões anteriores do projeto (para "relacoesAnteriores"):\n${contexto.reunioesAnteriores.map((r) => `- ${r.data} ${r.titulo}: ${r.decisoes.slice(0, 5).join("; ") || "sem decisões registradas"}`).join("\n")}\n` : "") +

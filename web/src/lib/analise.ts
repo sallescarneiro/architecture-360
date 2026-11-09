@@ -8,7 +8,8 @@ import type { Usuario } from "@/lib/auth";
 import { criarAlerta } from "./alertas";
 import { garantirFlagsDoProjeto, garantirFlagsGerais, garantirFlag } from "./flags";
 import { linhaDoTempo, type Acontecimento } from "./linha-do-tempo";
-import { ErroIA, analisarProjeto as iaAnalisar } from "./transcricao/ia";
+import { ErroIA, analisarProjeto as iaAnalisar, consumirUltimoUso } from "./transcricao/ia";
+import { registrarUso, tetoAtingido } from "./transcricao/uso";
 import { iaConfigurada } from "./vobi-cobertura";
 import { hojeLocal } from "./agenda/datas";
 
@@ -77,8 +78,11 @@ export async function analisarProjeto(u: Usuario | null, codigo: number): Promis
       return { ok: true, analiseId: an.id, alertasNovos: novos, estado: "sem_ia" };
     }
     const limitacoes = ["O Vobi exportado não traz apresentações ao cliente, aprovações do cliente, solicitações de alteração, comentários nem especificação de produção.", "Datas do Vobi marcadas como (dia) são prazos planejados; (data da exportação) indica quando a mudança foi vista, não quando ocorreu.", "Aprovações e decisões do cliente só existem se registradas no A360 (reuniões)."];
+    const teto = await tetoAtingido();
+    if (teto) { await db.update(schema.analisesProjeto).set({ estado: "sem_ia", provedor: "regras", entradas, resultado: { ocorrencias: [], relacoes: [], inconclusivo: [teto], observacoes: null }, alertasNovos: novos, concluidoEm: new Date() }).where(eq(schema.analisesProjeto.id, an.id)); return { ok: true, analiseId: an.id, alertasNovos: novos, estado: "sem_ia", erro: teto }; }
     const { texto, refs } = entradaDe(linha, p.nome, limitacoes);
     const { resultado, provedor, modelo } = await iaAnalisar(texto, refs);
+    await registrarUso("analise", `analise:${an.id}`, consumirUltimoUso(), "ok", null, u?.id ?? null);
     for (const o of resultado.ocorrencias) {
       const evid = o.evidencias.map((e) => { const a = linha.find((x) => x.id === e.ref)!; return { origem: a.origem, tipo: a.tipo, ref: a.id, rotulo: a.titulo.slice(0, 140), trecho: e.trecho ?? undefined, data: fmt(a.quando), link: a.link ?? undefined }; });
       const { novo } = await criarAlerta({ projetoCodigo: codigo, categoria: o.categoria, titulo: o.titulo, descricao: o.descricao, classificacao: o.classificacao, prioridade: o.prioridade, confianca: o.confianca, evidencias: evid, impacto: o.impacto, origem: "ia", analiseId: an.id });
@@ -89,6 +93,7 @@ export async function analisarProjeto(u: Usuario | null, codigo: number): Promis
     return { ok: true, analiseId: an.id, alertasNovos: novos, estado: "concluida" };
   } catch (e) {
     const msg = e instanceof ErroIA ? `${e.codigo}: ${e.message}` : e instanceof Error ? e.message.slice(0, 200) : "erro";
+    if (iaConfigurada()) await registrarUso("analise", `analise:${an.id}`, null, "erro", msg, u?.id ?? null);
     await db.update(schema.analisesProjeto).set({ estado: "erro", erro: msg, concluidoEm: new Date() }).where(eq(schema.analisesProjeto.id, an.id));
     await garantirFlag({ chave: `projeto.${codigo}.falha.analise`, projetoCodigo: codigo, comparacao: "Análise de divergências", dadoAusente: "resultado da análise (falha técnica)", informacaoNecessaria: "processamento concluído", origemEsperada: "a360", tipo: "falha_tecnica", analisesComprometidas: "cruzamento A360 × Vobi e identificação de divergências", alternativa: "reexecutar a análise" });
     console.warn(`[analise] projeto ${codigo}: ${msg.slice(0, 120)}`);

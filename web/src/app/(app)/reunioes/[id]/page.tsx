@@ -39,7 +39,7 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
   if (sp.item) avisos.push("Item registrado.");
   if (sp.status) avisos.push("Status atualizado.");
   if (sp.transcricao) avisos.push("Transcrição guardada (documento original preservado).");
-  if (sp.processado === "concluido") avisos.push("Ata gerada por IA. Decisões, aprovações e encaminhamentos extraídos aguardam sua confirmação.");
+  if (sp.processado === "concluido") avisos.push(sp.reaproveitado ? "Esta transcrição já havia sido processada pelo mesmo modelo; resultado reaproveitado sem nova chamada à IA. Use “Reprocessar” para forçar." : "Ata gerada por IA. Decisões, aprovações e encaminhamentos extraídos aguardam sua confirmação.");
   if (sp.processado === "regras") avisos.push("IA não configurada: a ata foi montada por regras simples e todos os itens precisam de confirmação.");
   const porTipo = (t: string) => itens.filter((i) => i.tipo === t);
 
@@ -74,7 +74,7 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
             <ul className="flex flex-col divide-y divide-[var(--line)]">{transcricoes.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
                 <span><b>v{t.versao}</b> {t.atual && <span className="tag">atual</span>} <a className="underline" href={`/api/reunioes/transcricao?id=${t.id}`}>{t.nomeArquivo}</a> <span className="text-xs text-[var(--muted)]">· {t.formato} · {Math.round(t.tamanho / 1024)} KB · {t.texto ? `${t.texto.length.toLocaleString("pt-BR")} caracteres` : "sem texto"}</span></span>
-                <span className="flex items-center gap-2 text-xs text-[var(--muted)]">enviada {dataHora(t.enviadoEm)}{editavel && <form action={processarTranscricaoAction}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} /><input type="hidden" name="transcricao" value={t.id} /><button className="btn btn-secondary btn-sm" type="submit">{t.atual ? "Reprocessar" : "Processar esta versão"}</button></form>}</span>
+                <span className="flex items-center gap-2 text-xs text-[var(--muted)]">enviada {dataHora(t.enviadoEm)}{editavel && <form action={processarTranscricaoAction}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} /><input type="hidden" name="transcricao" value={t.id} /><input type="hidden" name="forcar" value="1" /><button className="btn btn-secondary btn-sm" type="submit" title="Nova chamada à IA (consome tokens)">{t.atual ? "Reprocessar" : "Processar esta versão"}</button></form>}</span>
               </li>))}</ul>
           ) : <p className="text-[var(--muted)]">Nenhuma transcrição enviada. No Google Meet, a transcrição fica salva no Drive (pasta &ldquo;Meet Recordings&rdquo;) como Documento Google: baixe como .docx ou .txt e envie aqui.</p>}
           {editavel && (

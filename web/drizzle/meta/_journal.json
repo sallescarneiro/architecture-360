@@ -50,6 +50,13 @@
       "when": 1794254505707,
       "tag": "0006_inteligencia",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794257105853,
+      "tag": "0007_ia_uso",
+      "breakpoints": true
     }
   ]
 }

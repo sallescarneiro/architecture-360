@@ -434,3 +434,21 @@ export const analisesProjeto = pgTable("projeto_analise", {
   iniciadoEm: timestamp("iniciado_em", { withTimezone: true }).notNull().defaultNow(),
   concluidoEm: timestamp("concluido_em", { withTimezone: true }),
 }, (t) => [index("projeto_analise_projeto_idx").on(t.projetoCodigo)]);
+
+/** Registro de uso da IA (T-188): cada chamada, com tokens e custo estimado. Nunca guarda a chave nem o conteúdo enviado. */
+export const usoIa = pgTable("ia_uso", {
+  id: serial("id").primaryKey(),
+  tipo: text("tipo").notNull(),                             // ata | analise | teste_conexao
+  referencia: text("referencia"),                           // ex.: processamento:12 | analise:3
+  modelo: text("modelo"),
+  tokensEntrada: integer("tokens_entrada"),
+  tokensSaida: integer("tokens_saida"),
+  custoEstimadoUsd: real("custo_estimado_usd"),
+  duracaoMs: integer("duracao_ms"),
+  estado: text("estado").notNull(),                         // ok | erro
+  erro: text("erro"),
+  httpStatus: integer("http_status"),
+  detalhes: jsonb("detalhes"),                              // relatório (validação) — nunca contém chave nem conteúdo de transcrição
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("ia_uso_quando_idx").on(t.quando)]);

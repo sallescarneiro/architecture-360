@@ -105,9 +105,9 @@ export async function processarTranscricaoAction(fd: FormData) {
   const { u, r, volta } = await carregar(fd);
   const { processarTranscricao } = await import("@/lib/transcricao/processar");
   const tid = Number(fd.get("transcricao"));
-  const proc = await processarTranscricao(u, r, Number.isInteger(tid) && tid > 0 ? tid : undefined);
+  const proc = await processarTranscricao(u, r, Number.isInteger(tid) && tid > 0 ? tid : undefined, fd.get("forcar") === "1");
   revalidatePath("/reunioes");
-  redirect(`/reunioes/${r.id}?${proc.ok ? `processado=${proc.estado}` : `erro=${encodeURIComponent(proc.erro)}`}&volta=${encodeURIComponent(volta)}#ata`);
+  redirect(`/reunioes/${r.id}?${proc.ok ? `processado=${proc.estado}${proc.reaproveitado ? "&reaproveitado=1" : ""}` : `erro=${encodeURIComponent(proc.erro)}`}&volta=${encodeURIComponent(volta)}#ata`);
 }
 
 export async function confirmarItemAction(fd: FormData) {

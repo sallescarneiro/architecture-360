@@ -8,7 +8,9 @@ import { db, schema } from "@/db";
 import type { Usuario } from "@/lib/auth";
 import { reuniaoPorId, type Reuniao } from "@/lib/reunioes";
 import { FORMATOS_ACEITOS, TAMANHO_MAX, extrairTexto, formatoDe } from "./extrair";
-import { ErroIA, gerarAta } from "./ia";
+import { ErroIA, consumirUltimoUso, gerarAta, MODELO_PADRAO } from "./ia";
+import { registrarUso, tetoAtingido } from "./uso";
+import { resolverFlag } from "@/lib/flags";
 import type { AtaEstruturada, ItemAta } from "./tipos";
 
 export type Transcricao = Omit<typeof schema.transcricoes.$inferSelect, "conteudo">;
@@ -53,22 +55,36 @@ export async function enviarTranscricao(u: Usuario, r: Reuniao, arquivo: File): 
 const chaveTexto = (s: string) => createHash("sha1").update(s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim()).digest("hex").slice(0, 16);
 
 /** Processa a transcrição atual (ou a indicada): gera a ata e alimenta os itens. Nunca duplica um processamento em andamento. */
-export async function processarTranscricao(u: Usuario, r: Reuniao, transcricaoId?: number): Promise<{ ok: true; processamentoId: number; estado: string } | { ok: false; erro: string }> {
+export async function processarTranscricao(u: Usuario, r: Reuniao, transcricaoId?: number, forcar = false): Promise<{ ok: true; processamentoId: number; estado: string; reaproveitado?: boolean } | { ok: false; erro: string }> {
   const t = transcricaoId ? await arquivoDe(transcricaoId) : (await db.select().from(schema.transcricoes).where(and(eq(schema.transcricoes.reuniaoId, r.id), eq(schema.transcricoes.atual, true))).limit(1))[0];
   if (!t || t.reuniaoId !== r.id) return { ok: false, erro: "Transcrição não encontrada." };
   if (!t.texto) return { ok: false, erro: "Transcrição sem texto extraído." };
   const emCurso = (await db.select({ id: schema.processamentos.id }).from(schema.processamentos).where(and(eq(schema.processamentos.transcricaoId, t.id), eq(schema.processamentos.estado, "processando"))).limit(1))[0];
   if (emCurso) return { ok: false, erro: "Já existe um processamento em andamento para esta transcrição." };
+  const temIA = Boolean(process.env.ANTHROPIC_API_KEY);
+  // Proteção contra reprocessamento desnecessário: mesma transcrição já processada com sucesso pelo mesmo modelo → só se forçado.
+  if (temIA && !forcar) {
+    const anterior = (await db.select({ id: schema.processamentos.id }).from(schema.processamentos).where(and(eq(schema.processamentos.transcricaoId, t.id), eq(schema.processamentos.estado, "concluido"), eq(schema.processamentos.modelo, MODELO_PADRAO))).orderBy(desc(schema.processamentos.id)).limit(1))[0];
+    if (anterior) return { ok: true, processamentoId: anterior.id, estado: "concluido", reaproveitado: true };
+  }
+  if (temIA) { const teto = await tetoAtingido(); if (teto) return { ok: false, erro: teto }; }
   const [p] = await db.insert(schema.processamentos).values({ reuniaoId: r.id, transcricaoId: t.id, estado: "processando", iniciadoPor: u.id }).returning({ id: schema.processamentos.id });
   try {
     const contexto = await contextoDaReuniao(r);
     const { ata, provedor, modelo } = await gerarAta(t.texto, contexto);
+    const uso = provedor === "anthropic" ? consumirUltimoUso() : null;
     const criados = await aplicarAta(u, r, ata, p.id, provedor);
     await db.update(schema.processamentos).set({ estado: provedor === "regras" ? "regras" : "concluido", provedor, modelo, resultado: ata, itensCriados: criados, concluidoEm: new Date() }).where(eq(schema.processamentos.id, p.id));
-    await registrar(r.id, u.id, "ata_ia", provedor === "regras" ? `Ata gerada por regras (IA não configurada): ${criados} itens para confirmar` : `Ata gerada por IA (${modelo}): ${criados} itens extraídos para confirmação`, { processamentoId: p.id, provedor, modelo, itens: criados });
+    await registrar(r.id, u.id, "ata_ia", provedor === "regras" ? `Ata gerada por regras (IA não configurada): ${criados} itens para confirmar` : `Ata gerada por IA (${modelo}): ${criados} itens extraídos para confirmação${uso?.custoUsd != null ? ` · ${uso.tokensEntrada}+${uso.tokensSaida} tokens · US$ ${uso.custoUsd.toFixed(4)}` : ""}`, { processamentoId: p.id, provedor, modelo, itens: criados });
+    if (provedor === "anthropic") {
+      await registrarUso("ata", `processamento:${p.id}`, uso, "ok", null, u.id);
+      // Primeira chamada real bem-sucedida em produção: a flag "IA não configurada" encerra com evidência (processamento e uso).
+      await resolverFlag("geral.a360.ia", `Chamada real à API Anthropic concluída: processamento #${p.id}, modelo ${uso?.modeloRetornado ?? modelo}, HTTP ${uso?.httpStatus ?? "—"}, ${uso?.tokensEntrada ?? "?"} tokens de entrada e ${uso?.tokensSaida ?? "?"} de saída.`);
+    }
     return { ok: true, processamentoId: p.id, estado: provedor === "regras" ? "regras" : "concluido" };
   } catch (e) {
     const msg = e instanceof ErroIA ? `${e.codigo}: ${e.message}` : e instanceof Error ? e.message.slice(0, 200) : "erro";
+    if (temIA) await registrarUso("ata", `processamento:${p.id}`, null, "erro", msg, u.id, undefined, /HTTP (\d{3})/.exec(msg) ? Number(/HTTP (\d{3})/.exec(msg)![1]) : undefined);
     await db.update(schema.processamentos).set({ estado: "erro", erro: msg, concluidoEm: new Date() }).where(eq(schema.processamentos.id, p.id));
     await registrar(r.id, u.id, "ata_ia_erro", `Processamento da transcrição falhou: ${msg.slice(0, 120)}`);
     console.warn(`[reunioes] processamento ${p.id} falhou: ${msg.slice(0, 120)}`); // sem conteúdo da transcrição

@@ -28,3 +28,12 @@ export async function decidirFlagAction(fd: FormData) {
   revalidatePath("/alertas"); revalidatePath("/painel"); revalidatePath("/integracao-vobi");
   redirect(`${volta}${volta.includes("?") ? "&" : "?"}${erro ? `erro=${encodeURIComponent(erro)}` : "flag=1"}#flags`);
 }
+
+export async function validarIaAction(fd: FormData) {
+  const u = await exigirUsuario(["admin"]);
+  void fd;
+  const { validarIntegracaoIA } = await import("@/lib/transcricao/validacao-ia");
+  const rel = await validarIntegracaoIA(u);
+  revalidatePath("/integracao-vobi"); revalidatePath("/alertas"); revalidatePath("/painel");
+  redirect(`/integracao-vobi?validacao=${rel.ok ? "ok" : "erro"}#ia`);
+}
