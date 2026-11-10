@@ -64,6 +64,13 @@
       "when": 1794310409546,
       "tag": "0008_usuarios",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794320136730,
+      "tag": "0009_entregaveis",
+      "breakpoints": true
     }
   ]
 }

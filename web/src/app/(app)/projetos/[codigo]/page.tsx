@@ -8,6 +8,7 @@ import { restricaoDe, sqlParticipa } from "@/lib/participacao";
 import { STATUS_REUNIAO, encaminhamentosAbertosDe, fmtPeriodo, reunioesDoProjeto } from "@/lib/reunioes";
 import { alertasDoProjeto, PRIORIDADES, SITUACOES } from "@/lib/alertas";
 import { flagsDoProjeto } from "@/lib/flags";
+import { STATUS as STATUS_ENT, TIPOS as TIPOS_ENT, doProjeto as entregaveisDoProjeto } from "@/lib/entregaveis";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { hojeIso, statusPrazo } from "@/lib/prazo";
@@ -26,6 +27,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const reunioes = await reunioesDoProjeto(p.codigo); // T-188
   const encaminhamentos = await encaminhamentosAbertosDe(reunioes.map((r) => r.id));
   const alertasProj = await alertasDoProjeto(p.codigo); const flagsProj = await flagsDoProjeto(p.codigo);
+  const entregaveis = await entregaveisDoProjeto(p.codigo); // T-190
   const alertasAbertos = alertasProj.filter((a) => SITUACOES[a.situacao]?.aberto);
   if (!gestao) {
     // D-A (08/11/2026): arquiteta só abre projetos em que participa (colaboradora no Vobi ou responsável por tarefa). Verificado no servidor.
@@ -69,6 +71,15 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
           ) : <p className="text-[var(--muted)]">Nenhuma reunião registrada para este projeto.</p>}
           {encaminhamentos.length > 0 && <p className="text-xs text-[var(--txt-2)]"><b>{encaminhamentos.length}</b> encaminhamento(s) em aberto: {encaminhamentos.slice(0, 3).map((i) => i.texto.slice(0, 60)).join(" · ")}{encaminhamentos.length > 3 ? " …" : ""}</p>}
           <div className="flex gap-3 text-xs"><Link className="underline" href={`/reunioes/nova?projeto=${p.codigo}&volta=${encodeURIComponent(`/projetos/${p.codigo}`)}`}>+ Registrar reunião</Link>{reunioes.length > 0 && <Link className="underline" href={`/reunioes?projeto=${p.codigo}`}>ver todas</Link>}</div>
+        </div>
+      </Card>
+
+      <Card title={`Entregáveis (${entregaveis.length})`} subtitle="layouts, apresentações e cadernos · versões, revisão interna e aprovação do cliente com evidência · registro interno">
+        <div className="flex flex-col gap-2 text-sm">
+          {entregaveis.length ? (
+            <ul className="flex flex-col divide-y divide-[var(--line)]">{entregaveis.slice(0, 8).map((e) => <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 py-1.5"><span><Link className="underline" href={`/entregaveis/${e.id}`}>{e.titulo}</Link> <span className="text-xs text-[var(--muted)]">· {TIPOS_ENT[e.tipo]}{e.versaoAtual ? ` · v${e.versaoAtual}` : ""}</span></span><Badge tone={STATUS_ENT[e.status]?.tom}>{STATUS_ENT[e.status]?.rotulo}</Badge></li>)}</ul>
+          ) : <p className="text-[var(--muted)]">Nenhum entregável registrado para este projeto.</p>}
+          <div className="flex gap-3 text-xs"><Link className="underline" href={`/entregaveis/novo?projeto=${p.codigo}`}>+ Registrar entregável</Link>{entregaveis.length > 0 && <Link className="underline" href={`/entregaveis?projeto=${p.codigo}&status=todos`}>ver todos</Link>}</div>
         </div>
       </Card>
 

@@ -21,7 +21,7 @@ export type Acontecimento = {
   destaque?: "critico" | "alto" | "moderado" | "informativo" | null;
 };
 
-export const TIPOS_LINHA: Record<string, string> = { reuniao: "reunião", transcricao: "transcrição", ata: "ata", decisao: "decisão", aprovacao: "aprovação", encaminhamento: "encaminhamento", alerta: "alerta", tratamento: "tratamento", flag: "flag de limitação", projeto: "projeto (Vobi)", tarefa: "tarefa (Vobi)", revisao: "revisão (Vobi)", mudanca: "mudança (Vobi)" };
+export const TIPOS_LINHA: Record<string, string> = { entregavel: "entregável", reuniao: "reunião", transcricao: "transcrição", ata: "ata", decisao: "decisão", aprovacao: "aprovação", encaminhamento: "encaminhamento", alerta: "alerta", tratamento: "tratamento", flag: "flag de limitação", projeto: "projeto (Vobi)", tarefa: "tarefa (Vobi)", revisao: "revisão (Vobi)", mudanca: "mudança (Vobi)" };
 
 const dia = (iso: string | null) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? new Date(iso.slice(0, 10) + "T12:00:00-03:00") : null);
 
@@ -74,6 +74,17 @@ export async function linhaDoTempo(codigo: number): Promise<Acontecimento[]> {
   }
   const flags = await db.select().from(schema.flagsLimitacao).where(eq(schema.flagsLimitacao.projetoCodigo, codigo));
   for (const f of flags) out.push({ id: `a360:flag:${f.id}`, quando: f.identificadoEm, precisao: "exata", origem: "a360", tipo: "flag", titulo: `Flag: ${f.comparacao}`, resumo: `${f.dadoAusente} · ${f.situacao}`, link: `/projetos/${codigo}/linha-do-tempo#flags` });
+  // --- A360: entregáveis (Fase 6) — criação, versões e aprovações, pelo histórico imutável ---
+  const ents = await db.select().from(schema.entregaveis).where(eq(schema.entregaveis.projetoCodigo, codigo));
+  if (ents.length) {
+    const ids = ents.map((e) => e.id);
+    const he = await db.select({ h: schema.historicoEntregavel, quem: schema.usuarios.nome }).from(schema.historicoEntregavel).innerJoin(schema.usuarios, eq(schema.usuarios.id, schema.historicoEntregavel.usuarioId)).where(inArray(schema.historicoEntregavel.entregavelId, ids));
+    for (const { h, quem } of he) {
+      if (!["criado", "versao", "aprovacao_interna", "aprovacao_cliente", "cancelado", "status"].includes(h.acao)) continue;
+      const e = ents.find((x) => x.id === h.entregavelId)!;
+      out.push({ id: `a360:entregavel_hist:${h.id}`, quando: h.quando, precisao: "exata", origem: "a360", tipo: h.acao === "aprovacao_cliente" ? "aprovacao" : "entregavel", titulo: `${e.titulo}: ${h.resumo}`, resumo: `entregável (${e.tipo}) · ${quem}`, link: `/entregaveis/${e.id}`, destaque: h.acao === "aprovacao_cliente" ? "alto" : undefined });
+    }
+  }
   out.sort((a, b) => b.quando.getTime() - a.quando.getTime());
   return out;
 }

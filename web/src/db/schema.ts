@@ -455,3 +455,77 @@ export const usoIa = pgTable("ia_uso", {
   usuarioId: integer("usuario_id").references(() => usuarios.id),
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("ia_uso_quando_idx").on(t.quando)]);
+
+// ---------------------------------------------------------------------------
+// Fase 6 (T-190, autorizada em 10/11/2026): aprovações internas de entregáveis. Registro interno, sem acesso externo.
+// Entregável ligado a projeto/cliente do Vobi (só leitura), versões numeradas, aprovação interna (coordenação/gestão) e
+// aprovação do cliente sempre com evidência (e-mail, mensagem, ata, item de reunião) — nunca presumida. Histórico imutável.
+// ---------------------------------------------------------------------------
+export const entregaveis = pgTable("entregavel", {
+  id: serial("id").primaryKey(),
+  projetoCodigo: integer("projeto_codigo").notNull(),
+  clienteCodigo: integer("cliente_codigo"),
+  titulo: text("titulo").notNull(),
+  tipo: text("tipo").notNull(),                             // layout | apresentacao | executivo | imagens3d | legal | documentacao | outro
+  descricao: text("descricao"),
+  responsavelId: integer("responsavel_id").references(() => usuarios.id),
+  status: text("status").notNull().default("em_elaboracao"), // em_elaboracao | revisao_interna | aprovado_interno | enviado_cliente | aprovado_cliente | ajustes_cliente | cancelado
+  versaoAtual: integer("versao_atual").notNull().default(0),
+  reuniaoId: integer("reuniao_id"),                         // reunião de apresentação (opcional)
+  criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("entregavel_projeto_idx").on(t.projetoCodigo), index("entregavel_status_idx").on(t.status)]);
+
+export const versoesEntregavel = pgTable("entregavel_versao", {
+  id: serial("id").primaryKey(),
+  entregavelId: integer("entregavel_id").notNull().references(() => entregaveis.id),
+  numero: integer("numero").notNull(),
+  descricao: text("descricao"),                             // o que mudou nesta versão
+  link: text("link"),                                       // Drive/Vobi/outro (opcional)
+  nomeArquivo: text("nome_arquivo"),
+  tipoMime: text("tipo_mime"),
+  tamanho: integer("tamanho"),
+  conteudo: bytea("conteudo"),                              // arquivo opcional (até 15 MB), protegido pelas permissões do projeto
+  enviadoPor: integer("enviado_por").notNull().references(() => usuarios.id),
+  enviadoEm: timestamp("enviado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("entregavel_versao_idx").on(t.entregavelId)]);
+
+/** Decisões sobre um entregável: interna (coordenação/gestão) ou do cliente (com evidência obrigatória). */
+export const aprovacoesEntregavel = pgTable("entregavel_aprovacao", {
+  id: serial("id").primaryKey(),
+  entregavelId: integer("entregavel_id").notNull().references(() => entregaveis.id),
+  versaoNumero: integer("versao_numero").notNull(),
+  instancia: text("instancia").notNull(),                   // interna | cliente
+  decisao: text("decisao").notNull(),                       // aprovado | ajustes | reprovado
+  observacao: text("observacao"),
+  // evidência (obrigatória para cliente): como a aprovação chegou
+  evidenciaTipo: text("evidencia_tipo"),                    // email | mensagem | ata | item_reuniao | documento_assinado | verbal_registrada | outro
+  evidenciaTexto: text("evidencia_texto"),                  // trecho/transcrição da evidência (texto)
+  evidenciaData: text("evidencia_data"),                    // AAAA-MM-DD em que o cliente aprovou
+  evidenciaQuem: text("evidencia_quem"),                    // quem aprovou pelo cliente
+  itemReuniaoId: integer("item_reuniao_id"),                // item de aprovação de reunião do A360, quando for o caso
+  nomeArquivo: text("nome_arquivo"), tipoMime: text("tipo_mime"), tamanho: integer("tamanho"), conteudo: bytea("conteudo"),
+  registradoPor: integer("registrado_por").notNull().references(() => usuarios.id),
+  registradoEm: timestamp("registrado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("entregavel_aprovacao_idx").on(t.entregavelId)]);
+
+export const comentariosEntregavel = pgTable("entregavel_comentario", {
+  id: serial("id").primaryKey(),
+  entregavelId: integer("entregavel_id").notNull().references(() => entregaveis.id),
+  texto: text("texto").notNull(),
+  autorId: integer("autor_id").notNull().references(() => usuarios.id),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("entregavel_comentario_idx").on(t.entregavelId)]);
+
+/** Histórico imutável do entregável: só acréscimo. */
+export const historicoEntregavel = pgTable("entregavel_historico", {
+  id: serial("id").primaryKey(),
+  entregavelId: integer("entregavel_id").notNull().references(() => entregaveis.id),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  acao: text("acao").notNull(),                             // criado | editado | versao | status | aprovacao_interna | aprovacao_cliente | comentario | cancelado | reaberto
+  resumo: text("resumo").notNull(),
+  antes: jsonb("antes"),
+  depois: jsonb("depois"),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("entregavel_historico_idx").on(t.entregavelId)]);

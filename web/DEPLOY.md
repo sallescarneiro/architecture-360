@@ -152,3 +152,11 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - `/usuarios` (só `admin`): criar acesso (nome, e-mail `@rucelle.com.br` — domínio em `DOMINIO_EMAIL`, perfil), alterar perfil, desativar (encerra sessões) / reativar, redefinir senha. Senha provisória de 14 caracteres gerada no servidor, exibida uma única vez na resposta da ação (nunca em URL, banco, log ou GitHub); só o hash bcrypt é gravado. Proteções: não desativar a si mesmo; não remover/desativar o último admin ativo.
 - `/conta/senha` (todos): troca da própria senha (atual + nova 2×, mínimo 10); encerra as demais sessões. Usuário com `trocar_senha` é redirecionado para lá pelo layout autenticado antes de qualquer tela.
 - Último acesso registrado em `usuario.ultimo_acesso_em` a cada login.
+
+## T-189 · Fase 5 — Capacidade e fluxo (10/11/2026)
+- Rota `/capacidade` (coordenação, gestão, admin). Serviço em `src/lib/servicos/capacidade.ts`: carga planejada por pessoa × 6 semanas, fluxo por etapa, projetos sem responsável, entregas próximas, limitações. Só dados importados do Vobi + reuniões do A360; sem ranking. Sem migração.
+
+## T-190 · Fase 6 — Aprovações internas de entregáveis (10/11/2026)
+- Migração `0009_entregaveis.sql` (`entregavel`, `entregavel_versao` com arquivo opcional em bytea, `entregavel_aprovacao` com evidência, `entregavel_comentario`, `entregavel_historico` só-acréscimo); reversão em `drizzle/reversao/`.
+- Rotas `/entregaveis`, `/entregaveis/novo` (`?projeto=`), `/entregaveis/[id]` (versões, aprovações, situação, comentários, histórico), `/entregaveis/[id]/editar`; download em `/api/entregaveis/arquivo?v=|a=` só para quem vê o entregável. Seção "Entregáveis" no detalhe do projeto; eventos na linha do tempo.
+- Regras: projeto/cliente do Vobi (só leitura); arquiteta vê/registra nos projetos em que participa (regra D-A); aprovação interna só coordenação/gestão/admin; aprovação do cliente exige evidência (tipo, data, quem + trecho/arquivo/item de reunião) — nunca presumida; versão nova após aprovação volta para revisão interna; cancelamento só gestão com justificativa; nada é enviado ao cliente pelo A360.
