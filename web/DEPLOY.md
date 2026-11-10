@@ -41,8 +41,8 @@ Vobi é lido só por CSV exportado manualmente (nunca por API). As únicas chave
 ## 4. Segurança e acesso
 
 - Login individual por usuário/senha (bcrypt), sessão em tabela com cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção.
-- Sem cadastro público: usuários são criados só pelo script (seção 6) por quem tem acesso ao projeto Railway.
-- **Acesso atual (decisão de 05/11/2026): somente Rodrigo Carneiro, perfil `admin`.** Nenhum outro usuário é criado; gestores, coordenadores e arquitetas não têm acesso. Os perfis `gestao`/`coordenacao`/`arquiteta` existem só como regra de autorização no código, para uso futuro, se e quando a direção decidir.
+- Sem cadastro público: usuários são criados pelo administrador na tela `/usuarios` (T-205) ou, para o primeiro administrador, pelo script (seção 7).
+- **Acesso (decisão de 10/11/2026, revogando a de 05/11):** a equipe de arquitetura tem acesso com perfil definido pela direção — Rodrigo e Flavia `admin`; Thais `gestao`; Ana Paula `coordenacao`; as arquitetas `arquiteta`. A senha provisória é mostrada uma vez ao administrador, que a entrega pessoalmente (não há e-mail automático); a pessoa é obrigada a trocá-la no primeiro acesso (`/conta/senha`).
 - Perfis `admin`, `gestao`, `coordenacao`, `arquiteta`; autorização no servidor em toda página e ação. Sem sessão, todas as rotas gerenciais redirecionam para `/login` (verificado em build de produção); `/api/health` responde só `{ok}`.
 - HTTPS: fornecido pelo Railway no domínio gerado (`*.up.railway.app`). Domínio próprio (ex.: `a360.rucelle.com.br`) é opcional e exige um CNAME no DNS da Rucelle; **não configurar até autorização**.
 - O domínio gerado é público na Internet, mas sem login não há acesso a nada além da tela de entrada. Se a direção quiser restringir ainda mais, a alternativa simples é manter o domínio sem divulgação; SSO ou VPN não são necessários agora.
@@ -91,7 +91,7 @@ O script pede a senha no terminal **sem exibir os caracteres** (duas vezes), exi
 
 Alternativa se `railway ssh` não estiver disponível: habilitar temporariamente *Public access* no serviço Postgres, rodar localmente `DATABASE_URL="<DATABASE_PUBLIC_URL do Postgres>" node web/scripts/criar-usuario.mjs ...` e **remover o acesso público em seguida**.
 
-Demais usuários: **não criar** nesta etapa (acesso exclusivo do administrador). Quando a direção liberar, é o mesmo comando com o perfil correspondente. Troca de senha pelo próprio usuário ainda não existe (pendência).
+Demais usuários: pela tela `/usuarios` (só admin), sem Railway. Troca da própria senha em `/conta/senha` (botão "Senha" no topo).
 
 ## 8. Pendências reais para publicar
 
@@ -146,3 +146,9 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - Formatos de transcrição: .txt, .md, .docx, .pdf, .vtt, .srt (até 15 MB); download do original em `/api/reunioes/transcricao?id=` (só quem vê a reunião).
 - Rotas novas: `/projetos/[codigo]/linha-do-tempo`, `/alertas`, `/alertas/[id]`, `/integracao-vobi`. Painel ganhou o bloco "Divergências e limitações de dados". Vobi continua só leitura; a IA identifica, a gestão decide.
 - Controle de consumo da IA (09/11, 17:44): tabela `ia_uso` (migração 0007) com tokens, custo estimado (preços públicos de 09/11/2026), HTTP e latência; limite de 300 mil caracteres por transcrição; teto diário estimado `IA_LIMITE_DIARIO_USD` (padrão 10); reprocessamento da mesma transcrição pelo mesmo modelo só se forçado; `/v1/models` confirma o modelo. Validação real executável por admin em `/integracao-vobi` (reunião fictícia "[TESTE A360 - VALIDAÇÃO IA]"); a flag "IA não configurada" só encerra após chamada real bem-sucedida.
+
+## T-205 · Gestão de usuários e acesso da equipe (10/11/2026)
+- Migração `0008_usuarios.sql` (colunas `trocar_senha`, `ultimo_acesso_em`, `atualizado_em` em `usuario`); reversão em `drizzle/reversao/`.
+- `/usuarios` (só `admin`): criar acesso (nome, e-mail `@rucelle.com.br` — domínio em `DOMINIO_EMAIL`, perfil), alterar perfil, desativar (encerra sessões) / reativar, redefinir senha. Senha provisória de 14 caracteres gerada no servidor, exibida uma única vez na resposta da ação (nunca em URL, banco, log ou GitHub); só o hash bcrypt é gravado. Proteções: não desativar a si mesmo; não remover/desativar o último admin ativo.
+- `/conta/senha` (todos): troca da própria senha (atual + nova 2×, mínimo 10); encerra as demais sessões. Usuário com `trocar_senha` é redirecionado para lá pelo layout autenticado antes de qualquer tela.
+- Último acesso registrado em `usuario.ultimo_acesso_em` a cada login.

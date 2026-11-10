@@ -14,6 +14,9 @@ export const usuarios = pgTable("usuario", {
   senhaHash: text("senha_hash").notNull(),
   perfil: text("perfil").notNull().default("arquiteta"), // admin | gestao | coordenacao | arquiteta
   ativo: boolean("ativo").notNull().default(true),
+  trocarSenha: boolean("trocar_senha").notNull().default(false), // T-205: senha provisória → troca obrigatória no próximo acesso
+  ultimoAcessoEm: timestamp("ultimo_acesso_em", { withTimezone: true }),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
 });
 

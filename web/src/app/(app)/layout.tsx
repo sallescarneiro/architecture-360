@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { sairAction } from "@/app/login/actions";
 import { NavLinks, type NavGroup } from "@/components/nav-links";
@@ -12,6 +13,7 @@ const PERFIL: Record<string, string> = { admin: "Administração", gestao: "Gest
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const u = await exigirUsuario();
+  if (u.trocarSenha) redirect("/conta/senha"); // T-205: senha provisória → troca obrigatória antes de qualquer tela
   const gestao = veIndicadoresIndividuais(u.perfil);
   const groups: NavGroup[] = [
     { label: "Central de Trabalho", items: [
@@ -28,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       { href: "/clientes", label: "Clientes", icon: "tag" },
       { href: "/importacao", label: "Importação Vobi", icon: "upload" },
       ...(gestao ? [{ href: "/pessoas", label: "Pessoas", icon: "users" as const }] : []),
+      ...(u.perfil === "admin" ? [{ href: "/usuarios", label: "Usuários", icon: "users" as const }] : []), // T-205: acessos e perfis (só admin)
     ] },
   ];
   const marca = (
@@ -40,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex items-center gap-2.5">
       <Avatar name={u.nome} size={28} />
       <span className="hidden min-w-0 text-[0.8rem] leading-tight md:block"><span className="block truncate font-semibold">{u.nome}</span><span className="block truncate text-[0.7rem] text-[var(--muted)]">{PERFIL[u.perfil] ?? u.perfil}</span></span>
+      <Link href="/conta/senha" className="btn btn-ghost btn-sm" title="Alterar minha senha">Senha</Link>
       <form action={sairAction}><button className="btn btn-ghost btn-sm" title="Sair">Sair</button></form>
     </div>
   );
