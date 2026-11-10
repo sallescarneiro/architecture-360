@@ -166,6 +166,22 @@ export const tarefas = pgTable("tarefa", {
   motivoNaoEncontrado: text("motivo_nao_encontrado"),
 }, (t) => [index("tarefa_projeto_idx").on(t.projetoCodigo), index("tarefa_ultima_carga_idx").on(t.ultimaCarga)]);
 
+// Recorte 2026: projetos encerrados antes de 2026 (e suas tarefas) saem das tabelas ativas e ficam guardados aqui,
+// com o registro completo. Nada é apagado; se o projeto for reaberto no Vobi, a próxima carga o traz de volta.
+export const projetosArquivados = pgTable("projeto_arquivado", {
+  codigo: integer("codigo").primaryKey(),
+  dados: jsonb("dados").$type<Record<string, unknown>>().notNull(),
+  arquivadoNaCarga: integer("arquivado_na_carga").notNull(),
+  arquivadoEm: timestamp("arquivado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+export const tarefasArquivadas = pgTable("tarefa_arquivada", {
+  chave: text("chave").primaryKey(),
+  projetoCodigo: integer("projeto_codigo"),
+  dados: jsonb("dados").$type<Record<string, unknown>>().notNull(),
+  arquivadoNaCarga: integer("arquivado_na_carga").notNull(),
+  arquivadoEm: timestamp("arquivado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("tarefa_arquivada_projeto_idx").on(t.projetoCodigo)]);
+
 export const historicoAlteracoes = pgTable("historico_alteracoes", {
   id: serial("id").primaryKey(),
   cargaId: integer("carga_id").notNull(),

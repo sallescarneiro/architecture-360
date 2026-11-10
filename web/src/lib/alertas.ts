@@ -55,6 +55,7 @@ export async function listarAlertas(u: Usuario, f: { situacao?: string; priorida
   if (f.prioridade) where.push(`a.prioridade = '${f.prioridade.replace(/'/g, "")}'`);
   if (f.classificacao) where.push(`a.classificacao = '${f.classificacao.replace(/'/g, "")}'`);
   if (f.projeto) where.push(`a.projeto_codigo = ${f.projeto}`);
+  where.push("exists (select 1 from projeto px where px.codigo = a.projeto_codigo)"); // recorte 2026: alertas de projetos arquivados ficam fora
   const q = await db.execute(sql.raw(`select a.*, p.nome as projeto_nome, c.nome as cliente_nome from projeto_alerta a left join projeto p on p.codigo = a.projeto_codigo left join cliente_vobi c on c.codigo = p.cliente_codigo
     where ${where.join(" and ")} order by case a.prioridade when 'critico' then 0 when 'alto' then 1 when 'moderado' then 2 else 3 end, a.criado_em desc limit 300`));
   return (q.rows as Record<string, unknown>[]).map((x) => ({

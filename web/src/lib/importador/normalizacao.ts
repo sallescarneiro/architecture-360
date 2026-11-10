@@ -24,6 +24,14 @@ export const LIMIAR_NAO_ENCONTRADOS = 0.15;
 export const LIMIAR_LINHAS_MINIMAS = 0.7;
 export const IDADE_MAXIMA_CARGA_DIAS = 8;
 
+// Recorte da base (decisão do Rodrigo, 10/11/2026): o A360 trabalha só com projetos em andamento/pausados
+// e com os encerrados (Finalizado/Cancelado) criados a partir de 2026. Encerrados anteriores são arquivados
+// uma única vez pela migração 0010 (tabelas projeto_arquivado/tarefa_arquivada), nunca apagados; a importação só
+// deixa de trazê-los de volta. Projeto que já está na base ativa nunca sai pela importação. A exportação do Vobi continua completa.
+export const RECORTE_INICIO = "2026-01-01";
+export const foraDoRecorte = (statusClasse: string, criadoEmIso: string | null) =>
+  statusClasse === "encerrado" && (!criadoEmIso || criadoEmIso < RECORTE_INICIO);
+
 export const STATUS_PROJETO_CLASSE: Record<string, string> = {
   finalizado: "encerrado",
   cancelado: "encerrado",

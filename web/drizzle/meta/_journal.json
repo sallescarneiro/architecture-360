@@ -71,6 +71,13 @@
       "when": 1794320136730,
       "tag": "0009_entregaveis",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794342889996,
+      "tag": "0010_recorte_2026",
+      "breakpoints": true
     }
   ]
 }

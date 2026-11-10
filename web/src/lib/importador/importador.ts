@@ -9,7 +9,7 @@ import type { ExtractTablesWithRelations } from "drizzle-orm";
 import { db, schema } from "@/db";
 import {
   LAYOUT_CLIENTES_A360, LAYOUT_CLIENTES_V1, LAYOUT_PROJETOS_V1, LAYOUT_TAREFAS_V1, LIMIAR_LINHAS_MINIMAS, LIMIAR_NAO_ENCONTRADOS,
-  PESSOAS_SEMENTE, STATUS_PROJETO_CLASSE, chaveTexto, dataIso, etapaCanonica, extrairRevisao,
+  PESSOAS_SEMENTE, STATUS_PROJETO_CLASSE, chaveTexto, foraDoRecorte, dataIso, etapaCanonica, extrairRevisao,
   horasParaMinutos, limpar, listaVirgula, metragemNum, similaridade,
 } from "./normalizacao";
 
@@ -31,6 +31,8 @@ export type Relatorio = {
     linhas: number; novas: number; alteradas: number; naoEncontradas: number; orfas: number; colisoes: number;
     porStatus: Record<string, number>; qualidade: Record<string, number>;
   };
+  // Recorte 2026 — encerrados antes de 2026 ficam fora da base ativa (arquivados, não apagados)
+  recorte?: { projetosFora: number; tarefasFora: number };
   possiveisRenomeacoes: { naoEncontrada: string; nova: string; similaridadeNome: number }[];
   pessoasNaoMapeadas: string[];
   etapasNaoMapeadas: Record<string, number>;
@@ -165,6 +167,7 @@ async function processar(tx: Tx, cargaId: number, dataCarga: string, proj: Arqui
   let projNovos = 0, projAlt = 0;
   const porNome = new Map<string, { codigo: number; statusClasse: string }[]>();
   const codigosCarga = new Set<number>();
+  const foraRecorte = new Set<number>();
   for (const r of proj.linhas) {
     const codigo = parseInt(r["Código"], 10);
     if (!Number.isFinite(codigo)) { await alerta("projeto_sem_codigo", "projeto", r["Nome"] ?? "", "linha ignorada"); continue; }
@@ -176,11 +179,14 @@ async function processar(tx: Tx, cargaId: number, dataCarga: string, proj: Arqui
       etiquetas: r["Etiqueta"].split(",").map(limpar).filter(Boolean),
       colaboradores: listaVirgula(r["Colaboradores"]),
     };
-    for (const c of novo.colaboradores) await garantirPessoa(c);
     codigosCarga.add(codigo);
     const lst = porNome.get(novo.chaveNome) ?? [];
     lst.push({ codigo, statusClasse: novo.statusClasse });
     porNome.set(novo.chaveNome, lst);
+    // Recorte 2026: encerrado criado antes de 2026 que não está na base ativa não entra (já arquivado ou nunca trazido).
+    // Quem já está na base ativa continua: um projeto antigo finalizado agora foi finalizado em 2026.
+    if (foraDoRecorte(novo.statusClasse, novo.criadoEm) && !projAtuais.has(codigo)) { foraRecorte.add(codigo); continue; }
+    for (const c of novo.colaboradores) await garantirPessoa(c);
     const atual = projAtuais.get(codigo);
     if (!atual) {
       await tx.insert(schema.projetos).values({ codigo, ...novo, primeiraCarga: cargaId, ultimaCarga: cargaId });
@@ -214,6 +220,7 @@ async function processar(tx: Tx, cargaId: number, dataCarga: string, proj: Arqui
   for (const lst of porNome.values()) for (const p of lst) statusClassePorCodigo.set(p.codigo, p.statusClasse);
 
   // ---------------- Tarefas (seção 1.3) ----------------
+  let tarFora = 0;
   const tarAtuais = new Map<string, typeof schema.tarefas.$inferSelect>();
   for (const t of await tx.select().from(schema.tarefas)) tarAtuais.set(t.chave, t);
   let tarNovas = 0, tarAlt = 0, tarOrfas = 0, tarColisoes = 0;
@@ -225,6 +232,7 @@ async function processar(tx: Tx, cargaId: number, dataCarga: string, proj: Arqui
     const nome = limpar(r["Nome da tarefa"]);
     const nomeProj = limpar(r["Projeto"]);
     const codigo = nomeProj ? (resolve.get(chaveTexto(nomeProj)) ?? null) : null;
+    if (codigo != null && foraRecorte.has(codigo)) { tarFora++; continue; }
     const { etapa: etapaC, conhecida } = etapaCanonica(r["Etapa"]);
     if (!conhecida) {
       etapasNaoMapeadas[limpar(r["Etapa"])] = (etapasNaoMapeadas[limpar(r["Etapa"])] ?? 0) + 1;
@@ -322,6 +330,7 @@ async function processar(tx: Tx, cargaId: number, dataCarga: string, proj: Arqui
       linhas: tar.linhas.length, novas: tarNovas, alteradas: tarAlt, naoEncontradas: tarNaoEnc, orfas: tarOrfas, colisoes: tarColisoes,
       porStatus: await contar("tarefa", "status"), qualidade: await contar("tarefa", "classe_qualidade"),
     },
+    recorte: { projetosFora: foraRecorte.size, tarefasFora: tarFora },
     possiveisRenomeacoes: sugestoes,
     pessoasNaoMapeadas: [...pessoas.entries()].filter(([, e]) => e == null).map(([k]) => k),
     etapasNaoMapeadas, alertasPorTipo: await alertasPorTipo(tx, cargaId),

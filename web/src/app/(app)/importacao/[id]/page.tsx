@@ -60,6 +60,7 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
             <div className="grid gap-4 md:grid-cols-2">
               <Card title="Projetos">
                 <div className="text-sm">{rel.projetos.linhas} linhas · <b>{rel.projetos.novos}</b> novos · <b>{rel.projetos.alterados}</b> alterados · <b>{rel.projetos.naoEncontrados}</b> não encontrados</div>
+                {rel.recorte && <div className="mt-1 text-xs text-[var(--txt-2)]">Recorte 2026: {rel.recorte.projetosFora} projetos encerrados antes de 2026 fora da base ({rel.recorte.tarefasFora} tarefas) não entram — ficam no arquivo do A360, nada é apagado</div>}
               </Card>
               <Card title="Tarefas">
                 <div className="text-sm">{rel.tarefas.linhas} linhas · <b>{rel.tarefas.novas}</b> novas · <b>{rel.tarefas.alteradas}</b> alteradas · <b>{rel.tarefas.naoEncontradas}</b> não encontradas · <b>{rel.tarefas.orfas}</b> órfãs · <b>{rel.tarefas.colisoes}</b> colisões de chave</div>
