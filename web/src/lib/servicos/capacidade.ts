@@ -4,13 +4,13 @@
 // O que não tem dado é declarado como limitação (horas estimadas, sem prazo, sem responsável, pessoas sem e-mail mapeado).
 import { contagem } from "@/lib/consultas";
 import { contextoCarga, ETAPAS_ENTREGA, type ContextoCarga } from "@/lib/servicos/meu-dia";
-import { sqlStatusPrazo } from "@/lib/prazo";
+import { sqlForaDePausado, sqlStatusPrazo } from "@/lib/prazo";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
 
 export const SEMANAS = 6;
 const esc = (s: string) => s.replace(/'/g, "''");
-const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false`;
+const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false and ${sqlForaDePausado("t.projeto_codigo")}`;
 const ATRASADA = (sp: string) => `${sp} in ('atrasada_30','atrasada_8_30','atrasada_1_7')`;
 
 export type SemanaRef = { indice: number; inicio: string; fim: string; rotulo: string };

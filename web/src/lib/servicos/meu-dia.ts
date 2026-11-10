@@ -6,7 +6,7 @@ import { contagem, ultimaCargaAceita } from "@/lib/consultas";
 import { panoramaOperacao } from "@/lib/servicos/operacao";
 import { recomendacoes, type Recomendacao } from "@/lib/recomendacoes";
 import { ETAPAS_ENTREGA, RISCO_REFACAO_FRACAO } from "@/lib/listas";
-import { FILTROS_PRAZO, diasEntre, hojeIso, sqlStatusPrazo, type StatusPrazo } from "@/lib/prazo";
+import { FILTROS_PRAZO, diasEntre, hojeIso, sqlForaDePausado, sqlStatusPrazo, type StatusPrazo } from "@/lib/prazo";
 import { db, schema } from "@/db";
 import { eq, sql } from "drizzle-orm";
 
@@ -36,7 +36,7 @@ export type TarefaResumo = {
 export type Contagens = { atrasadas: number; a30: number; a8: number; a1: number; hoje: number; d7: number; periodo: number; noPrazo: number; semPrazo: number; abertas: number; entregasPeriodo: number };
 
 const esc = (s: string) => s.replace(/'/g, "''");
-const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false`;
+const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false and ${sqlForaDePausado("t.projeto_codigo")}`;
 const FROM = `from tarefa t join projeto p on p.codigo=t.projeto_codigo left join cliente_vobi c on c.codigo=p.cliente_codigo`;
 
 function selTarefa(sp: string, hoje: string) {

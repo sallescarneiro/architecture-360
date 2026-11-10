@@ -4,7 +4,7 @@
 import { contagem, ultimaCargaAceita } from "@/lib/consultas";
 import { chaveTexto } from "@/lib/importador/normalizacao";
 import { sqlParticipa, type Restricao } from "@/lib/participacao";
-import { FILTROS_PRAZO, hojeIso, sqlStatusPrazo, type StatusPrazo } from "@/lib/prazo";
+import { FILTROS_PRAZO, hojeIso, sqlForaDePausado, sqlStatusPrazo, type StatusPrazo } from "@/lib/prazo";
 
 export type ParamsLista = Record<string, string | string[] | undefined>;
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -41,7 +41,7 @@ export async function listarTarefas(f: FiltrosTarefas, restricao?: { email: stri
   if (!carga) return { carga: null, hoje, linhas: [] as LinhaTarefa[], total: 0, etapas: [] as string[], responsaveis: [] as string[] };
   const cid = carga.id;
   const sp = sqlStatusPrazo(hoje, "t");
-  const where: string[] = [`t.ultima_carga=${cid}`, `t.orfa=false`];
+  const where: string[] = [`t.ultima_carga=${cid}`, `t.orfa=false`, sqlForaDePausado("t.projeto_codigo")];
   const st = FILTROS_PRAZO[f.prazo].status.map((s) => `'${s}'`).join(",");
   where.push(`${sp} in (${st})`);
   if (f.q) { const k = esc(chaveTexto(f.q)); where.push(`(p.chave_nome like '%${k}%' or lower(coalesce(c.chave_nome,'')) like '%${k}%' or t.nome_chave like '%${k}%')`); }
@@ -114,7 +114,7 @@ export async function listarProjetos(f: FiltrosProjetos, restricao?: Restricao) 
   if (!carga) return { carga: null, hoje, linhas: [] as LinhaProjeto[], total: 0 };
   const cid = carga.id;
   const sp = sqlStatusPrazo(hoje, "t");
-  const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false`;
+  const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false and ${sqlForaDePausado("t.projeto_codigo")}`;
   const where: string[] = [`p.nao_encontrado_desde is null`];
   if (f.situacao === "ativos" || f.situacao === "acompanhar") where.push(`p.status_classe <> 'encerrado'`);
   if (f.situacao === "pausados") where.push(`p.status_classe = 'pausado'`);

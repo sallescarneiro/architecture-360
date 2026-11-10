@@ -1,5 +1,5 @@
 import { contagem } from "@/lib/consultas";
-import { sqlStatusPrazo } from "@/lib/prazo";
+import { sqlForaDePausado, sqlStatusPrazo } from "@/lib/prazo";
 
 /**
  * Recomendações gerenciais (seção 3 das diretrizes de 05/11/2026): sinais calculados a partir dos dados
@@ -16,7 +16,7 @@ const MIN_TAREFAS = 8;                   // evita sinais sobre bases muito peque
 /** `hoje` = data real (AAAA-MM-DD, fuso da Rucelle); atraso pela regra única de src/lib/prazo.ts. */
 export async function recomendacoes(cid: number, hoje: string): Promise<Recomendacao[]> {
   const out: Recomendacao[] = [];
-  const abertas = `ultima_carga=${cid} and orfa=false and status not in ('concluido','cancelado')`;
+  const abertas = `ultima_carga=${cid} and orfa=false and status not in ('concluido','cancelado') and ${sqlForaDePausado("tarefa.projeto_codigo")}`;
   const atrasada = `${sqlStatusPrazo(hoje, "tarefa")} in ('atrasada_30','atrasada_8_30','atrasada_1_7')`;
 
   // Concentração / possível sobrecarga por pessoa

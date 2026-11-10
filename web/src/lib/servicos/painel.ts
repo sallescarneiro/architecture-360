@@ -4,14 +4,14 @@
 // carga por responsável é informação operacional importada, não desempenho; refação só como contagem (D-C).
 import { contagem } from "@/lib/consultas";
 import { meuDiaCoordenacao, meuDiaGerencia, type Periodo } from "@/lib/servicos/meu-dia";
-import { diasEntre } from "@/lib/prazo";
+import { diasEntre, sqlForaDePausado } from "@/lib/prazo";
 
 export type Visao = "executiva" | "operacional";
 
 export type Semana = { inicio: string; fim: string; tarefas: number };
 
 async function extras(cid: number, hoje: string) {
-  const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false`;
+  const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false and ${sqlForaDePausado("t.projeto_codigo")}`;
   const enc = await contagem(`select status k, count(*)::int n from projeto where ultima_carga=${cid} and status_classe='encerrado' group by 1 order by 2 desc`);
   const semanas: Semana[] = [];
   for (let k = 0; k < 4; k++) {

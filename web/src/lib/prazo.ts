@@ -94,3 +94,7 @@ export function sqlStatusPrazo(hoje: string, alias = "t"): string {
     when ${fim} - ${h} <= 7 then 'vence_7'
     else 'no_prazo' end`;
 }
+
+/** Projeto pausado não gera cobrança de prazo (decisão de 10/11/2026, T-211): as tarefas dele saem das listas,
+ *  do Meu Dia e das contagens de abertas/atrasadas. `col` = coluna projeto_codigo da tarefa (ex.: "t.projeto_codigo"). */
+export const sqlForaDePausado = (col: string) => `not exists (select 1 from projeto pz where pz.codigo=${col} and pz.status_classe='pausado')`;

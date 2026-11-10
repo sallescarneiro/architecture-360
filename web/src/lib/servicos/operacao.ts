@@ -1,5 +1,5 @@
 import { contagem, ultimaCargaAceita } from "@/lib/consultas";
-import { hojeIso, sqlStatusPrazo } from "@/lib/prazo";
+import { hojeIso, sqlForaDePausado, sqlStatusPrazo } from "@/lib/prazo";
 import { recomendacoes } from "@/lib/recomendacoes";
 import { minutosParaHoras } from "@/lib/importador/normalizacao";
 import { estadoOrganizacao } from "@/lib/integracoes/people";
@@ -38,7 +38,7 @@ export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRes
   if (!carga) return null;
   // Prazos sempre pela data real (regra única em src/lib/prazo.ts); a data da exportação fica como proveniência (carga.dataCarga).
   const cid = carga.id, hoje = hojeIso();
-  const abertas = `status not in ('concluido','cancelado') and orfa=false`;
+  const abertas = `status not in ('concluido','cancelado') and orfa=false and ${sqlForaDePausado("tarefa.projeto_codigo")}`;
   const sp = sqlStatusPrazo(hoje, "tarefa");
   const ATRASADA = `${sp} in ('atrasada_30','atrasada_8_30','atrasada_1_7')`;
   const PROXIMA7 = `${sp} in ('vence_hoje','vence_7')`;
