@@ -59,7 +59,7 @@ export async function panoramaOperacao(opts: { incluirPessoas: boolean; emailRes
      count(*) filter (where sem_fim=false and data_fim::date >= date '${hoje}' and data_fim::date <= date '${hoje}' + 30)::int d30,
      count(*) filter (where ${sp} = 'sem_prazo')::int sem_prazo
      from tarefa where ultima_carga=${cid} and ${abertas}`);
-  const porEtapa = await contagem(`select etapa_canonica k, count(*)::int abertas, count(*) filter (where ${ATRASADA})::int vencidas from tarefa where ultima_carga=${cid} and ${abertas} group by 1 order by 2 desc`);
+  const porEtapa = await contagem(`select coalesce(nullif(etapa_csv,''),'(sem etapa)') k, count(*)::int abertas, count(*) filter (where ${ATRASADA})::int vencidas from tarefa where ultima_carga=${cid} and ${abertas} group by 1 order by 2 desc`);
   const porPessoa = opts.incluirPessoas
     ? await contagem(`select responsavel_nome k, count(*)::int abertas, count(*) filter (where ${ATRASADA})::int vencidas, count(*) filter (where ${PROXIMA7})::int d7,
         count(*) filter (where ${sp} = 'sem_prazo')::int sem_prazo

@@ -45,7 +45,7 @@ export async function listarTarefas(f: FiltrosTarefas, restricao?: { email: stri
   const st = FILTROS_PRAZO[f.prazo].status.map((s) => `'${s}'`).join(",");
   where.push(`${sp} in (${st})`);
   if (f.q) { const k = esc(chaveTexto(f.q)); where.push(`(p.chave_nome like '%${k}%' or lower(coalesce(c.chave_nome,'')) like '%${k}%' or t.nome_chave like '%${k}%')`); }
-  if (f.etapa) where.push(`t.etapa_canonica = '${esc(f.etapa)}'`);
+  if (f.etapa) where.push(`t.etapa_csv = '${esc(f.etapa)}'`); // etapa original do Vobi (10/11/2026)
   if (f.resp === "__sem__") where.push(`t.sem_responsavel = true`);
   else if (f.resp) where.push(`t.responsavel_nome = '${esc(f.resp)}'`);
   if (f.projeto) where.push(`t.projeto_codigo = ${f.projeto}`);
@@ -57,16 +57,16 @@ export async function listarTarefas(f: FiltrosTarefas, restricao?: { email: stri
   if (f.entregas) where.push(`t.etapa_canonica in (${ETAPAS_ENTREGA.map((e) => `'${esc(e)}'`).join(",")})`);
   if (restricao) where.push(`t.responsavel_email = '${esc(restricao.email)}'`);
   const ordem: Record<string, string> = {
-    prazo: `(t.data_fim is null) asc, t.data_fim ${f.dir}, p.nome asc`, tarefa: `t.nome ${f.dir}`, etapa: `t.etapa_canonica ${f.dir}, t.data_fim asc nulls last`,
+    prazo: `(t.data_fim is null) asc, t.data_fim ${f.dir}, p.nome asc`, tarefa: `t.nome ${f.dir}`, etapa: `t.etapa_csv ${f.dir}, t.data_fim asc nulls last`,
     projeto: `p.nome ${f.dir}, t.data_fim asc nulls last`, resp: `t.responsavel_nome ${f.dir} nulls last, t.data_fim asc nulls last`, status: `${sp} ${f.dir}, t.data_fim asc nulls last`,
   };
   const base = `from tarefa t join projeto p on p.codigo=t.projeto_codigo left join cliente_vobi c on c.codigo=p.cliente_codigo where ${where.join(" and ")}`;
   const [tot] = await contagem(`select count(*)::int n ${base}`);
-  const rows = await contagem(`select t.chave, t.nome, t.etapa_canonica etapa, t.status, t.data_fim, t.data_inicio, t.responsavel_nome responsavel, t.projeto_codigo, p.nome projeto_nome,
+  const rows = await contagem(`select t.chave, t.nome, t.etapa_csv etapa, t.status, t.data_fim, t.data_inicio, t.responsavel_nome responsavel, t.projeto_codigo, p.nome projeto_nome,
      c.nome cliente, p.cliente_codigo, ${sp} prazo, case when t.sem_fim=false then (t.data_fim::date - date '${hoje}') else null end dias
      ${base} order by ${ordem[f.ord]} limit ${f.n} offset ${(f.pag - 1) * f.n}`);
   // opções de filtro (sempre sobre a carga inteira, não sobre o filtro atual)
-  const etapas = (await contagem(`select distinct etapa_canonica k from tarefa where ultima_carga=${cid} and orfa=false order by 1`)).map((r) => String(r.k));
+  const etapas = (await contagem(`select distinct etapa_csv k from tarefa where ultima_carga=${cid} and orfa=false and etapa_csv<>'' order by 1`)).map((r) => String(r.k));
   const responsaveis = (await contagem(`select distinct responsavel_nome k from tarefa where ultima_carga=${cid} and orfa=false and responsavel_nome is not null ${restricao ? `and responsavel_email='${esc(restricao.email)}'` : ""} order by 1`)).map((r) => String(r.k));
   return {
     carga, hoje, total: Number(tot.n), etapas, responsaveis,

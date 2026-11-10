@@ -41,7 +41,7 @@ export async function recomendacoes(cid: number, hoje: string): Promise<Recomend
   }
 
   // Gargalo por etapa
-  const etapas = await contagem(`select etapa_canonica k, count(*)::int abertas, count(*) filter (where ${atrasada})::int vencidas
+  const etapas = await contagem(`select coalesce(nullif(etapa_csv,''),'(sem etapa)') k, count(*)::int abertas, count(*) filter (where ${atrasada})::int vencidas
      from tarefa where ${abertas} group by 1 order by 2 desc`);
   const totalAb = etapas.reduce((a, r) => a + Number(r.abertas), 0);
   const top = etapas[0];

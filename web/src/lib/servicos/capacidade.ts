@@ -88,7 +88,7 @@ export async function capacidade() {
   // 3. Entregas próximas (etapas de entrega) — atrasadas + próximas 6 semanas
   const entregasLista = ETAPAS_ENTREGA.map((e) => `'${esc(e)}'`).join(",");
   const fimJanela = semanas[SEMANAS - 1].fim;
-  const entregas: Entrega[] = (await contagem(`select t.chave, t.nome, t.etapa_canonica etapa, t.data_fim, (t.data_fim::date - date '${hoje}') dias, t.projeto_codigo, p.nome projeto_nome, c.nome cliente, t.responsavel_nome responsavel
+  const entregas: Entrega[] = (await contagem(`select t.chave, t.nome, t.etapa_csv etapa, t.data_fim, (t.data_fim::date - date '${hoje}') dias, t.projeto_codigo, p.nome projeto_nome, c.nome cliente, t.responsavel_nome responsavel
     from tarefa t join projeto p on p.codigo=t.projeto_codigo left join cliente_vobi c on c.codigo=p.cliente_codigo
     where t.ultima_carga=${cid} and ${ABERTA} and t.sem_fim=false and t.etapa_canonica in (${entregasLista}) and t.data_fim::date <= date '${fimJanela}'
     order by t.data_fim, p.nome limit 200`)).map((r) => ({
@@ -96,7 +96,7 @@ export async function capacidade() {
       cliente: (r.cliente as string | null) ?? null, responsavel: (r.responsavel as string | null) ?? null, atrasada: Number(r.dias) < 0 }));
 
   // 4. Fluxo por etapa — onde o trabalho está parado/concentrado
-  const etapas: Etapa[] = (await contagem(`select t.etapa_canonica etapa, count(*)::int abertas, count(*) filter (where ${ATRASADA(sp)})::int atrasadas,
+  const etapas: Etapa[] = (await contagem(`select coalesce(nullif(t.etapa_csv,''),'(sem etapa)') etapa, count(*)::int abertas, count(*) filter (where ${ATRASADA(sp)})::int atrasadas,
       count(*) filter (where t.sem_responsavel=true)::int sem_resp, count(*) filter (where ${sp}='sem_prazo')::int sem_prazo, count(*) filter (where ${sp} in ('vence_hoje','vence_7'))::int d7,
       count(distinct t.projeto_codigo)::int projetos, count(distinct t.responsavel_nome) filter (where t.sem_responsavel=false)::int pessoas,
       percentile_cont(0.5) within group (order by (date '${hoje}' - t.data_fim::date)) filter (where ${ATRASADA(sp)}) mediana_atraso

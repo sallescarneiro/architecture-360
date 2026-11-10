@@ -38,7 +38,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const cliente = p.clienteCodigo ? (await db.select().from(schema.clientesVobi).where(eq(schema.clientesVobi.codigo, p.clienteCodigo)).limit(1))[0] : null;
   const tarefas = await db.select().from(schema.tarefas)
     .where(and(eq(schema.tarefas.projetoCodigo, p.codigo), isNull(schema.tarefas.naoEncontradoDesde)))
-    .orderBy(asc(schema.tarefas.etapaCanonica), asc(schema.tarefas.dataFim), asc(schema.tarefas.nome));
+    .orderBy(asc(schema.tarefas.etapaCsv), asc(schema.tarefas.dataFim), asc(schema.tarefas.nome)); // etapa original do Vobi (decisão de 10/11/2026: nomes preservados)
   const hoje = hojeIso();
   const prazos = new Map(tarefas.map((t) => [t.chave, statusPrazo(t.status, t.dataFim, hoje)]));
   const abertas = tarefas.filter((t) => prazos.get(t.chave)!.aberta);
@@ -96,7 +96,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
             <thead><tr><th>Etapa</th><th>Tarefa</th><th>Situação</th><th>Status Vobi</th>{gestao && <th>Responsável</th>}<th>Início</th><th>Fim</th><th>Horas</th></tr></thead>
             <tbody>{tarefas.map((t) => (
               <tr key={t.chave}>
-                <td>{t.etapaCanonica}</td><td>{t.nome}</td>
+                <td>{t.etapaCsv}</td><td>{t.nome}</td>
                 <td><StatusPrazo info={prazos.get(t.chave)!} /></td>
                 <td className="text-[var(--txt-2)]">{t.status}</td>
                 {gestao && <td>{t.responsavelNome ?? "—"}</td>}

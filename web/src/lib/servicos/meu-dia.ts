@@ -40,7 +40,7 @@ const ABERTA = `t.status not in ('concluido','cancelado') and t.orfa=false`;
 const FROM = `from tarefa t join projeto p on p.codigo=t.projeto_codigo left join cliente_vobi c on c.codigo=p.cliente_codigo`;
 
 function selTarefa(sp: string, hoje: string) {
-  return `t.chave, t.nome, t.etapa_canonica etapa, t.status, t.data_fim, t.projeto_codigo, p.nome projeto_nome, c.nome cliente, t.responsavel_nome responsavel, ${sp} prazo,
+  return `t.chave, t.nome, t.etapa_csv etapa, t.status, t.data_fim, t.projeto_codigo, p.nome projeto_nome, c.nome cliente, t.responsavel_nome responsavel, ${sp} prazo,
     case when t.sem_fim=false then (t.data_fim::date - date '${hoje}') else null end dias`;
 }
 function mapTarefa(r: Record<string, unknown>): TarefaResumo {
