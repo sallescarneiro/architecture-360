@@ -93,13 +93,17 @@ Alternativa se `railway ssh` não estiver disponível: habilitar temporariamente
 
 Demais usuários: pela tela `/usuarios` (só admin), sem Railway. Troca da própria senha em `/conta/senha` (botão "Senha" no topo).
 
-## 8. Pendências reais para publicar
+## 8. Estado da publicação (10/11/2026) e pendências que dependem da direção
 
-1. Autorização expressa de Rodrigo para o deploy (cria infraestrutura paga).
-2. Confirmar o plano/cobrança da conta Railway.
-3. Decidir se haverá domínio próprio (CNAME) ou só o domínio gerado.
-4. Confirmar a política de backup do Postgres no plano contratado.
-5. (Decidido em 05/11/2026: acesso só do administrador; sem outros usuários por ora.)
+Publicado e operacional em produção (Railway, `architecture-360-production.up.railway.app`): login por usuário e senha com troca obrigatória no primeiro acesso; perfis admin/gestão/coordenação/arquiteta verificados no servidor; importação Vobi (CSV, só leitura); Meu Dia; Painel de Gestão (com divergências, limitações e entregáveis); Tarefas, Projetos (detalhe com reuniões, entregáveis, alertas, flags) e linha do tempo; Agenda (OAuth por usuário, leitura e escrita no Google Calendar da própria pessoa); Reuniões com transcrição e ata por IA (chamada real validada em 09/11); Alertas e flags; Capacidade e fluxo; Entregáveis e aprovações; Qualidade dos dados; Clientes; Pessoas; Usuários; cobertura da integração.
+
+Dependem da direção (não são código):
+1. Entregar as senhas provisórias à equipe (13 acessos criados em 10/11; só o administrador entrou até agora).
+2. Manter a cadência de exportação do Vobi (2× por semana): a última carga de operação é de 05/11/2026.
+3. Integração com o People: o People precisa expor `GET /api/export/pessoas` com `x-admin-key`; depois definir `PEOPLE_URL`, `PEOPLE_TOKEN` (e `PEOPLE_EXPORT_PATH` se diferente) no Railway. Até lá a hierarquia é "dado ausente".
+4. Classificar as etapas do Vobi ainda não mapeadas (ex.: "ESTUDO VOLUMÉTRICO", "Reunião apresentação", "ENTREGA PROJETO COMPLETO", "Refação 3D", "VÍDEO") na tabela de sinônimos — decisão da gestão, pois afeta refação e entregas.
+5. Cada pessoa conectar a própria Google Agenda em /agenda (OAuth individual).
+6. Domínio próprio (CNAME) e política de backup do Postgres no plano Railway (decisões de 05/11 ainda em aberto).
 
 ## 9. Integrações entre plataformas Rucelle (preparadas, não ativas)
 

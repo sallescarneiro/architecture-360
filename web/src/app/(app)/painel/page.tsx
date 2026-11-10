@@ -8,6 +8,7 @@ import { CADENCIA_AVISO_DIAS, ETAPAS_ENTREGA, PERIODOS, RISCO_REFACAO_FRACAO, ty
 import { painelExecutivo, painelOperacional, type PainelCoordenacao, type PainelGerencia, type Semana } from "@/lib/servicos/painel";
 import { indicadoresAlertas } from "@/lib/alertas";
 import { contagemFlags } from "@/lib/flags";
+import { contagens as contagensEntregaveis } from "@/lib/entregaveis";
 import { Ajuda, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
 
 /**
@@ -19,13 +20,13 @@ export default async function PainelPage({ searchParams }: { searchParams: Promi
   const u = await exigirUsuario(["admin", "gestao", "coordenacao"]);
   const sp = await searchParams;
   const periodo = (PERIODOS as readonly number[]).includes(Number(sp.periodo)) ? (Number(sp.periodo) as Periodo) : 14;
-  const [ind, cf] = await Promise.all([indicadoresAlertas(), contagemFlags()]);
+  const [ind, cf, ent] = await Promise.all([indicadoresAlertas(), contagemFlags(), contagensEntregaveis()]); // ent: Fase 6 (T-190), integração no painel
   if (u.perfil === "coordenacao") {
     const d = await painelOperacional(periodo);
-    return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} ind={ind} cf={cf} /> : <SemCarga />;
+    return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} ind={ind} cf={cf} ent={ent} /> : <SemCarga />;
   }
   const d = await painelExecutivo(periodo);
-  return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} ind={ind} cf={cf} /> : <SemCarga />;
+  return d ? <Painel d={d} periodo={periodo} perfil={u.perfil} ind={ind} cf={cf} ent={ent} /> : <SemCarga />;
 }
 
 const fmt = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -192,7 +193,7 @@ function TabelaTarefas({ tarefas, vazio }: { tarefas: TarefaResumo[]; vazio: str
 }
 
 // ---------------------------------------------------------------------------
-function Painel({ d, periodo, perfil, ind, cf }: { d: PainelCoordenacao | PainelGerencia; periodo: Periodo; perfil: Perfil; ind: Awaited<ReturnType<typeof indicadoresAlertas>>; cf: Awaited<ReturnType<typeof contagemFlags>> }) {
+function Painel({ d, periodo, perfil, ind, cf, ent }: { d: PainelCoordenacao | PainelGerencia; periodo: Periodo; perfil: Perfil; ind: Awaited<ReturnType<typeof indicadoresAlertas>>; cf: Awaited<ReturnType<typeof contagemFlags>>; ent: Awaited<ReturnType<typeof contagensEntregaveis>> }) {
   const executiva = perfil !== "coordenacao";
   const g = executiva ? (d as PainelGerencia) : null;
   const { ctx, panorama: p, cont } = d;
@@ -265,6 +266,19 @@ function Painel({ d, periodo, perfil, ind, cf }: { d: PainelCoordenacao | Painel
           <Link className="underline" href="/integracao-vobi">cobertura da integração Vobi</Link>
         </div>
         <p className="mt-1 text-[0.72rem] text-[var(--muted)]">Comparação antes/depois do início da produção não disponível: o Vobi exportado não informa quando a produção começa (flag registrada).</p>
+      </Bloco>
+
+      <Bloco titulo="Entregáveis e aprovações" sub="T-190 · versões, revisão interna e aprovação do cliente com evidência · registro interno" acao={<Link className="text-[0.8rem] font-semibold text-[var(--vinho)]" href="/entregaveis">Entregáveis →</Link>}>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { r: "Em aberto", v: ent.abertos, h: "/entregaveis", t: "neutro" },
+            { r: "Aguardando revisão interna", v: ent.aguardandoInterna, h: "/entregaveis?status=revisao_interna", t: ent.aguardandoInterna ? "relevante" : "ok" },
+            { r: "Aguardando o cliente", v: ent.aguardandoCliente, h: "/entregaveis?status=enviado_cliente", t: "neutro" },
+            { r: "Ajustes pedidos pelo cliente", v: ent.ajustesCliente, h: "/entregaveis?status=ajustes_cliente", t: ent.ajustesCliente ? "critico" : "ok" },
+            { r: "Aprovados pelo cliente", v: ent.aprovadosCliente, h: "/entregaveis?status=aprovado_cliente", t: "ok" },
+          ].map((k) => <Link key={k.r} href={k.h} className="tip rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 no-underline" data-tip={`${k.r}: ${k.v}`}><div className="text-[0.72rem] font-semibold text-[var(--muted)]">{k.r}</div><div className={`text-[1.3rem] font-bold num-${k.t}`}>{k.v}</div></Link>)}
+        </div>
+        {!ent.abertos && !ent.aprovadosCliente && <p className="mt-1 text-[0.72rem] text-[var(--muted)]">Nenhum entregável registrado ainda. A aprovação do cliente só conta quando registrada com evidência.</p>}
       </Bloco>
 
       <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
