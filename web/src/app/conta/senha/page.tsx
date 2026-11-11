@@ -14,7 +14,7 @@ export default async function SenhaPage({ searchParams }: { searchParams: Promis
     <main className="flex min-h-screen items-center justify-center p-6" style={{ background: "linear-gradient(160deg, var(--rose-2) 0%, var(--bg) 55%)" }}>
       <div className="card w-full max-w-sm p-8">
         <div className="mb-6">
-          <div className="eyebrow mb-1.5">Rucelle 360° · Architecture 360</div>
+          <div className="eyebrow mb-1.5">rucelle · Architecture 360</div>
           <h1 className="display text-[1.5rem] leading-tight">{u.trocarSenha ? "Defina sua senha" : "Minha senha"}</h1>
           <p className="mt-1 text-[0.85rem] text-[var(--txt-2)]">
             {u.trocarSenha ? <>Olá, {u.nome.split(" ")[0]}. Você entrou com uma senha provisória; escolha uma senha sua para continuar.</> : <>Conectado como {u.email}.</>}

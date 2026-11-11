@@ -8,6 +8,9 @@
 @font-face { font-family: "Montserrat"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-Medium.woff2") format("woff2"); }
 @font-face { font-family: "Montserrat"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-SemiBold.woff2") format("woff2"); }
 @font-face { font-family: "Montserrat"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-Bold.woff2") format("woff2"); }
+/* T-212 (11/11/2026): Fraunces (serifa editorial, OFL) só em marca, títulos e KPIs — mesmo padrão da Central de Operações */
+@font-face { font-family: "Fraunces"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/Fraunces-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Fraunces"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Fraunces-SemiBold.woff2") format("woff2"); }
 
 :root {
   /* Marca */
@@ -53,13 +56,13 @@
   --radius-sm: 8px;
   --shadow: 0 1px 2px rgba(91, 13, 13, 0.04);
   --shadow-pop: 0 6px 18px rgba(91, 13, 13, 0.09);
-  --sidebar: 220px;
+  --sidebar: 15.5rem;
   --topo: 57px;
 }
 
 @theme inline {
   --font-sans: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
 }
 
 html { font-size: 15.4px; } /* 14px × 1,10 — Rodrigo aprovou a leitura com zoom de 110% */
@@ -72,7 +75,7 @@ body { background: var(--bg); color: var(--txt); font-family: var(--font-sans); 
 .skip-link:focus { left: 0.75rem; }
 
 /* Tipografia (R360: títulos Montserrat 700, levemente condensados) */
-.display { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
+.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.015em; font-variation-settings: "opsz" 72; }
 .eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--terracota); }
 .ajuda { display: inline-grid; place-items: center; width: 1.05rem; height: 1.05rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 0.66rem; font-weight: 700; cursor: help; vertical-align: 1px; }
 .ajuda:hover { border-color: var(--terracota-vivo); color: var(--terracota); }
@@ -164,26 +167,30 @@ details.fold > .fold-body { padding: 0 1.1rem 1rem; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Números de destaque */
-.kpi-val { font-family: var(--font-display); font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--grafite); }
+.kpi-val { font-family: var(--font-display); font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: var(--grafite); }
 .bar { height: 6px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
 .bar > span { display: block; height: 100%; border-radius: 999px; }
 
 /* Topo fixo (R360 .topo) */
-.topo { position: sticky; top: 0; z-index: 30; height: var(--topo); background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0 1.5rem; }
+/* .topo (topo branco) removido em T-212: a marca, o usuário e o selo do Vobi vivem na lateral, como na Central de Operações */
 .marca { font-weight: 700; color: var(--vinho); letter-spacing: 0.02em; text-decoration: none; font-size: 0.98rem; white-space: nowrap; }
 .marca span { color: var(--terracota-vivo); }
 .marca small { color: var(--muted); font-weight: 600; margin-left: 0.5rem; }
 .selo { font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--rose); color: var(--vinho); white-space: nowrap; }
 
 /* Barra lateral branca (R360 .lateral / .nav-item) */
-.side { background: #fff; border-right: 1px solid var(--line); color: var(--txt); }
-.side a.nav { display: flex; align-items: center; gap: 0.6rem; border-radius: 8px; padding: 0.42rem 0.65rem; font-size: 0.88rem; color: var(--txt); transition: background 0.15s, color 0.15s; text-decoration: none; }
-.side a.nav:hover { background: var(--nude); }
-.side a.nav[aria-current="page"] { background: var(--vinho); color: #fff; font-weight: 600; }
-.side a.nav svg { width: 1rem; height: 1rem; flex-shrink: 0; opacity: 0.85; }
-.side .group { margin: 0.9rem 0 0.25rem; padding: 0 0.65rem; font-size: 0.66rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.side { background: linear-gradient(180deg, var(--vinho-3) 0%, var(--vinho) 100%); color: #f4e4df; }
+.side a.nav { display: flex; align-items: center; gap: 0.7rem; border-radius: 9px; padding: 0.5rem 0.7rem; font-size: 0.88rem; color: #f1dcd5; transition: background 0.15s, color 0.15s; text-decoration: none; }
+.side a.nav:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.side a.nav[aria-current="page"] { background: #fff; color: var(--vinho); font-weight: 600; }
+.side a.nav svg { width: 1.05rem; height: 1.05rem; flex-shrink: 0; opacity: 0.9; }
+.side .group { margin: 1.1rem 0 0.35rem; padding: 0 0.7rem; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #d7a99b; }
 .side .count { margin-left: auto; border-radius: 999px; background: var(--terracota-vivo); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 0 0.45rem; line-height: 1.35rem; }
-.side a.nav[aria-current="page"] .count { background: #fff; color: var(--vinho); }
+.side a.nav[aria-current="page"] .count { background: var(--vinho); color: #fff; }
+.side .marca-r { font-family: var(--font-display); font-weight: 600; font-size: 1.55rem; letter-spacing: -0.015em; color: #fff; line-height: 1; font-variation-settings: "opsz" 72; }
+.side .marca-sub { display: block; margin-top: 0.3rem; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #d7a99b; }
+.side .selo { background: rgba(247, 207, 196, 0.14); color: #f7cfc4; }
+.side .btn-ghost { color: #f1dcd5; } .side .btn-ghost:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
 .mnav summary { list-style: none; }
 
 /* Menu móvel (details/summary, funciona sem JavaScript) */

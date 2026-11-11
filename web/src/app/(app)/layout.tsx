@@ -8,8 +8,8 @@ import { Avatar } from "@/components/ui";
 const PERFIL: Record<string, string> = { admin: "Administração", gestao: "Gestão", coordenacao: "Coordenação", arquiteta: "Arquiteta" };
 
 /**
- * Chrome no padrão do Rucelle 360 (topo branco fixo + lateral branca + fundo nude), aprovado em 08/11/2026 (T-196).
- * Hierarquia de marca: RUCELLE 360° / Architecture 360 · Central de Trabalho — módulo de operação de arquitetura.
+ * Casca no padrão das demais plataformas da rucelle (Central de Operações / Radar): lateral vinho com a marca "rucelle",
+ * usuário no rodapé da lateral, fundo nude e cartões brancos — pedido de Rodrigo em 11/11/2026 (T-212), substitui o padrão de 08/11.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const u = await exigirUsuario();
@@ -36,38 +36,46 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ] },
   ];
   const marca = (
-    <Link href="/" className="marca flex items-baseline gap-2">
-      <span className="text-[var(--vinho)]">RUCELLE <span>360°</span></span>
-      <small className="hidden sm:inline">Architecture 360 · Central de Trabalho</small>
+    <Link href="/" className="block leading-none no-underline">
+      <span className="marca-r">rucelle</span>
+      <span className="marca-sub">Architecture 360</span>
     </Link>
   );
   const me = (
-    <div className="flex items-center gap-2.5">
-      <Avatar name={u.nome} size={28} />
-      <span className="hidden min-w-0 text-[0.8rem] leading-tight md:block"><span className="block truncate font-semibold">{u.nome}</span><span className="block truncate text-[0.7rem] text-[var(--muted)]">{PERFIL[u.perfil] ?? u.perfil}</span></span>
-      <Link href="/conta/senha" className="btn btn-ghost btn-sm" title="Alterar minha senha">Senha</Link>
-      <form action={sairAction}><button className="btn btn-ghost btn-sm" title="Sair">Sair</button></form>
+    <div className="flex items-center gap-2.5 border-t border-white/10 pt-3">
+      <span className="rounded-full ring-2 ring-white/30"><Avatar name={u.nome} size={30} /></span>
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block truncate text-[0.84rem] font-semibold text-white">{u.nome}</span>
+        <span className="flex items-center gap-1.5 text-[0.68rem] text-[#e2c3b9]"><span className="truncate">{PERFIL[u.perfil] ?? u.perfil}</span>·<Link href="/conta/senha" className="text-[#f1dcd5] underline-offset-2 hover:text-white hover:underline" title="Alterar minha senha">senha</Link>·<form action={sairAction} className="inline"><button className="text-[#f1dcd5] underline-offset-2 hover:text-white hover:underline" title="Sair">sair</button></form></span>
+      </span>
     </div>
   );
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen lg:grid lg:grid-cols-[var(--sidebar)_1fr]">
       <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
-      <header className="topo">
-        <div className="flex items-center gap-3">
-          <details className="mnav relative lg:hidden">
-            <summary className="btn btn-secondary btn-sm cursor-pointer" aria-label="Abrir menu">Menu</summary>
-            <div className="side absolute left-0 top-[2.6rem] z-40 w-64 rounded-[12px] border border-[var(--line)] p-3 shadow-[var(--shadow-pop)]"><NavLinks groups={groups} /></div>
-          </details>
+
+      {/* Computador: lateral fixa no padrão da Central de Operações (T-212) */}
+      <aside className="side sticky top-0 hidden h-screen flex-col gap-4 overflow-y-auto px-3.5 py-5 lg:flex">
+        <div className="px-1.5">{marca}</div>
+        <div className="flex-1"><NavLinks groups={groups} /></div>
+        <div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
+        {me}
+      </aside>
+
+      {/* Celular e tablet: a mesma lateral, recolhível */}
+      <details className="mnav side sticky top-0 z-30 lg:hidden">
+        <summary className="flex items-center justify-between px-4 py-3">
           {marca}
-        </div>
-        <div className="flex items-center gap-3"><span className="selo hidden md:inline">Vobi · somente leitura</span>{me}</div>
-      </header>
-      <div className="lg:grid lg:grid-cols-[var(--sidebar)_1fr]">
-        <aside className="side sticky top-[var(--topo)] hidden h-[calc(100vh-var(--topo))] flex-col overflow-y-auto px-3 py-4 lg:flex">
+          <span className="btn btn-ghost btn-sm" aria-hidden="true">Menu</span>
+        </summary>
+        <div className="flex flex-col gap-3 border-t border-white/10 px-3.5 pb-4 pt-2">
           <NavLinks groups={groups} />
-        </aside>
-        <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="mx-auto max-w-[1480px]">{children}</div></main>
-      </div>
+          <div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
+          {me}
+        </div>
+      </details>
+
+      <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="mx-auto max-w-[1480px]">{children}</div></main>
     </div>
   );
 }
