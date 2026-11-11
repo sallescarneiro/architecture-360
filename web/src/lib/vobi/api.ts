@@ -80,11 +80,18 @@ export async function listarTudo<T = Record<string, unknown>>(caminho: string, f
 
 /** Leitura completa usada pela sincronização diária. */
 export async function lerVobi(progresso?: Progresso) {
-  const projetos = await listarTudo("/v2/refurbish", {}, progresso);
+  // a listagem padrão traz só projetos ativos; os encerrados (Finalizado/Cancelado) vêm pelo filtro isActive=false.
+  // Se o Vobi não aceitar o filtro, segue só com os ativos (os demais ficam como estão na base).
+  const ativos = await listarTudo("/v2/refurbish", {}, progresso);
+  let inativos: Record<string, unknown>[] = [];
+  try { inativos = await listarTudo("/v2/refurbish", { "where[isActive]": "false" }, progresso); } catch (e) { if (!(e instanceof ErroVobi)) throw e; }
+  const vistos = new Set<unknown>();
+  const projetos = [...ativos, ...inativos].filter((p) => (vistos.has(p.id) ? false : (vistos.add(p.id), true)));
   const tarefas = await listarTudo("/v2/task", {}, progresso);
   // As etapas de projeto vêm com as tarefas embutidas e a leitura geral não responde no Vobi (503 / tempo esgotado em 11/11/2026):
-  // lê projeto a projeto, só dos projetos que têm tarefa.
-  const ids = [...new Set(tarefas.map((t) => (t as Record<string, unknown>).idRefurbish).filter((x) => x != null))];
+  // lê projeto a projeto, só dos projetos lidos que têm tarefa.
+  const doProjeto = new Set(projetos.map((p) => p.id));
+  const ids = [...new Set(tarefas.map((t) => (t as Record<string, unknown>).idRefurbish).filter((x) => x != null && doProjeto.has(x)))];
   const etapas: Record<string, unknown>[] = [];
   for (const [i, id] of ids.entries()) {
     const rows = await listarTudo("/v2/refurbish-step", { "where[idRefurbish]": String(id) }, undefined, 100);
