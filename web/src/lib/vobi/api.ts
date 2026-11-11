@@ -6,7 +6,7 @@
 const BASE = (process.env.VOBI_API_BASE || "https://api.vobi.com.br").replace(/\/+$/, "");
 const TAMANHO_PAGINA = 200;
 const MAX_PAGINAS = 500; // trava de segurança (100 mil registros por entidade)
-const PAUSA_MS = 150; // espaçamento entre chamadas, para não pressionar o limite de requisições
+const PAUSA_MS = 400; // espaçamento entre chamadas, para não pressionar o limite de requisições
 
 export class ErroVobi extends Error {
   constructor(msg: string, public status?: number) { super(msg); }
@@ -51,9 +51,11 @@ async function get<T>(caminho: string, params: Record<string, string | number>, 
     throw new ErroVobi(`A API do Vobi não respondeu em ${caminho} (tempo esgotado ou conexão interrompida).`);
   }
   if (r.status === 401 && tentativa < 1) { token = null; return get(caminho, params, tentativa + 1); }
-  if ((r.status === 429 || r.status >= 500) && tentativa < 4) {
-    const espera = Number(r.headers.get("retry-after")) * 1000 || 1000 * 2 ** tentativa;
-    await dormir(Math.min(espera, 30_000));
+  // limite de requisições do Vobi (429): espera mais e insiste mais (até ~10 min no total); 5xx: até 4 tentativas
+  const limite = r.status === 429 ? 7 : 4;
+  if ((r.status === 429 || r.status >= 500) && tentativa < limite) {
+    const espera = Number(r.headers.get("retry-after")) * 1000 || (r.status === 429 ? 15_000 * 2 ** Math.min(tentativa, 3) : 1000 * 2 ** tentativa);
+    await dormir(Math.min(espera, 120_000));
     return get(caminho, params, tentativa + 1);
   }
   if (!r.ok) throw new ErroVobi(`A API do Vobi respondeu HTTP ${r.status} em ${caminho}.`, r.status);
