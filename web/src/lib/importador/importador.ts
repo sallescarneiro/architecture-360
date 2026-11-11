@@ -39,6 +39,8 @@ export type Relatorio = {
   alertasPorTipo: Record<string, number>;
   // Etapa 1 — presente quando a carga trouxe Clientes.csv
   clientes?: { linhas: number; novos: number; alterados: number; naoEncontrados: number; semCodigo: number; porTipo: Record<string, number>; porStatus: Record<string, number> };
+  // T-218: diagnóstico da leitura pela API do Vobi (contagens, unidade de horas, responsáveis sem nome, campos recebidos)
+  api?: import("@/lib/vobi/adaptador").Diagnostico;
   // Etapa 2 — recalculado em toda carga (projetos × clientes)
   vinculos?: RelatorioVinculos;
 };

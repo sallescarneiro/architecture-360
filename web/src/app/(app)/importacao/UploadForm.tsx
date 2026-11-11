@@ -6,7 +6,7 @@ import { Alert, Button, Card, Field, Input } from "@/components/ui";
 export function UploadForm({ hoje }: { hoje: string }) {
   const [state, action, pending] = useActionState<EstadoUpload, FormData>(enviarAction, undefined);
   return (
-    <Card title="Nova carga" subtitle={<>No Vobi: <b>Projetos › Ações › Exportar CSV</b> (sem filtro), <b>Gestão de Tarefas › Tarefas › Todas as tarefas › Ações › Exportar CSV</b> e, opcionalmente, <b>Cadastros › Contatos › Clientes › Ações › Exportar CSV</b>. Nada é gravado antes da confirmação; o Vobi nunca é alterado.</>}>
+    <Card title="Carga por CSV (contingência)" subtitle={<>Use quando a sincronização pela API estiver indisponível. No Vobi: <b>Projetos › Ações › Exportar CSV</b> (sem filtro), <b>Gestão de Tarefas › Tarefas › Todas as tarefas › Ações › Exportar CSV</b> e, opcionalmente, <b>Cadastros › Contatos › Clientes › Ações › Exportar CSV</b>. Nada é gravado antes da confirmação; o Vobi nunca é alterado.</>}>
       <form action={action} className="flex flex-col gap-4">
         <div className="grid gap-3 md:grid-cols-4">
           <Field label="Projetos.csv"><Input name="projetos" type="file" accept=".csv,text/csv" /></Field>

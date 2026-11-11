@@ -1,8 +1,9 @@
-import { asc } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
+import type { Relatorio } from "@/lib/importador/importador";
 import { db, schema } from "@/db";
 import { exigirUsuario, podeImportar } from "@/lib/auth";
 import { estadoOrganizacao } from "@/lib/integracoes/people";
-import { mapearPessoaAction, sincronizarPeopleAction } from "./actions";
+import { mapearPessoaAction, nomearResponsavelVobiAction, sincronizarPeopleAction } from "./actions";
 import { Alert, Badge, Button, Card, Empty, Input, PageHeader } from "@/components/ui";
 
 /**
@@ -21,6 +22,23 @@ export default async function PessoasPage() {
   const porEmail = new Map(people.map((p) => [p.email, p]));
   const nomeDe = (email: string | null) => (email ? porEmail.get(email)?.nome ?? email : null);
   const fmt = (d: Date | null | undefined) => (d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : null);
+  // T-218: responsáveis que a API do Vobi informa só por número
+  const mapaResp = await db.select().from(schema.vobiResponsaveis).orderBy(asc(schema.vobiResponsaveis.nome));
+  const ultimaApi = (await db.select({ relatorio: schema.cargas.relatorio }).from(schema.cargas)
+    .where(and(eq(schema.cargas.origem, "api"))).orderBy(desc(schema.cargas.id)).limit(1))[0];
+  const semNome = ((ultimaApi?.relatorio as Relatorio | null)?.api?.responsaveis.semNome ?? []).filter((r) => !mapaResp.some((m) => m.idVobi === r.id));
+  const nomesVobi = vobi.map((p) => p.nomeVobi).filter((n) => !n.startsWith("Vobi #"));
+  const editaResp = edita || u.perfil === "coordenacao";
+  const seletor = (idVobi: number, atual?: string) => (
+    <form action={nomearResponsavelVobiAction} className="flex items-center gap-2">
+      <input type="hidden" name="idVobi" value={idVobi} />
+      <select name="nome" defaultValue={atual ?? ""} className="input w-72" required>
+        <option value="" disabled>Escolha a pessoa do Vobi…</option>
+        {nomesVobi.map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>
+      <Button variant="secondary" className="btn-sm">Salvar</Button>
+    </form>
+  );
   const ausente = <span className="text-[var(--muted)]" title="Não informado pelo People">dado ausente</span>;
 
   return (
@@ -40,10 +58,20 @@ export default async function PessoasPage() {
         ) : <Empty>Nenhuma informação organizacional recebida do People até agora.</Empty>}
       </Card>
 
+      {(semNome.length > 0 || mapaResp.length > 0) && (
+        <Card title={<>Responsáveis da API do Vobi <Badge tone={semNome.length ? "warn" : "neutral"}>{semNome.length ? `${semNome.length} sem nome` : "todos identificados"}</Badge></>}
+          subtitle="A API do Vobi informa o responsável de cada tarefa só por um número. O A360 reconhece sozinho quem já aparecia na última exportação CSV; os demais são indicados aqui uma única vez e valem para todas as sincronizações seguintes.">
+          <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>Nº no Vobi</th><th>Pessoa</th><th>Como foi identificado</th></tr></thead><tbody>
+            {semNome.map((r) => <tr key={`s${r.id}`}><td className="font-semibold">#{r.id}</td><td>{editaResp ? seletor(r.id) : "—"}</td><td><Badge tone="warn">sem nome · {r.tarefas} tarefa(s)</Badge></td></tr>)}
+            {mapaResp.map((m) => <tr key={m.idVobi}><td className="font-semibold">#{m.idVobi}</td><td>{editaResp ? seletor(m.idVobi, m.nome) : m.nome}</td><td><Badge tone="neutral">{m.origem === "manual" ? "indicado na tela Pessoas" : "pela última exportação CSV"}</Badge></td></tr>)}
+          </tbody></table></div>
+        </Card>
+      )}
+
       <Card title={<>Nomes do Vobi → e-mail @rucelle <Badge tone="neutral">vínculo técnico</Badge></>}
         subtitle="O Vobi exporta apenas o nome do responsável. O e-mail é a chave comum com o People e nunca é inferido: sem ele, a pessoa fica fora dos indicadores individuais e sem hierarquia.">
         <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>Nome no Vobi</th><th>E-mail @rucelle</th><th>Origem do vínculo</th><th>No People</th></tr></thead><tbody>
-          {vobi.map((p) => {
+          {vobi.filter((p) => !p.nomeVobi.startsWith("Vobi #")).map((p) => {
             const pp = p.emailRucelle ? porEmail.get(p.emailRucelle) : undefined;
             return (
               <tr key={p.nomeVobi}><td className="font-semibold">{p.nomeVobi}</td>

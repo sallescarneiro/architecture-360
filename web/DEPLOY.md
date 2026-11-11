@@ -173,3 +173,31 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 ## T-217 · Treinamento dentro do A360 (11/11/2026)
 - `web/treinamento/`: três trilhas (arquiteta, coordenacao, gerencia) geradas por `gerar.py` + telas em `shots/` (fora de `public/`; contêm nomes de projetos reais). Rotas `/treinamento` (redireciona para a trilha do perfil), `/treinamento/[perfil]` e `/treinamento/shots/[nome]`, todas só para usuário logado; gestão e admin veem as três trilhas. Menu "Ajuda › Como usar o A360".
 - Para atualizar o material: editar `gerar.py`, rodar `python3 treinamento/gerar.py web/treinamento` e substituir as telas em `shots/`.
+
+## T-218 · Sincronização com a API do Vobi (11/11/2026)
+- **Somente leitura.** `src/lib/vobi/api.ts` só faz GET (mais o POST de obtenção do token). Nada é criado, alterado ou apagado no Vobi.
+- **Variáveis** (serviço `architecture-360` › Variables), definidas por Rodrigo:
+  - `VOBI_API_UUID`
+  - `VOBI_API_SECRET`
+  - Opcional: `VOBI_SYNC_AUTO=off` suspende a agenda diária; `VOBI_API_BASE` serve só para teste.
+  - As credenciais e o token nunca vão para log, banco, GitHub ou mensagem de erro.
+- **Agenda.** Roda dentro do próprio serviço web (`src/instrumentation.ts`, verificação a cada 10 min), sem serviço extra no Railway. Uma sincronização por dia a partir das 06:00 de Brasília. Em caso de falha, nova tentativa a cada hora, até 3 por dia. Sincronização interrompida por reinício não bloqueia o dia. Há também o botão "Sincronizar agora" em /importacao (admin e gestão).
+- **Mesmas regras do CSV.** `src/lib/vobi/adaptador.ts` monta os arquivos no layout v1 e passa pelo `executarCarga` do importador (chaves, recorte 2026, não encontrados, renomeações, carga anômala retida, vínculo com clientes).
+  - Etapas: nomes originais (refurbish-step.name).
+  - Clientes: só os campos autorizados; o que a API não traz é mantido da base.
+- **Aceite.**
+  - A primeira sincronização pela API fica em prévia para conferência.
+  - As seguintes entram sozinhas.
+  - Uma carga retida pelos limiares não é gravada.
+  - Se o Vobi não mudou (mesmo hash), a carga fica registrada como "ignorada" e conta como em dia.
+- **Limitações da API:**
+  - Responsável vem só como número. O mapa id → nome (tabela `vobi_responsavel`, migração 0011) é resolvido por correspondência com a última exportação CSV (pelo menos 2 tarefas e 80% de concordância). Os demais são indicados uma vez em Pessoas.
+  - Colaboradores e etiquetas do projeto não vêm da API e são mantidos da última exportação.
+  - A unidade de horas é conferida contra a base em cada leitura (padrão: horas).
+- **CSV continua como contingência**, na mesma tela.
+- **Teste local:** servidor simulado em `.local/mockvobi/` gerado a partir da base local. Resultados:
+  - 1ª sincronização em prévia: 0 projetos alterados, 455 clientes sem alteração.
+  - Re-sincronização sem mudança: ignorada.
+  - Mudança de 3 tarefas + 1 nova: aplicada sozinha.
+  - Responsável sem nome indicado em Pessoas: as tarefas passam a mostrar o nome e o e-mail.
+  - O HTTP 429 do simulador foi tratado com nova tentativa.

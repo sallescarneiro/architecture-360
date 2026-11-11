@@ -51,10 +51,21 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
           )}
         </div></Alert>
       )}
-      {carga.status === "retida" && <Alert kind="warn">Carga retida como anômala e <b>não gravada</b>. Confira no Vobi se a exportação saiu sem filtros e envie novamente.</Alert>}
+      {carga.status === "retida" && <Alert kind="warn">Carga retida como anômala e <b>não gravada</b>. {carga.origem === "api" ? "A leitura pela API trouxe muito menos registros que a carga anterior; confira no Vobi e use “Sincronizar agora” quando estiver normal." : "Confira no Vobi se a exportação saiu sem filtros e envie novamente."}</Alert>}
       {carga.status === "aceita" && <Alert kind="success"><span>Carga aceita e gravada{carga.confirmadoEm ? ` em ${carga.confirmadoEm.toLocaleString("pt-BR")}` : ""}. Veja a <Link className="underline" href="/qualidade">qualidade dos dados</Link> e o <Link className="underline" href="/painel">Painel de Gestão</Link>.</span></Alert>}
 
-      {rel && (
+      {rel?.api && (
+        <Card title={<>Leitura pela API do Vobi <Badge tone="info">somente leitura</Badge></>}
+          subtitle={<>{rel.api.projetos} projetos · {rel.api.tarefas} tarefas · {rel.api.etapas} etapas de projeto · {rel.api.clientes} clientes. Horas estimadas lidas em {rel.api.unidadeHoras.estimadas}; realizadas em {rel.api.unidadeHoras.realizadas}.</>}>
+          <div className="flex flex-col gap-2 text-sm">
+            <div>Responsáveis: {rel.api.responsaveis.ids} números distintos no Vobi · {rel.api.responsaveis.comNome} identificados
+              {rel.api.responsaveis.novosPorCorrespondencia.length > 0 && <> ({rel.api.responsaveis.novosPorCorrespondencia.length} reconhecidos agora pela última exportação CSV)</>}
+              {rel.api.responsaveis.semNome.length > 0 && <> · <b>{rel.api.responsaveis.semNome.length} sem nome</b> — indique em <Link className="underline" href="/pessoas">Pessoas</Link></>}</div>
+            {rel.api.limitacoes.map((l) => <div key={l} className="text-[var(--txt-2)]">• {l}</div>)}
+          </div>
+        </Card>
+      )}
+      {rel?.alertasPorTipo && (
         <>
           {rel.projetos && rel.tarefas && (<>
             <div className="grid gap-4 md:grid-cols-2">

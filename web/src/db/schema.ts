@@ -33,6 +33,7 @@ export const sessoes = pgTable("sessao", {
 export const cargas = pgTable("carga", {
   id: serial("id").primaryKey(),
   status: text("status").notNull(), // previa | aceita | retida | recusada | ignorada | descartada | erro
+  origem: text("origem").notNull().default("csv"), // csv (exportação enviada) | api (sincronização automática, T-218)
   tipo: text("tipo").notNull().default("operacao"), // operacao (Projetos+Tarefas, Clientes opcional) | clientes (só Clientes)
   motivo: text("motivo"),
   dataCarga: text("data_carga").notNull(), // AAAA-MM-DD (data da exportação informada pelo usuário)
@@ -78,6 +79,15 @@ export const pessoasVobi = pgTable("pessoa_vobi", {
   emailRucelle: text("email_rucelle"),
   origem: text("origem").notNull(), // semente | manual | nao_mapeada
 }, (t) => [uniqueIndex("pessoa_vobi_chave_idx").on(t.chaveNome)]);
+
+// T-218: a API do Vobi identifica o responsável só por um número. id → nome da pessoa no Vobi, resolvido por
+// correspondência com a última exportação CSV (auto_csv) ou definido pela coordenação/gestão na tela Pessoas (manual).
+export const vobiResponsaveis = pgTable("vobi_responsavel", {
+  idVobi: integer("id_vobi").primaryKey(),
+  nome: text("nome").notNull(),
+  origem: text("origem").notNull(), // auto_csv | manual
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ---------------------------------------------------------------------------
 // Modelo consolidado (camada 2: dados compilados do Vobi)

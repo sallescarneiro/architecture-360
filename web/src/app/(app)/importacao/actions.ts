@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { exigirUsuario, podeImportar } from "@/lib/auth";
-import { LayoutInvalido, executarCarga, layouts, lerClientes, lerCsv, type ArquivoLido } from "@/lib/importador/importador";
+import { LayoutInvalido, executarCarga, layouts, lerClientes, lerCsv, type ArquivoLido, type Relatorio } from "@/lib/importador/importador";
 
 export type EstadoUpload = { erro?: string } | undefined;
 
@@ -88,7 +88,7 @@ export async function confirmarAction(form: FormData) {
   const limpa = { conteudoProjetos: null, conteudoTarefas: null, conteudoClientes: null };
   try {
     const rel = await executarCarga({ cargaId: id, dataCarga: carga.dataCarga, projetos: proj, tarefas: tar, clientes: cli, modo: "aplicar" });
-    await db.update(schema.cargas).set({ status: rel.status, motivo: rel.motivo ?? null, relatorio: rel, confirmadoPorId: u.id, confirmadoEm: new Date(), ...limpa })
+    await db.update(schema.cargas).set({ status: rel.status, motivo: rel.motivo ?? null, relatorio: { ...rel, api: (carga.relatorio as Relatorio | null)?.api }, confirmadoPorId: u.id, confirmadoEm: new Date(), ...limpa })
       .where(eq(schema.cargas.id, id));
   } catch (e) {
     await db.update(schema.cargas).set({ status: "erro", motivo: (e as Error).message, ...limpa }).where(eq(schema.cargas.id, id));
@@ -102,4 +102,12 @@ export async function descartarAction(form: FormData) {
   await db.update(schema.cargas).set({ status: "descartada", motivo: "descartada pelo usuário", conteudoProjetos: null, conteudoTarefas: null, conteudoClientes: null })
     .where(and(eq(schema.cargas.id, id), eq(schema.cargas.status, "previa")));
   redirect("/importacao");
+}
+
+/** T-218: "Sincronizar agora" — mesma rotina da agenda diária, pedida por admin/gestão. */
+export async function sincronizarAgoraAction() {
+  const u = await exigirUsuario(["admin", "gestao"]);
+  const { sincronizarVobi } = await import("@/lib/vobi/sincronizar");
+  const r = await sincronizarVobi({ disparo: "manual", usuarioId: u.id });
+  redirect(r.cargaId ? `/importacao/${r.cargaId}` : `/importacao?sinc=${encodeURIComponent(r.status)}`);
 }
