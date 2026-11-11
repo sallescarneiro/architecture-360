@@ -24,7 +24,7 @@ async function obterToken(): Promise<string> {
   const uuid = process.env.VOBI_API_UUID, secret = process.env.VOBI_API_SECRET;
   if (!uuid || !secret) throw new ErroVobi("Integração com a API do Vobi não configurada (variáveis VOBI_API_UUID e VOBI_API_SECRET ausentes no Railway).");
   const basic = Buffer.from(`${uuid}:${secret}`).toString("base64");
-  const r = await fetch(`${BASE}/v2/auth/token`, { method: "POST", headers: { Authorization: `Basic ${basic}`, Accept: "application/json" }, cache: "no-store" });
+  const r = await fetch(`${BASE}/v2/auth/token`, { method: "POST", headers: { Authorization: `Basic ${basic}`, Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(30_000) });
   if (!r.ok) {
     // mensagem sem eco das credenciais nem do corpo da resposta
     throw new ErroVobi(r.status === 401 || r.status === 403
@@ -40,9 +40,16 @@ async function obterToken(): Promise<string> {
 
 async function get<T>(caminho: string, params: Record<string, string | number>, tentativa = 0): Promise<T> {
   const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
-  const r = await fetch(`${BASE}${caminho}${qs ? "?" + qs : ""}`, {
-    headers: { Authorization: `Bearer ${await obterToken()}`, Accept: "application/json" }, cache: "no-store",
-  });
+  let r: Response;
+  try {
+    r = await fetch(`${BASE}${caminho}${qs ? "?" + qs : ""}`, {
+      headers: { Authorization: `Bearer ${await obterToken()}`, Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(60_000),
+    });
+  } catch (e) {
+    if (e instanceof ErroVobi) throw e;
+    if (tentativa < 3) { await dormir(2000 * 2 ** tentativa); return get(caminho, params, tentativa + 1); }
+    throw new ErroVobi(`A API do Vobi não respondeu em ${caminho} (tempo esgotado ou conexão interrompida).`);
+  }
   if (r.status === 401 && tentativa < 1) { token = null; return get(caminho, params, tentativa + 1); }
   if ((r.status === 429 || r.status >= 500) && tentativa < 4) {
     const espera = Number(r.headers.get("retry-after")) * 1000 || 1000 * 2 ** tentativa;
@@ -54,13 +61,15 @@ async function get<T>(caminho: string, params: Record<string, string | number>, 
 }
 
 /** Lê todas as páginas de um endpoint de listagem ({count, rows}). */
-export async function listarTudo<T = Record<string, unknown>>(caminho: string, filtros: Record<string, string | number> = {}): Promise<T[]> {
+export type Progresso = (etapa: string, lidos: number, total: number | undefined) => void | Promise<void>;
+export async function listarTudo<T = Record<string, unknown>>(caminho: string, filtros: Record<string, string | number> = {}, progresso?: Progresso): Promise<T[]> {
   const out: T[] = [];
   for (let p = 0; p < MAX_PAGINAS; p++) {
     const pg = await get<{ count?: number; rows?: T[] } | T[]>(caminho, { ...filtros, limit: TAMANHO_PAGINA, offset: p * TAMANHO_PAGINA, "order[0][0]": "id", "order[0][1]": "asc" });
     const rows = Array.isArray(pg) ? pg : pg.rows ?? [];
     out.push(...rows);
     const total = Array.isArray(pg) ? undefined : pg.count;
+    await progresso?.(caminho, out.length, total);
     if (rows.length < TAMANHO_PAGINA || (total != null && out.length >= total)) return out;
     await dormir(PAUSA_MS);
   }
@@ -68,12 +77,12 @@ export async function listarTudo<T = Record<string, unknown>>(caminho: string, f
 }
 
 /** Leitura completa usada pela sincronização diária. */
-export async function lerVobi() {
-  const projetos = await listarTudo("/v2/refurbish");
-  const tarefas = await listarTudo("/v2/task");
-  const etapas = await listarTudo("/v2/refurbish-step");
-  const etapasProjeto = await listarTudo("/v2/step");
-  const clientes = await listarTudo("/v2/company-customer");
+export async function lerVobi(progresso?: Progresso) {
+  const projetos = await listarTudo("/v2/refurbish", {}, progresso);
+  const tarefas = await listarTudo("/v2/task", {}, progresso);
+  const etapas = await listarTudo("/v2/refurbish-step", {}, progresso);
+  const etapasProjeto = await listarTudo("/v2/step", {}, progresso);
+  const clientes = await listarTudo("/v2/company-customer", {}, progresso);
   return { projetos, tarefas, etapas, etapasProjeto, clientes };
 }
 export type LeituraVobi = Awaited<ReturnType<typeof lerVobi>>;

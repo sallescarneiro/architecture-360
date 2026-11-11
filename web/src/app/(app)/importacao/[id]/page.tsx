@@ -52,7 +52,7 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
         </div></Alert>
       )}
       {carga.status === "retida" && <Alert kind="warn">Carga retida como anômala e <b>não gravada</b>. {carga.origem === "api" ? "A leitura pela API trouxe muito menos registros que a carga anterior; confira no Vobi e use “Sincronizar agora” quando estiver normal." : "Confira no Vobi se a exportação saiu sem filtros e envie novamente."}</Alert>}
-      {carga.status === "aceita" && <Alert kind="success"><span>Carga aceita e gravada{carga.confirmadoEm ? ` em ${carga.confirmadoEm.toLocaleString("pt-BR")}` : ""}. Veja a <Link className="underline" href="/qualidade">qualidade dos dados</Link> e o <Link className="underline" href="/painel">Painel de Gestão</Link>.</span></Alert>}
+      {carga.status === "aceita" && <Alert kind="success"><span>Carga aceita e gravada{carga.confirmadoEm ? ` em ${carga.confirmadoEm.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}. Veja a <Link className="underline" href="/qualidade">qualidade dos dados</Link> e o <Link className="underline" href="/painel">Painel de Gestão</Link>.</span></Alert>}
 
       {rel?.api && (
         <Card title={<>Leitura pela API do Vobi <Badge tone="info">somente leitura</Badge></>}

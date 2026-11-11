@@ -70,7 +70,7 @@ export default async function ImportacaoPage({ searchParams }: { searchParams: P
                   <td><Link className="font-semibold text-[var(--vinho)] underline" href={`/importacao/${c.id}`}>{c.id}</Link></td>
                   <td>{c.origem === "api" ? <Badge tone="info">API</Badge> : "CSV"}</td>
                   <td>{c.dataCarga}</td>
-                  <td>{c.criadoEm.toLocaleString("pt-BR")}</td>
+                  <td>{c.criadoEm.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</td>
                   <td>{c.enviadoPor ?? "—"}</td>
                   <td><Badge tone={tomStatus[c.status] ?? "neutral"}>{rotuloStatus[c.status] ?? c.status}</Badge>{c.motivo && <div className="text-xs text-[var(--muted)] max-w-xs truncate" title={c.motivo}>{c.motivo}</div>}</td>
                   <td>{c.linhasProjetos ?? "—"}</td>

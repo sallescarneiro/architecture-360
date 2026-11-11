@@ -25,7 +25,15 @@ export async function sincronizarVobi(opts: { disparo: "agenda" | "manual"; usua
   }).returning({ id: schema.cargas.id });
   const id = carga.id;
   try {
-    const leitura = await lerVobi();
+    // andamento visível na tela da carga (atualizado no máximo a cada 5 s)
+    const NOMES: Record<string, string> = { "/v2/refurbish": "projetos", "/v2/task": "tarefas", "/v2/refurbish-step": "etapas", "/v2/step": "etapas de projeto", "/v2/company-customer": "clientes" };
+    let ultimoAviso = 0;
+    const leitura = await lerVobi(async (caminho, lidos, total) => {
+      if (Date.now() - ultimoAviso < 5000) return;
+      ultimoAviso = Date.now();
+      await db.update(schema.cargas).set({ motivo: `lendo o Vobi: ${NOMES[caminho] ?? caminho} ${lidos.toLocaleString("pt-BR")}${total != null ? ` de ${total.toLocaleString("pt-BR")}` : ""}` }).where(eq(schema.cargas.id, id));
+    });
+    await db.update(schema.cargas).set({ motivo: "leitura concluída; comparando com a base" }).where(eq(schema.cargas.id, id));
     const m = await montarArquivos(leitura);
     // id → nome resolvidos por correspondência com a última exportação: guardados (não sobrescrevem definição manual)
     for (const r of m.diagnostico.responsaveis.novosPorCorrespondencia) {
@@ -77,6 +85,12 @@ export async function sincronizarVobi(opts: { disparo: "agenda" | "manual"; usua
   }
 }
 
+/** Ao subir o serviço nada está sincronizando: o que ficou "sincronizando" foi interrompido pelo reinício. */
+export async function limparInterrompidas(): Promise<void> {
+  await db.update(schema.cargas).set({ status: "erro", motivo: "sincronização interrompida (reinício do serviço)" })
+    .where(and(eq(schema.cargas.origem, "api"), eq(schema.cargas.status, "sincronizando")));
+}
+
 /** Agenda diária: a partir das 06:00 (Brasília), uma sincronização por dia; se falhar, nova tentativa a cada hora (até 3 no dia). */
 export async function verificarAgenda(): Promise<void> {
   if (!apiConfigurada() || process.env.VOBI_SYNC_AUTO === "off" || horaSP() < 6 || emAndamento) return;
@@ -84,10 +98,11 @@ export async function verificarAgenda(): Promise<void> {
   await db.update(schema.cargas).set({ status: "erro", motivo: "sincronização interrompida (reinício do serviço)" })
     .where(and(eq(schema.cargas.origem, "api"), eq(schema.cargas.status, "sincronizando"), lt(schema.cargas.criadoEm, new Date(Date.now() - 30 * 60_000))));
   const inicioDia = new Date(`${hojeSP()}T00:00:00-03:00`);
-  const hoje = await db.select({ status: schema.cargas.status, criadoEm: schema.cargas.criadoEm }).from(schema.cargas)
+  const hoje = await db.select({ status: schema.cargas.status, criadoEm: schema.cargas.criadoEm, motivo: schema.cargas.motivo }).from(schema.cargas)
     .where(and(eq(schema.cargas.origem, "api"), gte(schema.cargas.criadoEm, inicioDia))).orderBy(desc(schema.cargas.id));
   if (hoje.some((c) => c.status !== "erro")) return; // já sincronizou hoje (ou está sincronizando)
   if (hoje.length >= 3) return;
-  if (hoje[0] && Date.now() - hoje[0].criadoEm.getTime() < 55 * 60_000) return;
+  const interrompida = hoje[0]?.motivo?.startsWith("sincronização interrompida");
+  if (hoje[0] && !interrompida && Date.now() - hoje[0].criadoEm.getTime() < 55 * 60_000) return;
   await sincronizarVobi({ disparo: "agenda" });
 }
