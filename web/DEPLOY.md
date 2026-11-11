@@ -169,3 +169,7 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - Cancelada a proposta de classificar as etapas não mapeadas por tabela de sinônimos. Os nomes originais das etapas do Vobi são preservados integralmente (`tarefa.etapa_csv`) e são o que as telas mostram: projeto, Tarefas (coluna e filtro), Meu Dia, Capacidade e fluxo, Painel (gargalos por etapa), recomendações.
 - `etapa_canonica` continua existindo só como apoio interno de indicadores já aprovados (contagem de Refação e detecção de etapas de entrega); não renomeia, não substitui e não aparece como nome da etapa.
 - Vínculo tarefa → projeto: pelo código do projeto no CSV; tarefa sem projeto resolvido fica `orfa=true`, fora dos indicadores e listada em Qualidade dos dados como pendência de associação (nunca atribuída por suposição).
+
+## T-217 · Treinamento dentro do A360 (11/11/2026)
+- `web/treinamento/`: três trilhas (arquiteta, coordenacao, gerencia) geradas por `gerar.py` + telas em `shots/` (fora de `public/`; contêm nomes de projetos reais). Rotas `/treinamento` (redireciona para a trilha do perfil), `/treinamento/[perfil]` e `/treinamento/shots/[nome]`, todas só para usuário logado; gestão e admin veem as três trilhas. Menu "Ajuda › Como usar o A360".
+- Para atualizar o material: editar `gerar.py`, rodar `python3 treinamento/gerar.py web/treinamento` e substituir as telas em `shots/`.
