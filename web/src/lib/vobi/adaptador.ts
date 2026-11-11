@@ -119,14 +119,16 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
   const tarefasApi = ordenar(v.tarefas);
   const foraDeProjeto = tarefasApi.filter((t) => num(t.idRefurbish) == null).length;
   // mesmo escopo da exportação: só tarefas dos projetos que a leitura trouxe (a API devolve todo o histórico do Vobi)
-  const deOutros = tarefasApi.filter((t) => num(t.idRefurbish) != null && !nomeProj.has(num(t.idRefurbish)!)).length;
+  const escopoTarefas = new Set<number>(v.listagem ?? [...nomeProj.keys()]);
+  const noEscopo = (t: R) => escopoTarefas.has(num(t.idRefurbish) ?? -1);
+  const deOutros = tarefasApi.filter((t) => num(t.idRefurbish) != null && !noEscopo(t)).length;
   const chaveDe = (t: R) => {
     const etapa = etapaPorId.get(num(t.idRefurbishStep)) ?? "";
     return `${num(t.idRefurbish)}|${chaveTexto(etapaCanonica(etapa).etapa)}|${chaveTexto(limpar(txt(t.name)))}|1`;
   };
   const votos = new Map<number, Map<string, number>>();
   for (const t of tarefasApi) {
-    if (!nomeProj.has(num(t.idRefurbish) ?? -1)) continue;
+    if (!noEscopo(t)) continue;
     const idR = num(t.idResponsible);
     if (idR == null || respBase.has(idR)) continue;
     const nome = tarBase.get(chaveDe(t))?.resp;
@@ -152,8 +154,9 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
   // ---------------- Tarefas ----------------
   const fEst = detectarFator(tarefasApi.map((t) => [num(t.estimativeDuration) ?? 0, tarBase.get(chaveDe(t))?.est ?? 0]));
   const fRea = detectarFator(tarefasApi.map((t) => [num(t.totalPerformedHours) ?? 0, tarBase.get(chaveDe(t))?.rea ?? 0]));
-  const horas = (v: unknown, f: number) => { const n = num(v); return n == null ? "" : minutosParaHoras(Math.round(n * f)); };
-  const linhasT = tarefasApi.filter((t) => num(t.idRefurbish) != null && nomeProj.has(num(t.idRefurbish)!)).map((t) => ({
+  // sem valor na API = 0:00, como a exportação CSV escreve
+  const horas = (v: unknown, f: number) => minutosParaHoras(Math.round((num(v) ?? 0) * f));
+  const linhasT = tarefasApi.filter(noEscopo).map((t) => ({
     "Nome da tarefa": limpar(txt(t.name)), "Etapa": etapaPorId.get(num(t.idRefurbishStep)) ?? "",
     "Projeto": nomeProj.get(num(t.idRefurbish)!) ?? "", "Data de Início": dataBr(t.startDate), "Data de Fim": dataBr(t.endDate),
     "Descrição": "", // descrição não é usada pelo A360; não é copiada
@@ -179,7 +182,7 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
     if (horasParaMinutos(r["Horas realizadas (em minutos)"]).minutos !== b.rea) anotar("horas realizadas (min)", b.rea, horasParaMinutos(r["Horas realizadas (em minutos)"]).minutos, nome);
     if ((r["Responsável"] || null) !== b.resp) anotar("responsável", b.resp, r["Responsável"], nome);
   }
-  if (deOutros) limitacoes.push(`${deOutros} tarefa(s) de projetos que não vieram na leitura (antigos/arquivados no Vobi) não entram, como na exportação.`);
+  if (deOutros) limitacoes.push(`${deOutros} tarefa(s) de projetos encerrados ou antigos não entram, como na exportação CSV.`);
   if (foraDeProjeto) limitacoes.push(`${foraDeProjeto} tarefa(s) do Vobi sem projeto não entram (a exportação de tarefas é por projeto).`);
 
   // ---------------- Clientes (só colunas autorizadas; o que a API não traz é mantido) ----------------
@@ -213,7 +216,7 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
     diagnostico: {
       projetos: linhasP.length, tarefas: linhasT.length, tarefasForaDeProjeto: foraDeProjeto, etapas: v.etapas.length, clientes: v.clientes.length,
       responsaveis: {
-        ids: new Set(tarefasApi.filter((t) => nomeProj.has(num(t.idRefurbish) ?? -1)).map((t) => num(t.idResponsible)).filter((x) => x != null)).size, comNome: respBase.size,
+        ids: new Set(tarefasApi.filter(noEscopo).map((t) => num(t.idResponsible)).filter((x) => x != null)).size, comNome: respBase.size,
         novosPorCorrespondencia, semNome: [...semNomeCont].map(([id, tarefas]) => ({ id, tarefas })).sort((a, b) => b.tarefas - a.tarefas),
       },
       unidadeHoras: { estimadas: fEst.rotulo, realizadas: fRea.rotulo },

@@ -104,7 +104,10 @@ export async function lerVobi(progresso?: Progresso, codigosBase: number[] = [])
   const tarefas = await listarTudo("/v2/task", {}, progresso);
   // As etapas de projeto vêm com as tarefas embutidas e a leitura geral não responde no Vobi (503 / tempo esgotado em 11/11/2026):
   // lê projeto a projeto, só dos projetos do escopo (lidos + ausentes da base) que têm tarefa.
-  const escopo = new Set<number>([...vistos, ...ausentes]);
+  // Tarefas: mesmo escopo da exportação CSV — só as dos projetos da listagem (ativos/pausados); projetos encerrados entram
+  // só como projeto (status atualizado), sem trazer de volta as tarefas antigas deles.
+  const listagem = ativos.map((p) => Number(p.id));
+  const escopo = new Set<number>(listagem);
   const ids = [...new Set(tarefas.map((t) => Number(t.idRefurbish)).filter((x) => Number.isFinite(x) && escopo.has(x)))];
   const etapas: Record<string, unknown>[] = [];
   for (const [i, id] of ids.entries()) {
@@ -115,6 +118,6 @@ export async function lerVobi(progresso?: Progresso, codigosBase: number[] = [])
   }
   const etapasProjeto = await listarTudo("/v2/step", {}, progresso);
   const clientes = await listarTudo("/v2/company-customer", {}, progresso);
-  return { projetos, ausentes, tarefas, etapas, etapasProjeto, clientes };
+  return { projetos, ausentes, listagem, tarefas, etapas, etapasProjeto, clientes };
 }
 export type LeituraVobi = Awaited<ReturnType<typeof lerVobi>>;
