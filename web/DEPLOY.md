@@ -172,7 +172,7 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 
 ## T-217 · Treinamento dentro do A360 (11/11/2026)
 - `web/treinamento/`: três trilhas (arquiteta, coordenacao, gerencia) geradas por `gerar.py` + telas em `shots/` (fora de `public/`; contêm nomes de projetos reais). Rotas `/treinamento` (redireciona para a trilha do perfil), `/treinamento/[perfil]` e `/treinamento/shots/[nome]`, todas só para usuário logado; gestão e admin veem as três trilhas. Menu "Ajuda › Como usar o A360".
-- Para atualizar o material: editar `gerar.py`, rodar `python3 treinamento/gerar.py web/treinamento` e substituir as telas em `shots/`.
+- Para atualizar o material: editar `gerar.py`, rodar `python3 treinamento/gerar.py treinamento api` (a partir de `web/`; `api` = texto da sincronização automática, em vigor desde 11/11/2026) e substituir as telas em `shots/`.
 
 ## T-218 · Sincronização com a API do Vobi (11/11/2026)
 - **Somente leitura.** `src/lib/vobi/api.ts` só faz GET (mais o POST de obtenção do token). Nada é criado, alterado ou apagado no Vobi.

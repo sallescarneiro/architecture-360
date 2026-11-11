@@ -62,7 +62,8 @@ async function get<T>(caminho: string, params: Record<string, string | number>, 
 
 /** Lê todas as páginas de um endpoint de listagem ({count, rows}). */
 export type Progresso = (etapa: string, lidos: number, total: number | undefined) => void | Promise<void>;
-export async function listarTudo<T = Record<string, unknown>>(caminho: string, filtros: Record<string, string | number> = {}, progresso?: Progresso): Promise<T[]> {
+export async function listarTudo<T = Record<string, unknown>>(caminho: string, filtros: Record<string, string | number> = {}, progresso?: Progresso, tamanho = TAMANHO_PAGINA): Promise<T[]> {
+  const TAMANHO_PAGINA = tamanho;
   const out: T[] = [];
   for (let p = 0; p < MAX_PAGINAS; p++) {
     const pg = await get<{ count?: number; rows?: T[] } | T[]>(caminho, { ...filtros, limit: TAMANHO_PAGINA, offset: p * TAMANHO_PAGINA, "order[0][0]": "id", "order[0][1]": "asc" });
@@ -80,7 +81,21 @@ export async function listarTudo<T = Record<string, unknown>>(caminho: string, f
 export async function lerVobi(progresso?: Progresso) {
   const projetos = await listarTudo("/v2/refurbish", {}, progresso);
   const tarefas = await listarTudo("/v2/task", {}, progresso);
-  const etapas = await listarTudo("/v2/refurbish-step", {}, progresso);
+  // etapas de projeto trazem as tarefas embutidas: páginas pequenas; se o Vobi não aguentar a leitura geral (HTTP 5xx),
+  // lê projeto a projeto, só dos projetos que têm tarefa
+  let etapas: Record<string, unknown>[];
+  try {
+    etapas = await listarTudo("/v2/refurbish-step", {}, progresso, 25);
+  } catch (e) {
+    if (!(e instanceof ErroVobi) || (e.status ?? 0) < 500) throw e;
+    const ids = [...new Set(tarefas.map((t) => (t as Record<string, unknown>).idRefurbish).filter((x) => x != null))];
+    etapas = [];
+    for (const [i, id] of ids.entries()) {
+      etapas.push(...await listarTudo("/v2/refurbish-step", { "where[idRefurbish]": String(id) }, undefined, 100));
+      await progresso?.("/v2/refurbish-step", i + 1, ids.length);
+      await dormir(PAUSA_MS);
+    }
+  }
   const etapasProjeto = await listarTudo("/v2/step", {}, progresso);
   const clientes = await listarTudo("/v2/company-customer", {}, progresso);
   return { projetos, tarefas, etapas, etapasProjeto, clientes };
