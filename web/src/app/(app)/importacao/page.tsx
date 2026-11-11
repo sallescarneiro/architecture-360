@@ -43,7 +43,7 @@ export default async function ImportacaoPage({ searchParams }: { searchParams: P
         subtitle={configurada ? "Todos os dias a partir das 06:00 (Brasília) o A360 lê o Vobi pela API, somente leitura, e atualiza projetos, tarefas e clientes pelas mesmas regras da importação. Entra sozinha quando não há anomalia; carga fora do padrão fica retida para conferência."
           : "A integração com a API do Vobi ainda não está configurada neste serviço. Enquanto isso, a importação continua pelos CSV abaixo."}>
         <div className="flex flex-col gap-3">
-          {sp.sinc && <Alert kind="info">{sp.sinc === "em_andamento" ? "Já há uma sincronização em andamento." : sp.sinc === "nao_configurada" ? "A API do Vobi ainda não está configurada." : sp.sinc}</Alert>}
+          {sp.sinc && <Alert kind="info">{sp.sinc === "em_andamento" ? "Já há uma sincronização em andamento." : sp.sinc === "nao_configurada" ? "A API do Vobi ainda não está configurada." : sp.sinc === "iniciada" ? "Sincronização iniciada. A leitura do Vobi leva alguns minutos; o andamento aparece na carga abaixo (atualize a página)." : sp.sinc}</Alert>}
           {ultimaSinc ? (
             <p className="text-sm">Última sincronização: <Link className="font-semibold text-[var(--vinho)] underline" href={`/importacao/${ultimaSinc.id}`}>carga {ultimaSinc.id}</Link> em {ultimaSinc.criadoEm.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · <Badge tone={tomStatus[ultimaSinc.status] ?? "neutral"}>{rotuloStatus[ultimaSinc.status] ?? ultimaSinc.status}</Badge>
               {ultimaSinc.motivo && <span className="text-[var(--muted)]"> — {ultimaSinc.motivo}</span>}

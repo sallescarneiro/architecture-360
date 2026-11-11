@@ -70,8 +70,9 @@ export async function listarTudo<T = Record<string, unknown>>(caminho: string, f
     const rows = Array.isArray(pg) ? pg : pg.rows ?? [];
     out.push(...rows);
     const total = Array.isArray(pg) ? undefined : pg.count;
-    await progresso?.(caminho, out.length, total);
-    if (rows.length < TAMANHO_PAGINA || (total != null && out.length >= total)) return out;
+    await progresso?.(caminho, out.length, total != null && total > out.length ? total : undefined);
+    // o "count" do Vobi não é confiável como total (veio igual ao tamanho da página): para só quando a página vem incompleta
+    if (rows.length < TAMANHO_PAGINA) return out;
     await dormir(PAUSA_MS);
   }
   throw new ErroVobi(`${caminho}: mais de ${MAX_PAGINAS * TAMANHO_PAGINA} registros; leitura interrompida por segurança.`);
@@ -81,20 +82,15 @@ export async function listarTudo<T = Record<string, unknown>>(caminho: string, f
 export async function lerVobi(progresso?: Progresso) {
   const projetos = await listarTudo("/v2/refurbish", {}, progresso);
   const tarefas = await listarTudo("/v2/task", {}, progresso);
-  // etapas de projeto trazem as tarefas embutidas: páginas pequenas; se o Vobi não aguentar a leitura geral (HTTP 5xx),
-  // lê projeto a projeto, só dos projetos que têm tarefa
-  let etapas: Record<string, unknown>[];
-  try {
-    etapas = await listarTudo("/v2/refurbish-step", {}, progresso, 25);
-  } catch (e) {
-    if (!(e instanceof ErroVobi) || (e.status ?? 0) < 500) throw e;
-    const ids = [...new Set(tarefas.map((t) => (t as Record<string, unknown>).idRefurbish).filter((x) => x != null))];
-    etapas = [];
-    for (const [i, id] of ids.entries()) {
-      etapas.push(...await listarTudo("/v2/refurbish-step", { "where[idRefurbish]": String(id) }, undefined, 100));
-      await progresso?.("/v2/refurbish-step", i + 1, ids.length);
-      await dormir(PAUSA_MS);
-    }
+  // As etapas de projeto vêm com as tarefas embutidas e a leitura geral não responde no Vobi (503 / tempo esgotado em 11/11/2026):
+  // lê projeto a projeto, só dos projetos que têm tarefa.
+  const ids = [...new Set(tarefas.map((t) => (t as Record<string, unknown>).idRefurbish).filter((x) => x != null))];
+  const etapas: Record<string, unknown>[] = [];
+  for (const [i, id] of ids.entries()) {
+    const rows = await listarTudo("/v2/refurbish-step", { "where[idRefurbish]": String(id) }, undefined, 100);
+    // sem as tarefas embutidas: só o que o A360 usa
+    for (const r of rows) etapas.push({ id: r.id, idRefurbish: r.idRefurbish, name: r.name, order: r.order });
+    await progresso?.("/v2/refurbish-step", i + 1, ids.length);
   }
   const etapasProjeto = await listarTudo("/v2/step", {}, progresso);
   const clientes = await listarTudo("/v2/company-customer", {}, progresso);

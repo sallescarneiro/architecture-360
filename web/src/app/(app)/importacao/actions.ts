@@ -104,10 +104,11 @@ export async function descartarAction(form: FormData) {
   redirect("/importacao");
 }
 
-/** T-218: "Sincronizar agora" — mesma rotina da agenda diária, pedida por admin/gestão. */
+/** T-218: "Sincronizar agora" — mesma rotina da agenda diária, pedida por admin/gestão. Roda em segundo plano (a leitura leva minutos). */
 export async function sincronizarAgoraAction() {
   const u = await exigirUsuario(["admin", "gestao"]);
   const { sincronizarVobi } = await import("@/lib/vobi/sincronizar");
-  const r = await sincronizarVobi({ disparo: "manual", usuarioId: u.id });
-  redirect(r.cargaId ? `/importacao/${r.cargaId}` : `/importacao?sinc=${encodeURIComponent(r.status)}`);
+  void sincronizarVobi({ disparo: "manual", usuarioId: u.id }).catch((e) => console.error("[vobi] manual:", (e as Error).message));
+  await new Promise((r) => setTimeout(r, 1500)); // tempo de a carga aparecer no histórico
+  redirect("/importacao?sinc=iniciada");
 }
