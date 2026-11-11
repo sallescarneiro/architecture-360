@@ -1,7 +1,7 @@
 // T-218 — Sincronização diária com a API do Vobi (somente leitura). Substitui o envio manual dos CSV; o CSV fica como contingência.
 // Fluxo: lê a API → monta os arquivos no layout v1 → mesma prévia do importador → aplica sozinho quando não há anomalia.
 // Fica aguardando conferência (prévia) a PRIMEIRA sincronização pela API e qualquer carga que o importador retenha.
-import { and, desc, eq, gte, isNotNull, lt } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { executarCarga } from "@/lib/importador/importador";
 import { ErroVobi, apiConfigurada, lerVobi } from "./api";
@@ -26,13 +26,14 @@ export async function sincronizarVobi(opts: { disparo: "agenda" | "manual"; usua
   const id = carga.id;
   try {
     // andamento visível na tela da carga (atualizado no máximo a cada 5 s)
-    const NOMES: Record<string, string> = { "/v2/refurbish": "projetos", "/v2/task": "tarefas", "/v2/refurbish-step": "etapas", "/v2/step": "etapas de projeto", "/v2/company-customer": "clientes" };
+    const NOMES: Record<string, string> = { "/v2/refurbish": "projetos", "/v2/refurbish/{id}": "projetos encerrados", "/v2/task": "tarefas", "/v2/refurbish-step": "etapas", "/v2/step": "etapas de projeto", "/v2/company-customer": "clientes" };
     let ultimoAviso = 0;
+    const codigosBase = (await db.select({ c: schema.projetos.codigo }).from(schema.projetos).where(isNull(schema.projetos.naoEncontradoDesde))).map((r) => r.c);
     const leitura = await lerVobi(async (caminho, lidos, total) => {
       if (Date.now() - ultimoAviso < 5000) return;
       ultimoAviso = Date.now();
       await db.update(schema.cargas).set({ motivo: `lendo o Vobi: ${NOMES[caminho] ?? caminho} ${lidos.toLocaleString("pt-BR")}${total != null ? ` de ${total.toLocaleString("pt-BR")}` : ""}` }).where(eq(schema.cargas.id, id));
-    });
+    }, codigosBase);
     await db.update(schema.cargas).set({ motivo: "leitura concluída; comparando com a base" }).where(eq(schema.cargas.id, id));
     const m = await montarArquivos(leitura);
     // id → nome resolvidos por correspondência com a última exportação: guardados (não sobrescrevem definição manual)

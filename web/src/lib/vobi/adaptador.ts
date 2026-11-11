@@ -4,7 +4,7 @@
 // Nomes de etapa são os originais do Vobi (refurbish-step.name), sem sinônimos (decisão de 10/11/2026).
 import { db, schema } from "@/db";
 import { lerCsv, layouts, type ArquivoLido } from "@/lib/importador/importador";
-import { chaveTexto, etapaCanonica, limpar, minutosParaHoras } from "@/lib/importador/normalizacao";
+import { chaveTexto, dataIso, etapaCanonica, horasParaMinutos, limpar, minutosParaHoras } from "@/lib/importador/normalizacao";
 import type { LeituraVobi } from "./api";
 
 type R = Record<string, unknown>;
@@ -39,7 +39,8 @@ export type Diagnostico = {
   projetos: number; tarefas: number; tarefasForaDeProjeto: number; etapas: number; clientes: number;
   responsaveis: { ids: number; comNome: number; novosPorCorrespondencia: { id: number; nome: string; votos: number }[]; semNome: { id: number; tarefas: number }[] };
   unidadeHoras: { estimadas: string; realizadas: string };
-  camposRecebidos: Record<string, string[]>; // só os nomes dos campos (nunca valores), para conferência na ativação
+  camposRecebidos: Record<string, string[]>;
+  diferencas?: Record<string, { n: number; exemplos: { tarefa: string; base: string; api: string }[] }>; // só os nomes dos campos (nunca valores), para conferência na ativação
   limitacoes: string[];
 };
 export type Montagem = {
@@ -63,8 +64,8 @@ function detectarFator(pares: [number, number][]): { fator: number; rotulo: stri
 export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
   const limitacoes: string[] = [];
   // contexto da base (o que a API não traz é mantido do que já está no A360)
-  const projBase = new Map((await db.select({ codigo: schema.projetos.codigo, cliente: schema.projetos.cliente, etiquetas: schema.projetos.etiquetas, colaboradores: schema.projetos.colaboradores }).from(schema.projetos)).map((p) => [p.codigo, p]));
-  const tarBase = new Map((await db.select({ chave: schema.tarefas.chave, resp: schema.tarefas.responsavelNome, est: schema.tarefas.horasEstimadasMin, rea: schema.tarefas.horasRealizadasMin }).from(schema.tarefas)).map((t) => [t.chave, t]));
+  const projBase = new Map((await db.select({ codigo: schema.projetos.codigo, nome: schema.projetos.nome, status: schema.projetos.status, statusClasse: schema.projetos.statusClasse, criadoEm: schema.projetos.criadoEm, metragem: schema.projetos.metragem, cliente: schema.projetos.cliente, etiquetas: schema.projetos.etiquetas, colaboradores: schema.projetos.colaboradores }).from(schema.projetos)).map((p) => [p.codigo, p]));
+  const tarBase = new Map((await db.select({ chave: schema.tarefas.chave, resp: schema.tarefas.responsavelNome, est: schema.tarefas.horasEstimadasMin, rea: schema.tarefas.horasRealizadasMin, status: schema.tarefas.status, prioridade: schema.tarefas.prioridade, di: schema.tarefas.dataInicio, df: schema.tarefas.dataFim }).from(schema.tarefas)).map((t) => [t.chave, t]));
   const cliBase = new Map((await db.select().from(schema.clientesVobi)).map((c) => [c.codigo, c]));
   const respBase = new Map((await db.select().from(schema.vobiResponsaveis)).map((r) => [r.idVobi, r.nome]));
 
@@ -95,6 +96,23 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
       "Etiqueta": (base?.etiquetas as string[] | null)?.join(",") ?? "",
     } as Record<string, string>;
   });
+  // Projetos da base que a listagem do Vobi não trouxe nem pela busca individual: os encerrados (Finalizado/Cancelado)
+  // continuam como estão na base (a listagem da API só traz projetos ativos); as tarefas deles seguem sendo lidas.
+  let mantidos = 0;
+  const dataBase = (iso: string | null | undefined) => (iso ? iso.split("-").reverse().join("/") : "");
+  for (const cod of [...(v.ausentes ?? [])].sort((a, b) => a - b)) {
+    const b = projBase.get(cod);
+    if (!b || b.statusClasse !== "encerrado") continue;
+    nomeProj.set(cod, b.nome); mantidos++;
+    linhasP.push({
+      "Código": String(cod), "Nome": b.nome, "cliente (nome)": b.cliente ?? "", "Status": b.status ?? "", "Criado em": dataBase(b.criadoEm as string | null),
+      "Metragem": b.metragem == null ? "" : Number(b.metragem).toFixed(2).replace(".", ","),
+      "Colaboradores": (b.colaboradores as string[] | null)?.join(",") ?? "", "Etiqueta": (b.etiquetas as string[] | null)?.join(",") ?? "",
+    });
+  }
+  if (mantidos) limitacoes.push(`${mantidos} projeto(s) encerrado(s) que a listagem da API não traz foram mantidos como estão na base (as tarefas deles continuam sendo atualizadas).`);
+  const ativosAusentes = (v.ausentes ?? []).filter((c) => projBase.get(c)?.statusClasse && projBase.get(c)!.statusClasse !== "encerrado").length;
+  if (ativosAusentes) limitacoes.push(`${ativosAusentes} projeto(s) ativo(s) na base não vieram do Vobi (provavelmente finalizados ou excluídos lá): ficam marcados como "não encontrados" para conferência.`);
   limitacoes.push("Colaboradores e etiquetas do projeto não existem na API: ficam como vieram na última exportação CSV (projetos novos entram sem colaboradores).");
 
   // ---------------- Responsáveis (id → nome) ----------------
@@ -143,6 +161,24 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
     "Horas realizadas (em minutos)": horas(t.totalPerformedHours, fRea.fator),
     "prioridade": PRIORIDADE[num(t.priority) ?? 0] ?? "", "Status": STATUS_TAREFA[num(t.status) ?? 0] ?? txt(t.status),
   }) as Record<string, string>);
+  // Conferência campo a campo com a base (tarefas já existentes): mostra na prévia o que a API mudaria e exemplos
+  const diferencas: Diagnostico["diferencas"] = {};
+  const anotar = (campo: string, base: unknown, api: unknown, nome: string) => {
+    const d = (diferencas[campo] ??= { n: 0, exemplos: [] }); d.n++;
+    if (d.exemplos.length < 3) d.exemplos.push({ tarefa: nome, base: String(base ?? "—"), api: String(api ?? "—") });
+  };
+  for (const r of linhasT) {
+    const b = tarBase.get(`${[...nomeProj].find(([, n]) => n === r["Projeto"])?.[0]}|${chaveTexto(etapaCanonica(r["Etapa"]).etapa)}|${chaveTexto(r["Nome da tarefa"])}|1`);
+    if (!b) continue;
+    const nome = r["Nome da tarefa"];
+    if (chaveTexto(r["Status"]) !== b.status) anotar("status", b.status, r["Status"], nome);
+    if (chaveTexto(r["prioridade"]) !== (b.prioridade ?? "")) anotar("prioridade", b.prioridade, r["prioridade"], nome);
+    if (dataIso(r["Data de Início"]) !== b.di) anotar("início", b.di, r["Data de Início"], nome);
+    if (dataIso(r["Data de Fim"]) !== b.df) anotar("prazo", b.df, r["Data de Fim"], nome);
+    if (horasParaMinutos(r["Horas estimadas"]).minutos !== b.est) anotar("horas estimadas (min)", b.est, horasParaMinutos(r["Horas estimadas"]).minutos, nome);
+    if (horasParaMinutos(r["Horas realizadas (em minutos)"]).minutos !== b.rea) anotar("horas realizadas (min)", b.rea, horasParaMinutos(r["Horas realizadas (em minutos)"]).minutos, nome);
+    if ((r["Responsável"] || null) !== b.resp) anotar("responsável", b.resp, r["Responsável"], nome);
+  }
   if (deOutros) limitacoes.push(`${deOutros} tarefa(s) de projetos que não vieram na leitura (antigos/arquivados no Vobi) não entram, como na exportação.`);
   if (foraDeProjeto) limitacoes.push(`${foraDeProjeto} tarefa(s) do Vobi sem projeto não entram (a exportação de tarefas é por projeto).`);
 
@@ -181,7 +217,7 @@ export async function montarArquivos(v: LeituraVobi): Promise<Montagem> {
         novosPorCorrespondencia, semNome: [...semNomeCont].map(([id, tarefas]) => ({ id, tarefas })).sort((a, b) => b.tarefas - a.tarefas),
       },
       unidadeHoras: { estimadas: fEst.rotulo, realizadas: fRea.rotulo },
-      camposRecebidos, limitacoes,
+      camposRecebidos, limitacoes, diferencas,
     },
   };
 }

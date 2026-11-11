@@ -62,6 +62,12 @@ export default async function CargaPage({ params }: { params: Promise<{ id: stri
               {rel.api.responsaveis.novosPorCorrespondencia.length > 0 && <> ({rel.api.responsaveis.novosPorCorrespondencia.length} reconhecidos agora pela última exportação CSV)</>}
               {rel.api.responsaveis.semNome.length > 0 && <> · <b>{rel.api.responsaveis.semNome.length} sem nome</b> — indique em <Link className="underline" href="/pessoas">Pessoas</Link></>}</div>
             {rel.api.limitacoes.map((l) => <div key={l} className="text-[var(--txt-2)]">• {l}</div>)}
+            {rel.api.diferencas && Object.keys(rel.api.diferencas).length > 0 && (
+              <div className="overflow-x-auto"><table className="tbl mt-2"><thead><tr><th>Campo</th><th>Tarefas que mudariam</th><th>Exemplos (na base → no Vobi)</th></tr></thead><tbody>
+                {Object.entries(rel.api.diferencas).sort((a, b) => b[1].n - a[1].n).map(([c, d]) => (
+                  <tr key={c}><td className="font-semibold">{c}</td><td>{d.n}</td><td className="text-xs">{d.exemplos.map((e, i) => <div key={i}>{e.tarefa}: {e.base} → {e.api}</div>)}</td></tr>))}
+              </tbody></table></div>
+            )}
           </div>
         </Card>
       )}
