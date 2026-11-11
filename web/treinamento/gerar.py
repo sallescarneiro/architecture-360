@@ -4,6 +4,7 @@ import html, json, os
 import sys
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/tmp/claude-0/-home-claude/938adbec-e3f0-572f-8193-a6f83899d529/scratchpad/treino"
 DENTRO = len(sys.argv) > 1
+API = "api" in sys.argv  # variante para quando a sincronização automática pela API do Vobi estiver ativa (T-218)
 URL = "https://architecture-360-production.up.railway.app"
 
 CSS = """
@@ -83,10 +84,10 @@ def quiz(perguntas):
         out.append(f'<div class="q" data-certa="{certa}"><p>{p}</p>' + ''.join(f'<button type="button">{o}</button>' for o in ops) + f'<div class="exp">{exp}</div></div>')
     out.append('</div>'); return ''.join(out)
 
-COMUM_INTRO = """
+COMUM_INTRO = f"""
 <p class="lead">O Architecture 360 (A360) é a central de trabalho da equipe de arquitetura da rucelle. Ele mostra, num só lugar, o que está no Vobi — projetos, tarefas, prazos, responsáveis — e acrescenta o que o Vobi não tem: agenda, reuniões com ata, entregáveis com aprovação do cliente, linha do tempo e alertas.</p>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))">
-<div class="card"><h3>De onde vêm os dados</h3><p>Do Vobi, <b>todos os dias de manhã</b>: a gestão exporta Projetos e Tarefas e importa no A360. A data da exportação aparece no topo de cada tela ("dados do Vobi de …"). O que você mudar no Vobi aparece aqui na importação seguinte.</p></div>
+<div class="card"><h3>De onde vêm os dados</h3><p>{'Do Vobi, <b>automaticamente, todos os dias de manhã</b>, pela API: ninguém exporta nem importa nada. A data da última sincronização aparece no topo de cada tela ("dados do Vobi de …"). O que você mudar no Vobi aparece aqui na sincronização seguinte.' if API else 'Do Vobi, <b>todos os dias de manhã</b>: a gestão exporta Projetos e Tarefas e importa no A360. A data da exportação aparece no topo de cada tela ("dados do Vobi de …"). O que você mudar no Vobi aparece aqui na importação seguinte.'}</p></div>
 <div class="card"><h3>O A360 não altera o Vobi</h3><p>Tudo que vem do Vobi é <b>somente leitura</b> (o selo "Vobi · somente leitura" fica no topo). Tarefa, prazo e responsável continuam sendo editados no Vobi, como hoje.</p></div>
 <div class="card"><h3>O que é registrado no A360</h3><p>Compromissos da sua Google Agenda, reuniões (pauta, ata, decisões, encaminhamentos), entregáveis e aprovações do cliente, comentários e históricos. Nada disso vai para o Vobi nem para o cliente.</p></div>
 <div class="card"><h3>Não é avaliação</h3><p>Os números do A360 descrevem o trabalho como está registrado no Vobi. Não há ranking, nota ou cobrança automática. Dado que falta na fonte aparece como limitação, nunca como culpa.</p></div>
@@ -232,14 +233,14 @@ COORD = dict(
   ("Uma arquiteta está com 14 tarefas na próxima semana e outra com 2. O que a tela de Capacidade está dizendo?", ["Que a primeira é mais produtiva", "Que a distribuição registrada no Vobi está desigual; decida a redistribuição e aplique no Vobi", "Que a segunda está sem trabalho"], 1, "Capacidade é distribuição, não desempenho. A ação é redistribuir no Vobi."),
   ("Um alerta aponta refação depois de uma aprovação do cliente. Primeiro passo?", ["Avisar a arquiteta que errou", "Assumir a análise, ler as evidências e classificar", "Encerrar o alerta"], 1, "Alerta é indício com evidência; a análise e a decisão são suas, registradas no histórico."),
   ("Entregável chegou em 'revisão interna'. Quem aprova?", ["A arquiteta que criou", "Coordenação, gestão ou administração", "O cliente"], 1, "A revisão interna é da coordenação/gestão; a resposta do cliente é outra etapa, com evidência."),
-  ("Os dados do Vobi no A360 são de quando?", ["Tempo real", "Da última importação, feita todo dia de manhã pela gestão", "Da semana passada"], 1, "A data da exportação aparece no topo de cada tela."),
+  ("Os dados do Vobi no A360 são de quando?", ["Tempo real", "Da última sincronização automática, todo dia de manhã" if API else "Da última importação, feita todo dia de manhã pela gestão", "Da semana passada"], 1, "A data aparece no topo de cada tela."),
  ],
 )
 
 # -------------------------------------------------------------------- GERÊNCIA
 GER = dict(
  perfil="gerencia", titulo="Treinamento A360 — Gerência", cab="Para a gerência",
- intro="Esta página é para quem responde pela operação de arquitetura. Além de tudo da coordenação, você tem o Painel executivo, a importação do Vobi, a qualidade dos dados, os clientes e a cobertura da integração — e é a dona da rotina diária de atualização.",
+ intro="Esta página é para quem responde pela operação de arquitetura. Além de tudo da coordenação, você tem o Painel executivo, a importação do Vobi, a qualidade dos dados, os clientes e a cobertura da integração — e acompanha a sincronização diária com o Vobi.",
  secoes=[
   ("painel", "Painel executivo", "Carteira, riscos, gargalos e decisões", """
 <p>Visão da carteira inteira: projetos ativos, atrasos, concentração por pessoa, gargalos por etapa (nomes originais do Vobi), refação, projetos críticos, divergências, limitações e entregáveis. Tudo clicável até a tarefa.</p>
@@ -247,7 +248,13 @@ GER = dict(
  'Refação é contada por tarefas de revisão/refação do Vobi enquanto a cobertura de horas for baixa — a tela declara a limitação.',
  'Comparação "antes/depois do início da produção" não existe: o Vobi exportado não informa quando a produção começa (flag registrada).',
  'Use os blocos de divergências e entregáveis para a reunião semanal com a coordenação.']) + regra("Indicadores do A360 não viram nota de ninguém. A avaliação de pessoas é do People; o A360 fornece contexto operacional.", nao=False, rot="princípio")),
-  ("importacao", "Importação do Vobi", "A rotina diária que alimenta tudo", """
+  ("importacao", "Sincronização com o Vobi" if API else "Importação do Vobi", "Automática, pela API, todos os dias de manhã" if API else "A rotina diária que alimenta tudo", ("""
+<p>O A360 lê o Vobi pela API <b>automaticamente, todos os dias de manhã</b>. Não há exportação nem importação manual. A tela <b>Importação Vobi</b> mostra a última sincronização, a origem e o resultado; o botão <b>Sincronizar agora</b> força uma leitura fora do horário.</p>
+""" + fig("ger-importacao", "Importação Vobi: última sincronização, histórico de cargas e a importação por arquivo como contingência.", alta=True) + passos([
+ 'Confira de manhã, no topo de qualquer tela, "dados do Vobi de hoje". Se a data estiver atrasada, abra Importação Vobi e veja o erro da última sincronização.',
+ 'Precisa de um dado que acabou de mudar no Vobi? <b>Sincronizar agora</b>.',
+ 'Se a sincronização encontrar algo anormal (muitos projetos não encontrados, por exemplo), a carga fica "aguardando conferência": abra a prévia e confirme ou rejeite.',
+ 'Contingência: se a API estiver fora do ar, a importação por arquivo CSV continua disponível na mesma tela (Projetos › Exportar CSV e Tarefas › Exportar CSV no Vobi).']) + regra("Só leitura: a API é usada para ler. Nada é alterado no Vobi; nada é inserido direto no banco.") + regra("Dados de clientes (CPF/CNPJ, endereço, observações) não entram; só código, nome, contato e cidade.", nao=False, rot="privacidade")) if API else ("""
 <p>O A360 lê exportações do Vobi; não se atualiza sozinho. A rotina é <b>todos os dias de manhã</b>, sua ou de quem você delegar.</p>
 """ + fig("ger-importacao", "Importação Vobi: última carga aceita, envio dos CSVs, prévia e histórico de cargas.", alta=True) + passos([
  'No Vobi: <b>Projetos › Ações › Exportar CSV</b> (sem filtro) e <b>Gestão de Tarefas › Tarefas › Todas as tarefas › Ações › Exportar CSV</b>. Clientes (Cadastros › Contatos › Clientes › Exportar CSV) só quando houver cliente novo.',
@@ -255,7 +262,7 @@ GER = dict(
  'Envie os dois arquivos, informe a data da exportação e clique em <b>Gerar prévia</b>.',
  'Confira a prévia: novos / alterados / não encontrados. Muitos "não encontrados" = exportação com filtro ou arquivo errado: não confirme.',
  'Confirme. A partir daí, todas as telas mostram "dados do Vobi de hoje".',
- 'Guarde os CSVs na pasta <b>Exportações Vobi</b> do Drive. Nunca suba uma exportação antiga se houver mais nova.']) + regra("Só a interface oficial importa. Nada é alterado no Vobi; nada é inserido direto no banco.") + regra("Dados de clientes (CPF/CNPJ, endereço, observações) são descartados na leitura; só código, nome, contato e cidade entram.", nao=False, rot="privacidade")),
+ 'Guarde os CSVs na pasta <b>Exportações Vobi</b> do Drive. Nunca suba uma exportação antiga se houver mais nova.']) + regra("Só a interface oficial importa. Nada é alterado no Vobi; nada é inserido direto no banco.") + regra("Dados de clientes (CPF/CNPJ, endereço, observações) são descartados na leitura; só código, nome, contato e cidade entram.", nao=False, rot="privacidade"))),
   ("qualidade", "Qualidade dos dados", "O que os indicadores conseguem ou não medir", """
 <p>Mostra a completude da carga: tarefas sem responsável, sem prazo, sem início, órfãs (sem projeto na origem), colisões de chave e etapas que o A360 ainda não conhece. É contexto gerencial, não lista de pendências para arquitetas.</p>
 """ + fig("ger-qualidade", "Qualidade dos dados: classes de completude, projetos com mais tarefas incompletas, cobertura por arquiteta, etapas e colisões.", alta=True) + lista([
@@ -289,7 +296,7 @@ GER = dict(
 """),
  ],
  quiz=[
-  ("A prévia da importação mostra 300 projetos 'não encontrados'. O que fazer?", ["Confirmar, o sistema se ajusta", "Não confirmar: provavelmente a exportação veio com filtro; refazer no Vobi sem filtro", "Importar só as tarefas"], 1, "Muitos 'não encontrados' é sinal de exportação parcial. Nada é gravado antes da confirmação."),
+  (("A sincronização ficou 'aguardando conferência' com 300 projetos não encontrados. O que fazer?", ["Confirmar, o sistema se ajusta", "Não confirmar: ver o erro, sincronizar de novo ou avisar o Rodrigo; nada é gravado antes da confirmação", "Importar por CSV por cima"], 1, "Anomalia na leitura da API não entra sozinha: a gestão confirma ou rejeita.") if API else ("A prévia da importação mostra 300 projetos 'não encontrados'. O que fazer?", ["Confirmar, o sistema se ajusta", "Não confirmar: provavelmente a exportação veio com filtro; refazer no Vobi sem filtro", "Importar só as tarefas"], 1, "Muitos 'não encontrados' é sinal de exportação parcial. Nada é gravado antes da confirmação.")),
   ("Uma flag diz que aprovações do cliente não chegam do Vobi. Como encerrar?", ["Marcar resolvida porque as arquitetas registram no A360", "Só quando a Vobi exportar o dado (resolução) ou com aceite consciente e justificativa", "Apagar a flag"], 1, "Flags encerram por resolução ou aceite consciente; a alternativa (registrar no A360) é um contorno, não a resolução."),
   ("O Painel mostra uma arquiteta com mais refação que as outras. Isso é…", ["Nota de desempenho", "Contexto operacional: contagem de tarefas de refação no Vobi, com a cobertura declarada", "Motivo de desligamento"], 1, "O A360 descreve; a avaliação de pessoas é do People, com critérios próprios."),
   ("Quem pode aprovar internamente um entregável?", ["Só a coordenação", "Coordenação, gestão e administração", "Qualquer usuário"], 1, "Perfis de gestão aprovam; a arquiteta registra e envia."),
@@ -319,7 +326,7 @@ def gerar(cfg):
 </aside>
 <div class="conteudo"><main>
 <div><div class="eyebrow">rucelle · Architecture 360 · material de treinamento · {cfg['cab'].lower()}</div><h1>{cfg['titulo'].replace('Treinamento A360 — ','A360 para ')}</h1><p class="lead">{cfg['intro']}</p>
-<p style="margin-top:.5rem"><span class="pill">endereço: {URL.replace('https://','')}</span><span class="pill">dados do Vobi: todos os dias de manhã</span><span class="pill">Vobi somente leitura</span><span class="pill">clique nas imagens para ampliar</span></p></div>
+<p style="margin-top:.5rem"><span class="pill">endereço: {URL.replace('https://','')}</span><span class="pill">{"dados do Vobi: sincronizados pela API todos os dias de manhã" if API else "dados do Vobi: todos os dias de manhã"}</span><span class="pill">Vobi somente leitura</span><span class="pill">clique nas imagens para ampliar</span></p></div>
 {''.join(secs)}
 <div class="rodape">As telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
 </main></div></div>
