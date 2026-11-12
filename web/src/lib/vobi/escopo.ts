@@ -1,14 +1,16 @@
 // T-219 — RECORTE 2026 (regra definitiva de 12/11/2026, critério ajustado por Rodrigo às 11:44 do mesmo dia):
 // entra na Agenda, na cobertura e na sincronização bidirecional o projeto cuja DATA DE INÍCIO PREVISTA no Vobi
 // (startDate) é de 2026 em diante — não a data de criação do cadastro. Sem data de início prevista: não entra
-// automaticamente; a gestão pode incorporá-lo pela busca sob demanda ("Buscar projeto no Vobi"), que também
+// automaticamente (PROVISÓRIO: enquanto vazia, vale o "Criado em" — ver ELEGIVEIS); a gestão pode incorporá-lo pela busca sob demanda ("Buscar projeto no Vobi"), que também
 // incorpora projetos anteriores. Projetos fora do recorte ficam só no Vobi: o que já estava copiado é preservado
 // (nos demais módulos e no espelho), mas não é atualizado nem conta como pendência.
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { RECORTE_INICIO } from "@/lib/importador/normalizacao";
 
-const ELEGIVEIS = `select codigo from projeto where inicio_previsto >= '${RECORTE_INICIO}'
+// HÍBRIDO PROVISÓRIO (Rodrigo, 12/11/2026 12:1x): na leitura de 12/11 a data de início prevista estava vazia em todos os
+// 578 projetos do Vobi. Vale a data de início prevista quando preenchida; enquanto vazia, vale o "Criado em".
+const ELEGIVEIS = `select codigo from projeto where coalesce(inicio_previsto, criado_em) >= '${RECORTE_INICIO}'
   union select codigo from projeto_sob_demanda where situacao = 'integrado'`;
 
 /** Subconsulta SQL com os códigos dos projetos elegíveis. */
