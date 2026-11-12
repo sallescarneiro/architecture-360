@@ -30,9 +30,10 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   // quem está sendo visto: arquiteta = sempre ela; gestão = "todas" ou uma pessoa (padrão: todas)
   const pessoaSel = gestao ? (sp.pessoa && /^\d+$/.test(sp.pessoa) && pessoas.some((p) => p.id === Number(sp.pessoa)) ? Number(sp.pessoa) : sp.pessoa === "eu" ? u.id : null) : u.id;
   const consolidada = gestao && pessoaSel === null;
+  // Google: na visão da equipe fica desligado por padrão (as agendas compartilhadas repetem os mesmos compromissos)
+  const comGoogle = consolidada ? sp.google === "1" : sp.google !== "0";
   const projetoSel = sp.projeto && /^\d+$/.test(sp.projeto) ? Number(sp.projeto) : null;
   const comVobi = sp.vobi === "1";
-  const comGoogle = sp.google !== "0";
 
   const configurada = agendaConfigurada();
   const sinc = configurada && (pessoaSel === u.id || consolidada) ? await sincronizar(u.id) : null;
@@ -44,7 +45,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   else { dias = [d]; titulo = dataLonga(d); ant = somaDias(d, -1); prox = somaDias(d, 1); }
   const de = inicioDoDia(dias[0]), ate = fimDoDia(dias[dias.length - 1]);
   const params = (o: Record<string, string | number | null | undefined>) => {
-    const base: Record<string, string | number | null | undefined> = { v, d, pessoa: gestao ? (pessoaSel ?? undefined) : undefined, projeto: projetoSel ?? undefined, vobi: comVobi ? 1 : undefined, google: comGoogle ? undefined : 0, ...o };
+    const base: Record<string, string | number | null | undefined> = { v, d, pessoa: gestao ? (pessoaSel ?? undefined) : undefined, projeto: projetoSel ?? undefined, vobi: comVobi ? 1 : undefined, google: consolidada ? (comGoogle ? 1 : undefined) : (comGoogle ? undefined : 0), ...o };
     return "/agenda?" + Object.entries(base).filter(([, x]) => x !== undefined && x !== null && x !== "").map(([k, x]) => `${k}=${encodeURIComponent(String(x))}`).join("&");
   };
   const atual = params({});
@@ -142,7 +143,9 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
             </select>
           </label>
           <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="vobi" value="1" defaultChecked={comVobi} /> prazos das tarefas do Vobi</label>
-          <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="google" value="0" defaultChecked={!comGoogle} /> esconder Google</label>
+          {consolidada
+            ? <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="google" value="1" defaultChecked={comGoogle} /> mostrar compromissos do Google</label>
+            : <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="google" value="0" defaultChecked={!comGoogle} /> esconder Google</label>}
           <button className="btn btn-secondary btn-sm mb-1" type="submit">Filtrar</button>
         </form>
       )}
