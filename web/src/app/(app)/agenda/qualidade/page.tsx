@@ -3,13 +3,33 @@ import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
 import { podeGerirAgenda } from "@/lib/agenda/atividades";
 import { qualidadeAgenda } from "@/lib/agenda/qualidade";
-import { Badge, Card, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { Card, LinkButton, PageHeader, Stat } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 const dia = (v: string | null) => (v ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(v)) : "—");
 const dataIso = (v: string | null) => (v ? v.slice(0, 10).split("-").reverse().join("/") : "—");
 const VOLTA = encodeURIComponent("/agenda/qualidade");
+
+type Grupo = Awaited<ReturnType<typeof qualidadeAgenda>>["grupos"]["execucao"];
+function lista(titulo: string, sub: string, g: Grupo, aberto: boolean) {
+  return (
+    <Card title={`${titulo} (${g.total})`} subtitle={sub}>
+      {g.projetos.length === 0 ? <p className="text-sm text-[var(--muted)]">Nenhuma.</p> : g.projetos.map((p) => (
+        <details key={p.projeto} className="border-t border-[var(--line)] py-2" open={aberto && g.projetos.length <= 5}>
+          <summary className="cursor-pointer text-sm"><b>{p.nome}</b> — {p.tarefas.length} tarefa(s)</summary>
+          <div className="overflow-x-auto"><table className="tbl mt-2">
+            <thead><tr><th>Tarefa</th><th>Etapa</th><th>Status</th><th>Início</th><th>Prazo</th><th>Falta</th><th></th></tr></thead>
+            <tbody>{p.tarefas.map((t) => (
+              <tr key={t.id}><td>{t.nome}</td><td>{t.etapa ?? "—"}</td><td>{t.status === 2 ? "Em andamento" : "Planejado"}</td><td>{dia(t.inicio)}</td><td>{dia(t.fim)}</td>
+                <td>{[t.resp == null ? "responsável" : "", !t.fim ? "prazo" : ""].filter(Boolean).join(" e ")}</td>
+                <td><Link className="underline" href={`/agenda/atividade/nova?tarefa=${t.id}&volta=${VOLTA}`}>Programar</Link></td></tr>))}</tbody>
+          </table></div>
+        </details>
+      ))}
+    </Card>
+  );
+}
 
 /** T-219 — Qualidade dos dados da Agenda (só gestão): o que impede a programação e o envio, tarefa a tarefa. */
 export default async function QualidadePage() {
@@ -23,10 +43,11 @@ export default async function QualidadePage() {
         subtitle="O que falta para cada tarefa do Vobi poder ser programada e, no futuro, enviada: responsável, prazo e data de início prevista. Nada aqui grava no Vobi."
         actions={<div className="flex flex-wrap gap-2"><LinkButton href="/agenda/cobertura">Cobertura</LinkButton><LinkButton href="/agenda">← Agenda</LinkButton></div>} />
 
+      <div className="leitura"><b>Como ler</b>Tarefa sem responsável ou sem prazo não é erro por si só. A maioria são etapas futuras do modelo do projeto, que serão programadas quando entrarem no planejamento de execução. Não atribua em massa para melhorar os números. Nada aqui gera cobrança ou aviso para as arquitetas.</div>
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="Tarefas abertas no recorte" value={q.abertas} note="planejadas ou em andamento, projetos ativos" />
-        <Stat label="Sem responsável" value={q.semResponsavel.total} tone={q.semResponsavel.total ? "warn" : "ok"} note={`${q.semResponsavel.semPrazoTambem} delas também sem prazo`} />
-        <Stat label="Sem prazo (data de término)" value={q.semPrazo.total} tone={q.semPrazo.total ? "warn" : "ok"} />
+        <Stat label="Já deveriam estar em execução" value={q.grupos.execucao.total} tone={q.grupos.execucao.total ? "warn" : "ok"} note="falta responsável ou prazo — tratar primeiro" />
+        <Stat label="Pendências de planejamento" value={q.grupos.planejamento.total} note="planejamento começado, mas incompleto" />
+        <Stat label="Etapas futuras do modelo" value={q.grupos.futura.total} note="ainda não programadas — não é erro" />
         <Stat label="Responsáveis sem mapeamento" value={q.semMapeamento.length} tone={q.semMapeamento.length ? "warn" : "ok"} />
       </div>
 
@@ -43,31 +64,11 @@ export default async function QualidadePage() {
         <div className="mt-2"><LinkButton href="/pessoas">Mapear em Pessoas</LinkButton></div>
       </Card>
 
-      <Card title={`2. Tarefas abertas sem responsável (${q.semResponsavel.total})`} subtitle="“Atribuir” abre a programação da tarefa com os dados do Vobi: escolha a responsável (e o prazo, se faltar). A atribuição fica no A360 e entra na fila “aguardando envio ao Vobi”; nada é gravado no Vobi enquanto a escrita estiver desligada.">
-        {q.semResponsavel.projetos.length === 0 ? <p className="text-sm text-[var(--muted)]">Nenhuma.</p> : q.semResponsavel.projetos.map((g) => (
-          <details key={g.projeto} className="border-t border-[var(--line)] py-2">
-            <summary className="cursor-pointer text-sm"><b>{g.nome}</b> — {g.tarefas.length} tarefa(s)</summary>
-            <div className="overflow-x-auto"><table className="tbl mt-2">
-              <thead><tr><th>Tarefa</th><th>Etapa</th><th>Prazo</th><th></th></tr></thead>
-              <tbody>{g.tarefas.map((t) => (
-                <tr key={t.id}><td>{t.nome}</td><td>{t.etapa ?? "—"}</td><td>{t.fim ? dia(t.fim) : <Badge tone="warn">sem prazo</Badge>}</td>
-                  <td><Link className="underline" href={`/agenda/atividade/nova?tarefa=${t.id}&volta=${VOLTA}`}>Atribuir</Link></td></tr>))}</tbody>
-            </table></div>
-          </details>
-        ))}
-      </Card>
+      {lista("2. Já deveriam estar em execução", "A tarefa está em andamento, a data de início ou de término já passou, ou a etapa dela já começou — e falta responsável ou prazo. É o que a coordenação e a gerência devem olhar primeiro.", q.grupos.execucao, true)}
+      {lista("3. Pendências de planejamento", "Alguém já começou a planejar (há data ou responsável), mas falta o outro dado. Completar quando a etapa for programada.", q.grupos.planejamento, true)}
+      {lista("4. Etapas futuras do modelo do projeto", "Sem datas e sem responsável, numa etapa que ainda não começou. Ficam como estão até a etapa entrar no planejamento de execução.", q.grupos.futura, false)}
 
-      <Card title={`3. Tarefas abertas sem prazo (${q.semPrazo.total})`} subtitle="Sem data de término a tarefa não aparece na agenda nem pode ser enviada. Defina o prazo no Vobi ou ao programar a tarefa no A360.">
-        {q.semPrazo.projetos.length === 0 ? <p className="text-sm text-[var(--muted)]">Nenhuma.</p> : q.semPrazo.projetos.map((g) => (
-          <details key={g.projeto} className="border-t border-[var(--line)] py-2">
-            <summary className="cursor-pointer text-sm"><b>{g.nome}</b> — {g.tarefas.length} tarefa(s)</summary>
-            <ul className="mt-2 text-sm">{g.tarefas.map((t) => (
-              <li key={t.id}>{t.nome}{t.etapa ? ` · ${t.etapa}` : ""}{t.resp == null ? " · sem responsável" : ""} — <Link className="underline" href={`/agenda/atividade/nova?tarefa=${t.id}&volta=${VOLTA}`}>Programar</Link></li>))}</ul>
-          </details>
-        ))}
-      </Card>
-
-      <Card title="4. Data de início prevista no Vobi" subtitle="Critério híbrido provisório: projeto sem data de início prevista entra pelo “Criado em”. O A360 lê a data todos os dias; quando a equipe preencher no Vobi, a regra definitiva passa a valer para aquele projeto.">
+      <Card title="5. Data de início prevista no Vobi" subtitle="Critério híbrido provisório: projeto sem data de início prevista entra pelo “Criado em”. O A360 lê a data todos os dias; quando a equipe preencher no Vobi, a regra definitiva passa a valer para aquele projeto.">
         <div className="grid gap-3 sm:grid-cols-3">
           <Stat label="Projetos ativos com a data preenchida" value={q.inicio.preenchidos} note={`de ${q.inicio.ativos} (${pct(q.inicio.preenchidos, q.inicio.ativos)})`} tone={q.inicio.preenchidos === q.inicio.ativos ? "ok" : "warn"} />
           <Stat label="No recorte só pelo “Criado em”" value={q.inicio.pendentesNoRecorte.length} note="preencher a data de início prevista no Vobi" />

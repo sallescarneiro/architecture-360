@@ -5,12 +5,17 @@ import { db } from "@/db";
 import { SQL_ELEGIVEIS } from "@/lib/vobi/escopo";
 import { mapaResponsaveis } from "@/lib/vobi/espelho";
 
-type Linha = { id: number; nome: string; projeto: number; projeto_nome: string; etapa: string | null; fim: string | null; status: number | null; resp: number | null; atividade: number | null };
+type Linha = { id: number; nome: string; projeto: number; projeto_nome: string; etapa: string | null; inicio: string | null; fim: string | null; status: number | null; resp: number | null; atividade: number | null; etapa_iniciada: boolean };
+/** Classificação (orientação de Rodrigo, 12/11/2026 14:15): tarefa sem responsável ou prazo não é erro por si só. */
+export type Grupo = "execucao" | "planejamento" | "futura";
 
 /** Tarefas abertas (Planejado/Em andamento) dos projetos do recorte que não estão encerrados nem ausentes. */
 async function abertas(): Promise<Linha[]> {
-  return (await db.execute(sql`select t.id_vobi id, t.nome, t.id_refurbish projeto, p.nome projeto_nome, e.nome etapa, t.fim, t.status, t.id_responsavel resp,
-      (select a.id from atividade a where a.tarefa_vobi_id = t.id_vobi limit 1) atividade
+  return (await db.execute(sql`select t.id_vobi id, t.nome, t.id_refurbish projeto, p.nome projeto_nome, e.nome etapa, t.inicio, t.fim, t.status, t.id_responsavel resp,
+      (select a.id from atividade a where a.tarefa_vobi_id = t.id_vobi limit 1) atividade,
+      -- a etapa já entrou em execução: outra tarefa dela está em andamento/concluída ou já começou
+      (t.id_etapa is not null and exists (select 1 from vobi_tarefa o where o.id_etapa = t.id_etapa and o.id_vobi <> t.id_vobi and o.ausente_desde is null
+        and (o.status in (2, 4) or o.inicio <= now()))) etapa_iniciada
     from vobi_tarefa t join projeto p on p.codigo = t.id_refurbish left join vobi_etapa e on e.id_vobi = t.id_etapa
     where t.ausente_desde is null and coalesce(t.status, 1) not in (4, 5) and t.id_refurbish in ${SQL_ELEGIVEIS}
       and p.status_classe <> 'encerrado' and p.nao_encontrado_desde is null
@@ -22,6 +27,15 @@ export async function qualidadeAgenda() {
   const { vobiParaUsuario } = await mapaResponsaveis();
   const semResponsavel = lst.filter((t) => t.resp == null && !t.atividade);
   const semPrazo = lst.filter((t) => !t.fim && !t.atividade);
+  // 1) execução: já deveria estar andando (em andamento, início já passou ou a etapa já começou) e falta responsável ou prazo
+  // 2) planejamento: alguém começou a planejar (tem data ou responsável), mas falta o outro dado
+  // 3) futura: etapa do modelo do projeto ainda não programada (sem datas e sem responsável) — não é erro
+  const incompletas = lst.filter((t) => !t.atividade && (t.resp == null || !t.fim));
+  const grupoDe = (t: Linha): Grupo =>
+    t.status === 2 || (t.inicio && new Date(t.inicio) <= new Date()) || (t.fim && new Date(t.fim) <= new Date()) || t.etapa_iniciada ? "execucao"
+      : t.resp != null || t.inicio || t.fim ? "planejamento" : "futura";
+  const porGrupo = { execucao: [] as Linha[], planejamento: [] as Linha[], futura: [] as Linha[] };
+  for (const t of incompletas) porGrupo[grupoDe(t)].push(t);
   const agrupar = (xs: Linha[]) => {
     const m = new Map<number, { projeto: number; nome: string; tarefas: Linha[] }>();
     for (const t of xs) { const g = m.get(t.projeto) ?? { projeto: t.projeto, nome: t.projeto_nome, tarefas: [] }; g.tarefas.push(t); m.set(t.projeto, g); }
@@ -52,6 +66,11 @@ export async function qualidadeAgenda() {
     { codigo: number; nome: string; status: string | null; inicio_previsto: string | null; criado_em: string | null; elegivel: boolean; sob_demanda: boolean }[];
   const comInicio = projetos.filter((p) => p.inicio_previsto);
   return {
+    grupos: {
+      execucao: { total: porGrupo.execucao.length, projetos: agrupar(porGrupo.execucao) },
+      planejamento: { total: porGrupo.planejamento.length, projetos: agrupar(porGrupo.planejamento) },
+      futura: { total: porGrupo.futura.length, projetos: agrupar(porGrupo.futura) },
+    },
     semResponsavel: { total: semResponsavel.length, projetos: agrupar(semResponsavel), semPrazoTambem: semResponsavel.filter((t) => !t.fim).length },
     semPrazo: { total: semPrazo.length, projetos: agrupar(semPrazo) },
     semMapeamento,
