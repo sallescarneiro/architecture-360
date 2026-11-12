@@ -134,6 +134,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         actions={<div className="flex flex-wrap items-center gap-2">
           {gestao && <LinkButton href={novo!(v === "dia" ? d : hoje)} variant="primary">+ Nova atividade</LinkButton>}
           {c && c.estado !== "revogada" && escritaGoogle && <LinkButton href={`/agenda/novo?d=${v === "dia" ? d : hoje}&volta=${encodeURIComponent(atual)}`} variant="secondary">+ Compromisso no Google</LinkButton>}
+          {gestao && <LinkButton href="/agenda/qualidade" variant="secondary">Qualidade dos dados</LinkButton>}
           {gestao && (pend.length > 0 || fila > 0) && <LinkButton href="/agenda/pendencias" variant="secondary">Vobi: {pend.length} pendência(s) · {fila} aguardando envio</LinkButton>}
         </div>} />
 

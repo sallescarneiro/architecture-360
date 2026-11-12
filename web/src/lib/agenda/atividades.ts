@@ -290,7 +290,8 @@ export async function programarDoVobi(u: Usuario, idVobi: number): Promise<{ ok:
   if (!(await projetoElegivel(t.idRefurbish))) return { ok: false, mensagem: "Projeto fora do recorte 2026: a tarefa fica só no Vobi." };
   const { vobiParaUsuario } = await mapaResponsaveis();
   const resp = t.idResponsavel != null ? vobiParaUsuario.get(t.idResponsavel) : undefined;
-  if (!resp) return { ok: false, mensagem: t.idResponsavel == null ? "A tarefa está sem responsável no Vobi." : `O responsável nº ${t.idResponsavel} ainda não está mapeado em Pessoas.` };
+  // sem responsável (ou com número ainda não mapeado): a gestão atribui pelo formulário — fica pendente de envio ao Vobi
+  if (!resp) return { ok: false, formulario: true, mensagem: t.idResponsavel == null ? "A tarefa está sem responsável no Vobi: escolha a responsável." : `O responsável nº ${t.idResponsavel} ainda não está mapeado em Pessoas: escolha a responsável.` };
   if (!t.fim) return { ok: false, mensagem: "A tarefa não tem data de término no Vobi: programe pelo formulário.", formulario: true };
   const meiaNoite = (d: Date | null) => !d || new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(d) === "00:00";
   const baseVobi = { ...camposDaTarefa(t), atualizadoVobiEm: t.atualizadoVobiEm?.toISOString() ?? null };
