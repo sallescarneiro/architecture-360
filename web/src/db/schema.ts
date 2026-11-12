@@ -583,7 +583,7 @@ export const vobiTarefas = pgTable("vobi_tarefa", {
   prioridade: integer("prioridade"),
   inicio: timestamp("inicio", { withTimezone: true }),
   fim: timestamp("fim", { withTimezone: true }),
-  duracaoDias: integer("duracao_dias"),
+  duracaoDias: doublePrecision("duracao_dias"), // o Vobi manda fração (ex.: 8.75): guardado como veio
   estimadaHoras: doublePrecision("estimada_horas"),
   realizadasHoras: doublePrecision("realizadas_horas"),
   criadoVobiEm: timestamp("criado_vobi_em", { withTimezone: true }),

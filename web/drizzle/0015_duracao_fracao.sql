@@ -1,0 +1,1 @@
+ALTER TABLE "vobi_tarefa" ALTER COLUMN "duracao_dias" SET DATA TYPE double precision;
