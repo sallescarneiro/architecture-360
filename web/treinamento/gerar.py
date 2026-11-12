@@ -107,6 +107,37 @@ PRIMEIRO_ACESSO = """
 </div>
 """
 
+
+# -------------------------------------------------------------------- AGENDA GERENCIAL (T-219) — gestão: Rodrigo, Flavia, Thais, Ana Paula
+AGENDA_GESTAO = ("agenda", "Agenda gerencial", "Distribuir e acompanhar as atividades das arquitetas", """
+<p>A Agenda é onde a gestão programa o trabalho das arquitetas. Uma tela só reúne as <b>atividades</b> programadas no A360, os compromissos do <b>Google</b> e, se você marcar, os <b>prazos das tarefas do Vobi</b>. Rodrigo, Flavia, Thais e Ana Paula veem a equipe toda; cada arquiteta vê só a própria agenda.</p>
+""" + fig("ger-agenda-equipe", "Agenda da equipe (visão consolidada): as iniciais mostram de quem é cada atividade. Vinho = tarefa do Vobi; verde = atividade independente.", alta=True) + """
+<div class="grid"><div class="card"><h3>Ver</h3>""" + lista([
+ '<b>Pessoa</b>: "Toda a equipe" mostra a visão consolidada; escolha um nome para ver a agenda de uma pessoa.',
+ '<b>Projeto</b>: mostra só o que é daquele projeto.',
+ '<b>Prazos das tarefas do Vobi</b>: acrescenta, tracejados, os prazos das tarefas que ainda não foram programadas no A360. Clique num deles para programar.',
+ '<b>Google</b>: na visão da equipe vem desligado (as agendas compartilhadas repetem os compromissos); marque "mostrar compromissos do Google" se precisar. Na agenda de uma pessoa ele aparece.',
+ 'Mês, Semana, Dia e as setas mudam o período. Atividade de vários dias aparece com a marca de <b>início</b> e a de <b>prazo</b>.']) + """</div>
+<div class="card"><h3>Programar</h3>""" + passos([
+ 'Clique em <b>+ Nova atividade</b> ou num horário vazio da agenda (já vem com o dia, a hora e a pessoa).',
+ 'Escolha o tipo: <b>tarefa que já existe no Vobi</b> (traz nome, etapa, responsável e datas dela), <b>nova tarefa no projeto do Vobi</b> ou <b>independente</b> (reunião interna, treinamento, estudo, alinhamento, administrativa).',
+ 'Para tarefa do Vobi: escolha Projeto, Etapa e a tarefa. Os nomes são os do Vobi.',
+ 'Defina Responsável, Data de início e <b>Data de término (prazo)</b> com horário, Prioridade e, se quiser, a Descrição com as orientações.',
+ 'Clique em <b>Programar atividade</b>. Ela aparece na agenda da arquiteta na hora.']) + """</div></div>
+""" + fig("ger-agenda-nova", "Programar atividade a partir de uma tarefa do Vobi: os campos têm os mesmos nomes do Vobi; o prazo é a Data de término.", alta=True) + fig("ger-agenda-pessoa", "Agenda de uma arquiteta no mês, com os prazos do Vobi (tracejados) que ainda não foram programados.", alta=True) + """
+<h3>Vínculo com o Vobi</h3>""" + lista([
+ 'O vínculo é pelo <b>número</b> do projeto, da etapa e da tarefa no Vobi. A mesma tarefa não pode ser programada duas vezes.',
+ 'O <b>prazo</b> da atividade é a <b>Data de término</b> da tarefa no Vobi: um prazo só, sem duplicar.',
+ 'Por enquanto o A360 <b>não grava no Vobi</b>. O que você muda numa atividade ligada ao Vobi fica como <b>"Aguardando envio ao Vobi"</b> e será enviado só quando a escrita for autorizada. Até lá, se a mudança precisar valer no Vobi, faça também no Vobi.',
+ 'Todo dia de manhã o A360 lê o Vobi. O que mudou <b>só no Vobi</b> é adotado na atividade e registrado no histórico.',
+ 'Se o <b>mesmo campo</b> mudou no A360 e no Vobi, a atividade vai para <b>Conflitos</b>: abra e escolha "vale o A360" ou "vale o Vobi".',
+ 'Se uma tarefa ligada não existir mais no Vobi, a atividade é mantida e aparece em <b>Pendências</b> como divergência.',
+ 'A execução (Status: Planejado, Em andamento, Concluído) é atualizada pela arquiteta no Vobi; o A360 só mostra.']) + fig("ger-agenda-conflito", "Atividade com conflito: a Data de término mudou no A360 e no Vobi. A gestão decide qual vale; tudo fica no histórico.", alta=True) + fig("ger-agenda-pendencias", "Pendências com o Vobi: conflitos, divergências e o que está aguardando envio.", alta=True) + """
+<h3>Alterar e cancelar</h3>""" + lista([
+ 'Abra a atividade e clique em <b>Alterar</b>. O tipo e o projeto não mudam depois de criados.',
+ '<b>Cancelar</b> nunca exclui: a atividade fica com status Cancelado e sai da agenda; o histórico continua.',
+ 'Para a arquiteta aparecer como responsável de tarefas do Vobi, o nome dela no Vobi precisa estar ligado ao e-mail em <b>Pessoas</b>, incluindo os responsáveis que o Vobi informa só por número.']) + regra("A Agenda é programação e acompanhamento, não cobrança: o A360 não envia notificação nem cobrança automática para as arquitetas.", nao=False, rot="princípio") + regra("Arquiteta não vê a agenda das colegas nem a visão da equipe, e não cria atividade. A regra vale no servidor, inclusive se alguém tentar abrir o endereço direto."))
+
 # -------------------------------------------------------------------- ARQUITETA
 ARQ = dict(
  perfil="arquiteta", titulo="Treinamento A360 — Arquitetas", cab="Para as arquitetas",
@@ -139,14 +170,21 @@ ARQ = dict(
  'Botão <b>Vobi ↗</b> abre o projeto na origem para editar.',
  'Da página do projeto você registra reunião e entregável já ligados a ele.',
  'A linha do tempo é a história do projeto: use-a antes de uma reunião com o cliente para lembrar o que foi decidido e aprovado.'])),
-  ("agenda", "Agenda", "Sua Google Agenda dentro do A360", """
-<p>A Agenda mostra e edita os compromissos da <b>sua</b> Google Agenda. Cada pessoa conecta a própria conta; ninguém vê o compromisso privado de ninguém (aparece só como "ocupado").</p>
-""" + fig("arq-agenda", "Agenda antes de conectar: clique em Conectar e autorize com sua conta @rucelle.") + passos([
- 'Clique em <b>Conectar Google Agenda</b> e autorize com seu e-mail @rucelle (só uma vez).',
- 'Veja mês, semana ou dia. Crie, edite ou exclua compromissos: tudo reflete na sua Google Agenda e vice-versa.',
- 'Compromisso ligado a um projeto: escolha o projeto ao criar; a coordenação também pode associar depois.',
- 'Reunião com cliente? A partir do compromisso, clique em <b>Registrar reunião</b> para criar a reunião no A360 já com título, horário e participantes.',
- 'Para desconectar: botão na própria Agenda. O A360 nunca guarda sua senha do Google.'])),
+  ("agenda", "Agenda", "Suas atividades, seus compromissos e seus prazos", """
+<p>A Agenda mostra <b>só a sua agenda</b>: as atividades que a gestão programou para você, os compromissos da sua Google Agenda e, se quiser, os prazos das suas tarefas do Vobi. Ninguém da equipe vê a sua agenda além da gestão; você não vê a agenda das colegas.</p>
+""" + fig("arq-agenda", "Sua agenda na semana: atividades programadas pela gestão (vinho = tarefa do Vobi, verde = atividade independente) e seus compromissos do Google.", alta=True) + """
+<div class="grid"><div class="card"><h3>Como usar</h3>""" + passos([
+ 'Abra a Agenda e veja o mês, a semana ou o dia.',
+ 'Clique numa atividade para ver o que é, o projeto, a etapa, o prazo (Data de término) e as orientações da gestão.',
+ 'Atividade de vários dias aparece com a marca de <b>início</b> e a de <b>prazo</b>.',
+ 'Botão <b>Mostrar prazos das minhas tarefas do Vobi</b>: acrescenta, tracejados, os prazos das suas tarefas que ainda não foram programadas.',
+ 'Executou? Atualize o status da tarefa <b>no Vobi</b>, como sempre. No dia seguinte a Agenda mostra.']) + """</div>
+<div class="card"><h3>Google Agenda</h3>""" + lista([
+ 'Clique em <b>conectar minha Google Agenda</b> e autorize com seu e-mail @rucelle (só uma vez).',
+ 'Seus compromissos aparecem junto das atividades. Você pode criar, editar ou excluir compromissos no botão <b>+ Compromisso no Google</b>.',
+ 'Compromisso particular aparece só como "ocupado".',
+ 'Reunião com cliente? No compromisso, clique em <b>Registrar reunião</b>.']) + """</div></div>
+""" + fig("arq-atividade", "Uma atividade programada para você: prazo, projeto, etapa, tarefa do Vobi e histórico.", alta=True) + regra("Atividades são programadas pela gestão. Se um prazo não couber, fale com a coordenação; a Agenda não envia cobrança automática.")),
   ("reunioes", "Reuniões", "Pauta, ata, decisões e encaminhamentos", """
 <p>Toda reunião com cliente (ou interna relevante) é registrada aqui, ligada ao projeto. A ata pode ser escrita à mão ou gerada automaticamente a partir da transcrição do Google Meet.</p>
 """ + fig("arq-reunioes", "Lista de reuniões: próximas e anteriores, com decisões e encaminhamentos abertos.") + fig("arq-reuniao-nova", "Nova reunião: título, projeto, data, participantes e pauta. Pode criar também o compromisso no Google com Meet.", alta=True) + fig("coord-reuniao", "Reunião registrada: ata estruturada, decisões, aprovações e encaminhamentos com responsável e prazo; cada item traz o trecho da transcrição que o originou.", alta=True) + passos([
@@ -165,14 +203,15 @@ ARQ = dict(
  'Quando o cliente responder, registre a resposta com a evidência: cole o e-mail/mensagem, anexe o print ou aponte o item de aprovação da reunião.',
  'Nova versão depois de uma aprovação volta automaticamente para revisão interna.']) + regra("Aprovação do cliente sem evidência não é registrada — o sistema recusa. Isso protege você: fica provado o que foi aprovado, quando e por quem.") + regra("Nunca registre uma aprovação que ainda não aconteceu, nem marque 'enviado ao cliente' antes de enviar.", nao=True)),
   ("permissoes", "O que você vê e o que não vê", "Permissões do perfil arquiteta", """
-<div class="grid"><div class="card"><h3>Você vê</h3>""" + lista(['Suas tarefas e seus projetos (colaboradora ou responsável no Vobi).','Sua Agenda.','Reuniões que você criou, de que participa ou dos seus projetos.','Entregáveis dos seus projetos.','Alertas dos seus projetos (só leitura).','Qualidade dos dados, Clientes e Importação (consulta).']) + """</div>
-<div class="card"><h3>Você não vê</h3>""" + lista(['Painel de Gestão, Capacidade e fluxo, Pessoas, Usuários.','Projetos e tarefas de outras pessoas.','Tratamento de alertas e aprovação interna de entregáveis (coordenação/gestão).']) + """</div></div>
+<div class="grid"><div class="card"><h3>Você vê</h3>""" + lista(['Suas tarefas e seus projetos (colaboradora ou responsável no Vobi).','Sua Agenda: atividades programadas para você, seus compromissos do Google e seus prazos do Vobi.','Reuniões que você criou, de que participa ou dos seus projetos.','Entregáveis dos seus projetos.','Alertas dos seus projetos (só leitura).','Qualidade dos dados, Clientes e Importação (consulta).']) + """</div>
+<div class="card"><h3>Você não vê</h3>""" + lista(['Painel de Gestão, Capacidade e fluxo, Pessoas, Usuários.','Projetos e tarefas de outras pessoas.','A agenda das colegas e a visão da equipe; criar atividades é da gestão.','Tratamento de alertas e aprovação interna de entregáveis (coordenação/gestão).']) + """</div></div>
 """ + fig("sem-permissao", "Tentou abrir uma tela de gestão? Aparece esta mensagem. Não é erro: é o perfil.")),
  ],
  quiz=[
   ("Terminei uma tarefa. Onde eu marco como concluída?", ["No A360, em Meu Dia", "No Vobi; o A360 atualiza na próxima importação", "Nos dois lugares"], 1, "O Vobi é a origem e o A360 só lê. A conclusão aparece no A360 na importação seguinte (todo dia de manhã)."),
   ("O cliente aprovou o layout por WhatsApp. O que faço no A360?", ["Marco 'aprovado pelo cliente' e pronto", "Registro a resposta com data, quem aprovou e o print/texto da mensagem", "Espero a coordenação registrar"], 1, "Aprovação só com evidência. Você mesma registra, com a prova anexada."),
   ("A IA gerou a ata e extraiu 3 decisões. Elas já valem como registro?", ["Sim, assim que a ata é gerada", "Não: ficam como 'confirmar' até você confirmar cada uma", "Só se a coordenação aprovar"], 1, "Itens extraídos são sugestões com trecho de origem; viram registro quando confirmados."),
+  ("A gestão programou uma atividade para você ligada a uma tarefa do Vobi. Onde você marca que concluiu?", ["Na Agenda do A360", "No Vobi, como sempre; a Agenda mostra no dia seguinte", "Avisando a gestão por mensagem"], 1, "A execução é atualizada no Vobi. O A360 lê o Vobi todos os dias de manhã."),
   ("Quem vê o seu compromisso particular na Google Agenda?", ["Toda a equipe", "Ninguém: aparece só como 'ocupado'", "A coordenação"], 1, "Eventos privados são protegidos; o A360 mostra apenas que o horário está ocupado."),
  ],
 )
@@ -302,6 +341,12 @@ GER = dict(
   ("Quem pode aprovar internamente um entregável?", ["Só a coordenação", "Coordenação, gestão e administração", "Qualquer usuário"], 1, "Perfis de gestão aprovam; a arquiteta registra e envia."),
  ],
 )
+
+# T-219: Agenda gerencial para quem programa (coordenação e gestão)
+QUIZ_AGENDA = ("Você mudou no A360 o prazo de uma atividade ligada ao Vobi e, no mesmo dia, a arquiteta mudou o prazo no Vobi. O que acontece na leitura da manhã?", ["O A360 sobrescreve o Vobi", "A atividade vai para Conflitos e a gestão escolhe qual vale", "Vale sempre o Vobi, sem aviso"], 1, "Mesmo campo alterado nos dois lados vira conflito; campos diferentes se combinam.")
+for _c in (COORD, GER):
+    _c["secoes"].insert(1, AGENDA_GESTAO)
+    _c["quiz"].append(QUIZ_AGENDA)
 
 def gerar(cfg):
     nav = ['<div class="grupo">Comece aqui</div><a href="#intro">O que é o A360</a><a href="#acesso">Primeiro acesso</a><div class="grupo">Módulos</div>']
