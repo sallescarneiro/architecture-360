@@ -635,6 +635,13 @@ export const atividadeHistorico = pgTable("atividade_historico", {
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("atividade_historico_idx").on(t.atividadeId)]);
 
+export type Simulacao = {
+  resultado: "pronto" | "bloqueado";
+  metodo: "POST" | "PUT" | null; caminho: string | null; corpo: Record<string, unknown> | null;
+  chamadas: number; // chamadas à API que o envio real gastaria (conferência + gravação)
+  problemas: { nivel: "bloqueia" | "aviso"; texto: string }[];
+};
+
 /** Fila de envio ao Vobi. Fase 0: registros ficam "aguardando" — nada é processado nem enviado (escrita desligada). */
 export const vobiEnvios = pgTable("vobi_envio", {
   id: serial("id").primaryKey(),
@@ -647,4 +654,7 @@ export const vobiEnvios = pgTable("vobi_envio", {
   criadoPorId: integer("criado_por_id").references(() => usuarios.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   processadoEm: timestamp("processado_em", { withTimezone: true }),
+  // Fase 1 (ensaio): o pedido exato que SERIA enviado e os problemas encontrados — nada é enviado
+  simulacao: jsonb("simulacao").$type<Simulacao>(),
+  simuladoEm: timestamp("simulado_em", { withTimezone: true }),
 }, (t) => [index("vobi_envio_ativ_idx").on(t.atividadeId), index("vobi_envio_estado_idx").on(t.estado)]);

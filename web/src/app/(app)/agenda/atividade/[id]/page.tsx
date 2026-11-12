@@ -84,6 +84,10 @@ export default async function AtividadePage({ params, searchParams }: { params: 
             <div className="mt-3 text-sm"><b>Aguardando envio ao Vobi</b> (escrita desligada): {pend.map(([c, x]) => `${NOME_CAMPO[c as Campo] ?? c}: ${valor(c, x)}`).join(" · ")}</div>
           )}
           {gestao && fila.length > 0 && <div className="mt-2 text-xs text-[var(--muted)]">Fila de envio: {fila.slice(0, 5).map((f) => `#${f.id} ${f.operacao} · ${f.estado}`).join(" · ")}</div>}
+          {gestao && (() => { const sim = fila.find((f) => f.estado === "aguardando" && f.simulacao)?.simulacao; return sim ? (
+            <div className="mt-3 text-sm"><b>Ensaio (Fase 1, nada enviado):</b> <Badge tone={sim.resultado === "pronto" ? "ok" : "bad"}>{sim.resultado}</Badge> {sim.metodo} {sim.caminho ?? ""}
+              {sim.problemas.map((p, i) => <div key={i} className="text-xs">{p.nivel}: {p.texto}</div>)}
+              <details className="text-xs"><summary>pedido que seria enviado</summary><pre className="whitespace-pre-wrap">{JSON.stringify(sim.corpo, null, 2)}</pre></details></div>) : null; })()}
         </Card>
       )}
 
