@@ -301,3 +301,4 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .ev-ativ { font-weight: 600; }
 .ev-prazo { border-style: dashed !important; opacity: 0.9; }
 .ev-inicio { font-weight: 400; opacity: 0.75; }
+.ev-feito { opacity: 0.55; text-decoration: line-through; }

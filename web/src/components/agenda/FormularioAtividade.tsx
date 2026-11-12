@@ -111,7 +111,7 @@ export function FormularioAtividade({ action, valores, pessoas, projetos, etapas
       </label>
 
       <div className="grid gap-3 sm:grid-cols-[auto_auto_auto_auto_1fr] sm:items-end">
-        <label className={lbl}>Data de início<input type="date" name="data_inicio" required value={v.dataInicio} onChange={(e) => set("dataInicio", e.target.value)} className="input mt-1" /></label>
+        <label className={lbl}>Data de início<input type="date" name="data_inicio" required={!vinculada} value={v.dataInicio} onChange={(e) => set("dataInicio", e.target.value)} className="input mt-1" /></label>
         <label className={lbl}>Hora<input type="time" name="hora_inicio" step={300} value={v.horaInicio} disabled={v.diaInteiro} onChange={(e) => set("horaInicio", e.target.value)} className="input mt-1" /></label>
         <label className={lbl}>Data de término (prazo)<input type="date" name="data_fim" required value={v.dataFim} onChange={(e) => set("dataFim", e.target.value)} className="input mt-1" /></label>
         <label className={lbl}>Hora<input type="time" name="hora_fim" step={300} value={v.horaFim} disabled={v.diaInteiro} onChange={(e) => set("horaFim", e.target.value)} className="input mt-1" /></label>

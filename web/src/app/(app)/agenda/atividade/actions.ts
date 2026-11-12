@@ -71,3 +71,15 @@ export async function ensaiarAgoraAction() {
   revalidatePath("/agenda/pendencias");
   redirect("/agenda/pendencias?ensaio=1");
 }
+
+/** "Programar no A360" a partir de uma tarefa da Programação do Vobi: valores exatos, sem envio (Fase 0/1). */
+export async function programarDoVobiAction(fd: FormData) {
+  const u = await exigirGestao();
+  const id = Number(fd.get("idVobi"));
+  const volta = seguro(String(fd.get("volta") ?? "/agenda"));
+  const { programarDoVobi } = await import("@/lib/agenda/atividades");
+  const r = await programarDoVobi(u, id);
+  if (r.ok) { revalidatePath("/agenda"); redirect(`/agenda/atividade/${r.id}?criada=1&volta=${enc(volta)}`); }
+  if (r.formulario) redirect(`/agenda/atividade/nova?tarefa=${id}&volta=${enc(volta)}`);
+  redirect(`/agenda/vobi/${id}?erro=${enc(r.mensagem)}&volta=${enc(volta)}`);
+}

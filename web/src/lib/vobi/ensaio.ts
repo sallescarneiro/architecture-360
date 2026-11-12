@@ -40,8 +40,8 @@ export async function simularEnvio(envioId: number): Promise<Simulacao | null> {
     if ("nome" in c && !String(c.nome ?? "").trim()) bloqueia("Nome da tarefa vazio");
     if ("inicio" in c && c.inicio && Number.isNaN(Date.parse(c.inicio))) bloqueia("Data de início inválida");
     if ("fim" in c && c.fim && Number.isNaN(Date.parse(c.fim))) bloqueia("Data de término inválida");
-    const ini = c.inicio ?? a.inicio.toISOString(), fim = c.fim ?? a.fim.toISOString();
-    if (Date.parse(fim) < Date.parse(ini)) bloqueia("Data de término antes da data de início");
+    const ini = c.inicio ?? a.inicio?.toISOString() ?? null, fim = c.fim ?? a.fim.toISOString();
+    if (ini && Date.parse(fim) < Date.parse(ini)) bloqueia("Data de término antes da data de início");
     if ("prioridade" in c && ![1, 2, 3].includes(Number(c.prioridade))) bloqueia("Prioridade fora dos códigos do Vobi (1, 2, 3)");
     if ("status" in c && ![1, 2, 4, 5].includes(Number(c.status))) bloqueia("Status fora dos códigos do Vobi (1, 2, 4, 5)");
     if ("idResponsavel" in c && c.idResponsavel != null && !vobiParaUsuario.has(c.idResponsavel)) aviso(`responsável nº ${c.idResponsavel} sem acesso correspondente no A360`);

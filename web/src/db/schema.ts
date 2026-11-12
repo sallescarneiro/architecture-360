@@ -1,4 +1,4 @@
-import {
+import { doublePrecision,
   pgTable, serial, integer, text, timestamp, boolean, jsonb, real, customType, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -147,6 +147,7 @@ export const vinculosClienteManual = pgTable("vinculo_cliente_manual", {
 
 export const tarefas = pgTable("tarefa", {
   chave: text("chave").primaryKey(), // codigo|etapa|nome|ocorrencia (provisória até a Vobi expor o ID)
+  idVobi: integer("id_vobi"), // T-219: número da tarefa no Vobi, só quando a correspondência é única (nunca por aproximação)
   projetoCodigo: integer("projeto_codigo"), // null = órfã
   projetoNomeCsv: text("projeto_nome_csv"),
   etapaCsv: text("etapa_csv"),
@@ -583,10 +584,23 @@ export const vobiTarefas = pgTable("vobi_tarefa", {
   inicio: timestamp("inicio", { withTimezone: true }),
   fim: timestamp("fim", { withTimezone: true }),
   duracaoDias: integer("duracao_dias"),
+  estimadaHoras: doublePrecision("estimada_horas"),
+  realizadasHoras: doublePrecision("realizadas_horas"),
+  criadoVobiEm: timestamp("criado_vobi_em", { withTimezone: true }),
   atualizadoVobiEm: timestamp("atualizado_vobi_em", { withTimezone: true }),
   vistoEm: timestamp("visto_em", { withTimezone: true }).notNull().defaultNow(),
   ausenteDesde: timestamp("ausente_desde", { withTimezone: true }),
 }, (t) => [index("vobi_tarefa_proj_idx").on(t.idRefurbish), index("vobi_tarefa_resp_idx").on(t.idResponsavel)]);
+
+/** Histórico das mudanças lidas no Vobi (a cada leitura): datas/horários, responsável, etapa, status, prioridade, nome. */
+export const vobiTarefaHistorico = pgTable("vobi_tarefa_historico", {
+  id: serial("id").primaryKey(),
+  idVobi: integer("id_vobi").notNull(),
+  campo: text("campo").notNull(),
+  antes: text("antes"),
+  depois: text("depois"),
+  lidoEm: timestamp("lido_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("vobi_tarefa_historico_idx").on(t.idVobi)]);
 
 /** Valores de uma tarefa nos termos do Vobi (o que é comparado e, nas próximas fases, enviado). */
 export type CamposVobi = {
@@ -605,7 +619,7 @@ export const atividades = pgTable("atividade", {
   titulo: text("titulo").notNull(),
   descricao: text("descricao"),
   responsavelId: integer("responsavel_id").notNull().references(() => usuarios.id),
-  inicio: timestamp("inicio", { withTimezone: true }).notNull(),
+  inicio: timestamp("inicio", { withTimezone: true }), // vazio quando a tarefa do Vobi só tem término (preservado como está)
   fim: timestamp("fim", { withTimezone: true }).notNull(),
   diaInteiro: boolean("dia_inteiro").notNull().default(false),
   estimadaHoras: integer("estimada_horas"),

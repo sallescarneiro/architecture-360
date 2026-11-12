@@ -72,3 +72,53 @@ export async function diagnosticoCobertura() {
     a360: { atividades: ativs, independentes: ativsIndep, vinculadas: vinculadas.size, espelho: espelho.size },
   };
 }
+
+/**
+ * Indicadores de cobertura a partir do que o A360 já guardou (sem chamar o Vobi). Separados como pedido em 12/11/2026:
+ * importadas e identificadas · vínculo confirmado · pendentes de reconciliação · responsáveis mapeados / sem mapeamento ·
+ * aptas para programação e envio. O bloqueio é por tarefa: uma pendência não trava as tarefas que não afeta.
+ */
+export async function indicadoresCobertura() {
+  const q = async <T,>(s: ReturnType<typeof sql>) => (await db.execute(s)).rows as T[];
+  const mapResp = sql`(select vr.id_vobi from vobi_responsavel vr join pessoa_vobi pv on pv.nome_vobi = vr.nome join usuario u on lower(u.email) = lower(pv.email_rucelle) and u.ativo)`;
+  const [imp] = await q<Record<string, number>>(sql`select count(*)::int total,
+      count(*) filter (where inicio is not null or fim is not null)::int com_data, count(*) filter (where inicio is null and fim is null)::int sem_data,
+      count(*) filter (where status = 1)::int planejadas, count(*) filter (where status = 2)::int andamento, count(*) filter (where status = 4)::int concluidas, count(*) filter (where status = 5)::int canceladas,
+      count(*) filter (where ausente_desde is not null)::int ausentes, max(visto_em) lido_em
+    from vobi_tarefa t where t.id_refurbish in (select codigo from projeto)`);
+  const [vinc] = await q<Record<string, number>>(sql`select
+      (select count(*)::int from tarefa where id_vobi is not null) carga_confirmadas,
+      (select count(*)::int from tarefa where projeto_codigo is not null and id_vobi is null) carga_sem_vinculo,
+      (select count(*)::int from atividade where tarefa_vobi_id is not null) atividades`);
+  // pendências: carga sem número (separando nome repetido = ambíguo) e tarefas do Vobi sem tarefa da carga
+  const ambiguas = await q<{ k: string; n: number }>(sql`select split_part(chave,'|',1)||'|'||split_part(chave,'|',2)||'|'||split_part(chave,'|',3) k, count(*)::int n
+      from tarefa where projeto_codigo is not null and id_vobi is null group by 1 having count(*) > 1`);
+  const [vobiSemCarga] = await q<{ n: number; com_data: number }>(sql`select count(*)::int n, count(*) filter (where t.inicio is not null or t.fim is not null)::int com_data
+      from vobi_tarefa t where t.id_refurbish in (select codigo from projeto) and not exists (select 1 from tarefa c where c.id_vobi = t.id_vobi)`);
+  const resp = await q<{ id: number | null; nome: string | null; mapeado: boolean; n: number; abertas: number }>(sql`select t.id_responsavel id, vr.nome, (t.id_responsavel in ${mapResp}) mapeado,
+      count(*)::int n, count(*) filter (where coalesce(t.status,1) in (1,2))::int abertas
+      from vobi_tarefa t left join vobi_responsavel vr on vr.id_vobi = t.id_responsavel where t.id_refurbish in (select codigo from projeto) group by 1, 2, 3 order by 4 desc`);
+  const [aptas] = await q<Record<string, number>>(sql`select
+      count(*) filter (where coalesce(status,1) in (1,2))::int abertas,
+      count(*) filter (where coalesce(status,1) in (1,2) and id_responsavel in ${mapResp} and fim is not null and ausente_desde is null)::int aptas,
+      count(*) filter (where coalesce(status,1) in (1,2) and id_responsavel is not null and id_responsavel not in ${mapResp})::int bloq_resp,
+      count(*) filter (where coalesce(status,1) in (1,2) and id_responsavel is null)::int bloq_sem_resp,
+      count(*) filter (where coalesce(status,1) in (1,2) and id_responsavel in ${mapResp} and fim is null)::int sem_termino
+    from vobi_tarefa where id_refurbish in (select codigo from projeto)`);
+  const n = (x: unknown) => Number(x ?? 0);
+  const mapeados = resp.filter((r) => r.id != null && r.mapeado), naoMapeados = resp.filter((r) => r.id != null && !r.mapeado), semResp = resp.find((r) => r.id == null);
+  return {
+    importadas: { total: n(imp?.total), comData: n(imp?.com_data), semData: n(imp?.sem_data), planejadas: n(imp?.planejadas), andamento: n(imp?.andamento), concluidas: n(imp?.concluidas), canceladas: n(imp?.canceladas), ausentes: n(imp?.ausentes), lidoEm: imp?.lido_em ? String(imp.lido_em) : null },
+    vinculo: { cargaConfirmadas: n(vinc?.carga_confirmadas), atividades: n(vinc?.atividades) },
+    pendentes: {
+      cargaSemVinculo: n(vinc?.carga_sem_vinculo), ambiguasGrupos: ambiguas.length, ambiguasTarefas: ambiguas.reduce((s, a) => s + n(a.n), 0), ambiguasExemplos: ambiguas.slice(0, 20),
+      vobiSemCarga: n(vobiSemCarga?.n), vobiSemCargaComData: n(vobiSemCarga?.com_data),
+      responsavelSoNumero: naoMapeados.reduce((s, r) => s + n(r.n), 0), semResponsavel: n(semResp?.n),
+    },
+    responsaveis: {
+      mapeados: mapeados.length, tarefasMapeadas: mapeados.reduce((s, r) => s + n(r.n), 0),
+      semMapeamento: naoMapeados.map((r) => ({ id: r.id!, nome: r.nome, tarefas: n(r.n), abertas: n(r.abertas) })),
+    },
+    aptas: { abertas: n(aptas?.abertas), aptas: n(aptas?.aptas), bloqueadasResponsavel: n(aptas?.bloq_resp), bloqueadasSemResponsavel: n(aptas?.bloq_sem_resp), semTermino: n(aptas?.sem_termino) },
+  };
+}

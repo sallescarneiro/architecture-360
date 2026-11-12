@@ -19,7 +19,7 @@ export default async function EditarAtividadePage({ params, searchParams }: { pa
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <PageHeader eyebrow="Architecture 360 · Agenda" title="Alterar atividade" subtitle="O vínculo e o projeto não mudam depois de criados." actions={<LinkButton href={`/agenda/atividade/${a.id}?volta=${encodeURIComponent(volta)}`}>← Voltar</LinkButton>} />
       <FormularioAtividade action={editarAtividadeAction} id={a.id} idAtividade={a.id} edicao volta={volta} erro={sp.erro} pessoas={pessoas} projetos={apoio.projetos} etapas={apoio.etapas} tarefas={apoio.tarefas}
-        valores={{ vinculo: a.vinculo as never, tipo: a.tipo, titulo: a.titulo, descricao: a.descricao ?? "", responsavelId: a.responsavelId, dataInicio: hojeLocal(a.inicio), horaInicio: horaInput(a.inicio),
+        valores={{ vinculo: a.vinculo as never, tipo: a.tipo, titulo: a.titulo, descricao: a.descricao ?? "", responsavelId: a.responsavelId, dataInicio: a.inicio ? hojeLocal(a.inicio) : "", horaInicio: a.inicio ? horaInput(a.inicio) : "",
           dataFim: hojeLocal(a.fim), horaFim: horaInput(a.fim), diaInteiro: a.diaInteiro, estimada: a.estimadaHoras?.toString() ?? "", prioridade: a.prioridade, status: a.status,
           projeto: a.projetoCodigo, etapa: a.etapaVobiId, tarefa: a.tarefaVobiId }} />
     </div>

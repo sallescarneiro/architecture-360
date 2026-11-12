@@ -53,7 +53,7 @@ export default async function AtividadePage({ params, searchParams }: { params: 
 
       <Card title="Programação">
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          <div><dt className="text-xs text-[var(--muted)]">Data de início</dt><dd>{a.diaInteiro ? a.inicio.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : dataHora(a.inicio)}</dd></div>
+          <div><dt className="text-xs text-[var(--muted)]">Data de início</dt><dd>{!a.inicio ? "— (a tarefa no Vobi não tem início)" : a.diaInteiro ? a.inicio.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : dataHora(a.inicio)}</dd></div>
           <div><dt className="text-xs text-[var(--muted)]">Data de término (prazo)</dt><dd className="font-semibold">{a.diaInteiro ? a.fim.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : dataHora(a.fim)}</dd></div>
           <div><dt className="text-xs text-[var(--muted)]">Responsável</dt><dd>{resp?.nome}</dd></div>
           {a.estimadaHoras != null && <div><dt className="text-xs text-[var(--muted)]">Duração estimada</dt><dd>{a.estimadaHoras} h</dd></div>}

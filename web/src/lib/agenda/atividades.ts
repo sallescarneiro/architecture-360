@@ -33,7 +33,7 @@ export const instante = (dia: string, hora: string) => new Date(`${dia}T${hora}:
 export type DadosAtividade = {
   vinculo: "independente" | "tarefa_existente" | "nova_tarefa";
   tipo: string; titulo: string; descricao: string | null; responsavelId: number;
-  inicio: Date; fim: Date; diaInteiro: boolean; estimadaHoras: number | null; prioridade: number; status: number;
+  inicio: Date | null; fim: Date; diaInteiro: boolean; estimadaHoras: number | null; prioridade: number; status: number;
   projetoCodigo: number | null; etapaVobiId: number | null; tarefaVobiId: number | null;
 };
 
@@ -50,11 +50,13 @@ export async function lerFormulario(fd: FormData): Promise<{ dados: DadosAtivida
   const resp = (await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(and(eq(schema.usuarios.id, responsavelId), eq(schema.usuarios.ativo, true))))[0];
   if (!resp) return { erro: "Responsável inválida." };
   const di = s("data_inicio"), df = s("data_fim"), diaInteiro = s("dia_inteiro") === "1";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(di) || !/^\d{4}-\d{2}-\d{2}$/.test(df)) return { erro: "Informe a data de início e a data de término (prazo)." };
+  // tarefa do Vobi pode não ter início (preservado vazio); atividade independente exige as duas datas
+  const semInicio = !di && vinculo !== "independente";
+  if ((!semInicio && !/^\d{4}-\d{2}-\d{2}$/.test(di)) || !/^\d{4}-\d{2}-\d{2}$/.test(df)) return { erro: "Informe a data de início e a data de término (prazo)." };
   const hi = diaInteiro ? "00:00" : s("hora_inicio") || "09:00", hf = diaInteiro ? "23:59" : s("hora_fim") || "18:00";
   if (!/^\d{2}:\d{2}$/.test(hi) || !/^\d{2}:\d{2}$/.test(hf)) return { erro: "Horário inválido." };
-  const inicio = instante(di, hi), fim = instante(df, hf);
-  if (fim.getTime() < inicio.getTime()) return { erro: "A data de término (prazo) não pode ser antes do início." };
+  const inicio = semInicio ? null : instante(di, hi), fim = instante(df, hf);
+  if (inicio && fim.getTime() < inicio.getTime()) return { erro: "A data de término (prazo) não pode ser antes do início." };
   const prioridade = n("prioridade") ?? 2, status = n("status") ?? 1;
   if (!PRIORIDADE_VOBI[prioridade] || !STATUS_VOBI[status]) return { erro: "Prioridade ou status inválido." };
   const estimadaHoras = n("estimada");
@@ -87,7 +89,7 @@ async function camposDaAtividade(d: Pick<DadosAtividade, "titulo" | "etapaVobiId
   const { usuarioParaVobi, vobiParaUsuario } = await mapaResponsaveis();
   // a mesma pessoa pode ter mais de um número no Vobi: se a tarefa já é dela, mantém o número que está lá
   const idResp = base?.idResponsavel != null && vobiParaUsuario.get(base.idResponsavel) === d.responsavelId ? base.idResponsavel : usuarioParaVobi.get(d.responsavelId) ?? null;
-  return { nome: d.titulo, idEtapa: d.etapaVobiId, idResponsavel: idResp, inicio: d.inicio.toISOString(), fim: d.fim.toISOString(), prioridade: d.prioridade, status: d.status };
+  return { nome: d.titulo, idEtapa: d.etapaVobiId, idResponsavel: idResp, inicio: d.inicio ? d.inicio.toISOString() : null, fim: d.fim.toISOString(), prioridade: d.prioridade, status: d.status };
 }
 
 const hist = (atividadeId: number, usuarioId: number | null, resumo: string, antes?: unknown, depois?: unknown, origem = "a360") =>
@@ -197,7 +199,7 @@ export async function obterAtividade(u: Usuario, id: number): Promise<Atividade 
 
 export async function listarAtividades(u: Usuario, f: { responsavelIds: number[] | null; de: Date; ate: Date; projeto?: number | null; incluirCanceladas?: boolean }): Promise<Atividade[]> {
   const ids = podeGerirAgenda(u.perfil) ? f.responsavelIds : [u.id]; // arquiteta: sempre só ela, qualquer que seja o filtro pedido
-  const cond = [lte(schema.atividades.inicio, f.ate), gte(schema.atividades.fim, f.de)];
+  const cond = [lte(sql`coalesce(${schema.atividades.inicio}, ${schema.atividades.fim})`, f.ate), gte(schema.atividades.fim, f.de)];
   if (ids) cond.push(inArray(schema.atividades.responsavelId, ids.length ? ids : [-1]));
   if (f.projeto) cond.push(eq(schema.atividades.projetoCodigo, f.projeto));
   if (!f.incluirCanceladas) cond.push(ne(schema.atividades.status, 5));
@@ -241,16 +243,62 @@ export async function apoioVinculo() {
   };
 }
 
-/** Prazos de tarefas do Vobi (espelho) de quem não tem atividade ligada — camada opcional da agenda. */
-export async function prazosVobi(f: { idsVobi: number[] | null; de: Date; ate: Date; projeto?: number | null }) {
-  const cond = [isNull(schema.vobiTarefas.ausenteDesde), gte(schema.vobiTarefas.fim, f.de), lte(schema.vobiTarefas.fim, f.ate),
+/**
+ * Camada "Programação do Vobi" (T-219, 12/11/2026): tarefas do espelho com data no período, de qualquer status, que ainda
+ * não foram programadas no A360 (as programadas aparecem como atividade, sem duplicar). Só leitura.
+ */
+export async function programacaoVobi(f: { idsVobi: number[] | null; de: Date; ate: Date; projeto?: number | null }) {
+  const cond = [
+    sql`coalesce(${schema.vobiTarefas.inicio}, ${schema.vobiTarefas.fim}) <= ${f.ate.toISOString()}`,
+    sql`coalesce(${schema.vobiTarefas.fim}, ${schema.vobiTarefas.inicio}) >= ${f.de.toISOString()}`,
+    sql`${schema.vobiTarefas.idRefurbish} in (select codigo from projeto)`,
+  ];
+  if (f.idsVobi) cond.push(inArray(schema.vobiTarefas.idResponsavel, f.idsVobi.length ? f.idsVobi : [-1]));
+  if (f.projeto) cond.push(eq(schema.vobiTarefas.idRefurbish, f.projeto));
+  return db.select({ t: schema.vobiTarefas, projeto: schema.projetos.nome }).from(schema.vobiTarefas)
+    .leftJoin(schema.projetos, eq(schema.projetos.codigo, schema.vobiTarefas.idRefurbish))
+    .leftJoin(schema.atividades, eq(schema.atividades.tarefaVobiId, schema.vobiTarefas.idVobi))
+    .where(and(...cond, isNull(schema.atividades.id))).orderBy(asc(schema.vobiTarefas.fim)).limit(800);
+}
+
+/** Tarefas do Vobi sem nenhuma data (não são descartadas: ficam listadas por pessoa). */
+export async function semDataVobi(f: { idsVobi: number[] | null; projeto?: number | null }) {
+  const cond = [isNull(schema.vobiTarefas.inicio), isNull(schema.vobiTarefas.fim), sql`${schema.vobiTarefas.idRefurbish} in (select codigo from projeto)`,
     or(isNull(schema.vobiTarefas.status), inArray(schema.vobiTarefas.status, [1, 2]))!];
   if (f.idsVobi) cond.push(inArray(schema.vobiTarefas.idResponsavel, f.idsVobi.length ? f.idsVobi : [-1]));
   if (f.projeto) cond.push(eq(schema.vobiTarefas.idRefurbish, f.projeto));
   return db.select({ t: schema.vobiTarefas, projeto: schema.projetos.nome }).from(schema.vobiTarefas)
     .leftJoin(schema.projetos, eq(schema.projetos.codigo, schema.vobiTarefas.idRefurbish))
     .leftJoin(schema.atividades, eq(schema.atividades.tarefaVobiId, schema.vobiTarefas.idVobi))
-    .where(and(...cond, isNull(schema.atividades.id))).orderBy(asc(schema.vobiTarefas.fim)).limit(400);
+    .where(and(...cond, isNull(schema.atividades.id))).orderBy(asc(schema.projetos.nome)).limit(300);
+}
+
+/**
+ * "Programar no A360": cria a atividade com os valores EXATOS da tarefa do Vobi (número, projeto, etapa, responsável, datas e
+ * horários, status, prioridade). Não gera nada para enviar. Bloqueia individualmente se o responsável não estiver mapeado
+ * ou se a tarefa não tiver término (aí a gestão programa pelo formulário).
+ */
+export async function programarDoVobi(u: Usuario, idVobi: number): Promise<{ ok: true; id: number } | { ok: false; mensagem: string; formulario?: boolean }> {
+  if (!podeGerirAgenda(u.perfil)) return { ok: false, mensagem: "Só a gestão programa atividades." };
+  const ja = (await db.select({ id: schema.atividades.id }).from(schema.atividades).where(eq(schema.atividades.tarefaVobiId, idVobi)))[0];
+  if (ja) return { ok: true, id: ja.id }; // já programada: abre a existente, sem duplicar
+  const t = (await db.select().from(schema.vobiTarefas).where(eq(schema.vobiTarefas.idVobi, idVobi)))[0];
+  if (!t) return { ok: false, mensagem: "Tarefa não encontrada no espelho do Vobi." };
+  if (!t.idRefurbish) return { ok: false, mensagem: "Tarefa sem projeto: fora do escopo do A360." };
+  const { vobiParaUsuario } = await mapaResponsaveis();
+  const resp = t.idResponsavel != null ? vobiParaUsuario.get(t.idResponsavel) : undefined;
+  if (!resp) return { ok: false, mensagem: t.idResponsavel == null ? "A tarefa está sem responsável no Vobi." : `O responsável nº ${t.idResponsavel} ainda não está mapeado em Pessoas.` };
+  if (!t.fim) return { ok: false, mensagem: "A tarefa não tem data de término no Vobi: programe pelo formulário.", formulario: true };
+  const meiaNoite = (d: Date | null) => !d || new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(d) === "00:00";
+  const baseVobi = { ...camposDaTarefa(t), atualizadoVobiEm: t.atualizadoVobiEm?.toISOString() ?? null };
+  const [a] = await db.insert(schema.atividades).values({
+    vinculo: "tarefa_existente", tipo: "tarefa", titulo: t.nome, descricao: null, responsavelId: resp, inicio: t.inicio, fim: t.fim,
+    diaInteiro: meiaNoite(t.inicio) && meiaNoite(t.fim), estimadaHoras: t.estimadaHoras != null ? Math.round(t.estimadaHoras) : null,
+    prioridade: t.prioridade ?? 2, status: t.status ?? 1, projetoCodigo: t.idRefurbish, etapaVobiId: t.idEtapa, tarefaVobiId: t.idVobi,
+    baseVobi, pendentes: {}, conflitos: {}, estadoVobi: "sincronizada", criadoPorId: u.id, atualizadoPorId: u.id,
+  }).returning({ id: schema.atividades.id });
+  await hist(a.id, u.id, `Programada no A360 a partir da tarefa nº ${t.idVobi} do Vobi, com os valores exatos do Vobi (nada a enviar)`, null, baseVobi);
+  return { ok: true, id: a.id };
 }
 
 export async function pendencias() {

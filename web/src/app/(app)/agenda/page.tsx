@@ -4,13 +4,14 @@ import { agendaConfigurada } from "@/lib/agenda/cifra";
 import { podeEscrever } from "@/lib/agenda/google";
 import { conexaoDe, eventosDe, sincronizar } from "@/lib/agenda/sync";
 import { dataCurta, dataHora, dataLonga, hora, diaValido, fimDoDia, hojeLocal, inicioDoDia, inicioMes, inicioSemana, mesAno, somaDias, somaMeses } from "@/lib/agenda/datas";
-import { contagemFila, listarAtividades, pendencias, pessoasDaAgenda, podeGerirAgenda, prazosVobi, apoioVinculo, type Atividade } from "@/lib/agenda/atividades";
+import { contagemFila, listarAtividades, pendencias, pessoasDaAgenda, podeGerirAgenda, programacaoVobi, semDataVobi, apoioVinculo, type Atividade } from "@/lib/agenda/atividades";
 import { deEvento, Legenda, Mes, Semana, type ItemCal } from "@/components/agenda/Calendario";
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
 import { atualizarAgendaAction } from "./actions";
 
 type Visao = "mes" | "semana" | "dia";
 const TOM_VINCULADA = "var(--vinho)", TOM_INDEPENDENTE = "var(--st-ok)", TOM_PRAZO = "var(--st-breve)";
+const STATUS_V: Record<number, string> = { 1: "Planejado", 2: "Em andamento", 4: "Concluído", 5: "Cancelado" };
 const iniciais = (nome: string) => nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
 
 /**
@@ -33,7 +34,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   // Google: na visão da equipe fica desligado por padrão (as agendas compartilhadas repetem os mesmos compromissos)
   const comGoogle = consolidada ? sp.google === "1" : sp.google !== "0";
   const projetoSel = sp.projeto && /^\d+$/.test(sp.projeto) ? Number(sp.projeto) : null;
-  const comVobi = sp.vobi === "1";
+  const comVobi = sp.vobi !== "0"; // "Programação do Vobi" aparece por padrão (T-219)
 
   const configurada = agendaConfigurada();
   const sinc = configurada && (pessoaSel === u.id || consolidada) ? await sincronizar(u.id) : null;
@@ -45,7 +46,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   else { dias = [d]; titulo = dataLonga(d); ant = somaDias(d, -1); prox = somaDias(d, 1); }
   const de = inicioDoDia(dias[0]), ate = fimDoDia(dias[dias.length - 1]);
   const params = (o: Record<string, string | number | null | undefined>) => {
-    const base: Record<string, string | number | null | undefined> = { v, d, pessoa: gestao ? (pessoaSel ?? undefined) : undefined, projeto: projetoSel ?? undefined, vobi: comVobi ? 1 : undefined, google: consolidada ? (comGoogle ? 1 : undefined) : (comGoogle ? undefined : 0), ...o };
+    const base: Record<string, string | number | null | undefined> = { v, d, pessoa: gestao ? (pessoaSel ?? undefined) : undefined, projeto: projetoSel ?? undefined, vobi: comVobi ? undefined : 0, google: consolidada ? (comGoogle ? 1 : undefined) : (comGoogle ? undefined : 0), ...o };
     return "/agenda?" + Object.entries(base).filter(([, x]) => x !== undefined && x !== null && x !== "").map(([k, x]) => `${k}=${encodeURIComponent(String(x))}`).join("&");
   };
   const atual = params({});
@@ -60,10 +61,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       tom: a.vinculo === "independente" ? TOM_INDEPENDENTE : TOM_VINCULADA, quem: consolidada ? iniciais(nomePor.get(a.responsavelId) ?? "?") : undefined, classe: "ev-ativ",
       dica: `${a.vinculo === "independente" ? "Atividade independente" : "Tarefa do Vobi"} · ${nomePor.get(a.responsavelId) ?? ""} · ${a.titulo} · prazo ${dataHora(a.fim)}`,
     };
-    const d0 = hojeLocal(a.inicio), d1 = hojeLocal(a.fim);
-    if (d0 === d1) return [{ ...base, chave: `a${a.id}`, inicio: a.inicio, fim: a.fim, diaInteiro: a.diaInteiro, titulo: a.titulo }];
+    const ini = a.inicio ?? a.fim; // tarefa do Vobi só com término: aparece como prazo
+    const d0 = hojeLocal(ini), d1 = hojeLocal(a.fim);
+    if (d0 === d1) return [{ ...base, chave: `a${a.id}`, inicio: ini, fim: a.fim, diaInteiro: a.diaInteiro || !a.inicio, titulo: a.inicio ? a.titulo : `prazo · ${a.titulo}` }];
     const marcas: ItemCal[] = [{ ...base, chave: `a${a.id}f`, inicio: inicioDoDia(d1), fim: fimDoDia(d1), diaInteiro: true, titulo: `prazo ${a.diaInteiro ? "" : `${hora(a.fim)} `}· ${a.titulo}` }];
-    if (a.inicio >= de) marcas.push({ ...base, chave: `a${a.id}i`, inicio: inicioDoDia(d0), fim: fimDoDia(d0), diaInteiro: true, titulo: `início · ${a.titulo}`, classe: "ev-ativ ev-inicio" });
+    if (a.inicio && a.inicio >= de) marcas.push({ ...base, chave: `a${a.id}i`, inicio: inicioDoDia(d0), fim: fimDoDia(d0), diaInteiro: true, titulo: `início · ${a.titulo}`, classe: "ev-ativ ev-inicio" });
     return marcas;
   });
   // 2. Google Agenda (espelho já sincronizado de cada pessoa; só a própria é lida do Google agora)
@@ -78,20 +80,30 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       }
     }
   }
-  // 3. prazos de tarefas do Vobi sem atividade (camada opcional, só leitura)
+  // 3. Programação do Vobi: tarefas com data ainda não programadas no A360 (só leitura; as programadas aparecem como atividade)
   let semNumero = 0;
+  let semData: Awaited<ReturnType<typeof semDataVobi>> = [];
   if (comVobi) {
     const idsVobi = pessoaSel === null ? null : (() => { const p = pessoas.find((x) => x.id === pessoaSel); if (!p?.idsVobi.length) semNumero = 1; return p?.idsVobi ?? []; })();
     const porVobi = new Map(pessoas.flatMap((p) => p.idsVobi.map((i) => [i, p.nome] as [number, string])));
-    for (const { t, projeto } of await prazosVobi({ idsVobi, de, ate, projeto: projetoSel })) {
-      const dia = hojeLocal(t.fim!);
-      itens.push({
-        chave: `v${t.idVobi}`, inicio: inicioDoDia(dia), fim: fimDoDia(dia), diaInteiro: true, privado: false, titulo: `prazo: ${t.nome}`, local: null, tipo: "prazo_vobi",
-        href: gestao ? `/agenda/atividade/nova?tarefa=${t.idVobi}&volta=${encodeURIComponent(atual)}` : `/projetos/${t.idRefurbish}`, tom: TOM_PRAZO, classe: "ev-prazo",
+    for (const { t, projeto } of await programacaoVobi({ idsVobi, de, ate, projeto: projetoSel })) {
+      const feita = t.status === 4 || t.status === 5;
+      const base = {
+        privado: false, local: null, tipo: "programacao_vobi", href: `/agenda/vobi/${t.idVobi}?volta=${encodeURIComponent(atual)}`, tom: TOM_PRAZO, classe: `ev-prazo${feita ? " ev-feito" : ""}`,
         quem: consolidada ? iniciais(porVobi.get(t.idResponsavel ?? -1) ?? "?") : undefined,
-        dica: `Prazo no Vobi · ${projeto ?? ""} · ${t.nome}${gestao ? " · clique para programar no A360" : ""}`,
-      });
+        dica: `Programação do Vobi · nº ${t.idVobi} · ${projeto ?? ""} · ${t.nome} · ${STATUS_V[t.status ?? 1] ?? ""}${t.idResponsavel != null && !porVobi.has(t.idResponsavel) ? ` · responsável nº ${t.idResponsavel} não mapeado` : ""}`,
+      };
+      const ini = t.inicio ?? t.fim!, fim = t.fim ?? t.inicio!;
+      const d0 = hojeLocal(ini), d1 = hojeLocal(fim);
+      const rot = (x: string) => `${feita ? `${STATUS_V[t.status!]} · ` : ""}${x}`;
+      if (d0 === d1 && t.inicio && t.fim && hora(t.inicio) !== "00:00") itens.push({ ...base, chave: `v${t.idVobi}`, inicio: t.inicio, fim: t.fim, diaInteiro: false, titulo: rot(t.nome) });
+      else {
+        if (t.fim) itens.push({ ...base, chave: `v${t.idVobi}f`, inicio: inicioDoDia(d1), fim: fimDoDia(d1), diaInteiro: true, titulo: rot(`término · ${t.nome}`) });
+        if (t.inicio && d0 !== d1 && t.inicio >= de) itens.push({ ...base, chave: `v${t.idVobi}i`, inicio: inicioDoDia(d0), fim: fimDoDia(d0), diaInteiro: true, titulo: rot(`início · ${t.nome}`), classe: `${base.classe} ev-inicio` });
+        if (t.inicio && !t.fim) itens.push({ ...base, chave: `v${t.idVobi}i`, inicio: inicioDoDia(d0), fim: fimDoDia(d0), diaInteiro: true, titulo: rot(`início (sem término) · ${t.nome}`) });
+      }
     }
+    if (pessoaSel !== null) semData = await semDataVobi({ idsVobi, projeto: projetoSel });
   }
 
   const [pend, fila] = gestao ? [await pendencias(), await contagemFila()] : [[], 0];
@@ -142,7 +154,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
             </select>
           </label>
-          <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="vobi" value="1" defaultChecked={comVobi} /> prazos das tarefas do Vobi</label>
+          <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="vobi" value="0" defaultChecked={!comVobi} /> esconder Programação do Vobi</label>
           {consolidada
             ? <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="google" value="1" defaultChecked={comGoogle} /> mostrar compromissos do Google</label>
             : <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="google" value="0" defaultChecked={!comGoogle} /> esconder Google</label>}
@@ -151,7 +163,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       )}
       {!gestao && (
         <div className="flex flex-wrap gap-2 text-sm">
-          <Link className="btn btn-secondary btn-sm" href={params({ vobi: comVobi ? undefined : 1 })}>{comVobi ? "Esconder" : "Mostrar"} prazos das minhas tarefas do Vobi</Link>
+          <Link className="btn btn-secondary btn-sm" href={params({ vobi: comVobi ? 0 : undefined })}>{comVobi ? "Esconder" : "Mostrar"} a Programação do Vobi</Link>
         </div>
       )}
 
@@ -171,12 +183,17 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       {v === "mes" ? <Mes dias={dias} eventos={itens} hoje={hoje} mesRef={d} volta={atual} novo={novo} /> : <Semana dias={dias} eventos={itens} hoje={hoje} volta={atual} agora={agora} novo={novo} />}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-[0.72rem] text-[var(--muted)]">
-          <Badge color={TOM_VINCULADA}>atividade · tarefa do Vobi</Badge><Badge color={TOM_INDEPENDENTE}>atividade independente</Badge>{comVobi && <Badge color={TOM_PRAZO}>prazo no Vobi (sem programação)</Badge>}
+          <Badge color={TOM_VINCULADA}>atividade · tarefa do Vobi</Badge><Badge color={TOM_INDEPENDENTE}>atividade independente</Badge>{comVobi && <Badge color={TOM_PRAZO}>Programação do Vobi (ainda não programada no A360)</Badge>}
           {consolidada && <span>· iniciais = pessoa</span>}
         </div>
         {comGoogle && <Legenda />}
       </div>
       {sinc?.motivo === "cache" && <span className="text-[0.72rem] text-[var(--muted)]">Google: dados com menos de 10 min · eventos fora da janela de −7/+60 dias não são lidos</span>}
+      {semData.length > 0 && (
+        <details className="card px-3 py-2"><summary className="cursor-pointer text-sm font-semibold">Tarefas do Vobi sem data ({semData.length}) — não aparecem no calendário, mas não são descartadas</summary>
+          <ul className="mt-2 flex flex-col gap-1 text-sm">{semData.map(({ t, projeto }) => <li key={t.idVobi}><Link className="underline" href={`/agenda/vobi/${t.idVobi}?volta=${encodeURIComponent(atual)}`}>{t.nome}</Link> <span className="text-[var(--muted)]">· {projeto} · nº {t.idVobi} · {STATUS_V[t.status ?? 1]}</span></li>)}</ul>
+        </details>
+      )}
       <p className="text-[0.74rem] text-[var(--muted)]">
         {gestao ? "Clique num horário vazio para programar uma atividade. " : ""}Prazo da atividade = Data de término, o mesmo campo da tarefa no Vobi.
         Vobi: <b>escrita desligada (Fase 0)</b> — as mudanças em atividades ligadas ao Vobi ficam registradas como “aguardando envio”; nada é gravado no Vobi.
