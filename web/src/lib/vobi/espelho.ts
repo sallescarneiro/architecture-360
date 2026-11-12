@@ -59,7 +59,9 @@ export async function mapaResponsaveis() {
 /** Atualiza o espelho com a leitura completa da API e reconcilia as atividades vinculadas. */
 export async function atualizarEspelho(v: LeituraVobi): Promise<{ etapas: number; tarefas: number; reconciliadas: number; conflitos: number }> {
   // etapas (projetos da listagem lidos projeto a projeto)
-  const etapas = v.etapas.filter((e) => num(e.id) != null && num(e.idRefurbish) != null).map((e) => ({
+  // sem repetir o mesmo número (a paginação do Vobi pode devolver a mesma etapa duas vezes)
+  const vistasEt = new Set<number>();
+  const etapas = v.etapas.filter((e) => num(e.id) != null && num(e.idRefurbish) != null && !vistasEt.has(num(e.id)!) && (vistasEt.add(num(e.id)!), true)).map((e) => ({
     idVobi: num(e.id)!, idRefurbish: num(e.idRefurbish)!, nome: txt(e.name) || "(sem nome)", ordem: num(e.order), inicio: data(e.startDate), fim: data(e.endDate), vistoEm: new Date(),
   }));
   for (let i = 0; i < etapas.length; i += 500) {
@@ -71,7 +73,8 @@ export async function atualizarEspelho(v: LeituraVobi): Promise<{ etapas: number
   // tarefas do escopo: projetos que já estão no A360 (decisão de 12/11: as 2.259, qualquer status, com ou sem data;
   // fora: projetos antigos fora do recorte e tarefas sem projeto)
   const escopo = await projetosDoA360();
-  const vistas = v.tarefas.filter((t) => num(t.id) != null && escopo.has(num(t.idRefurbish) ?? -1)).map(linhaTarefa);
+  const vistasT = new Set<number>();
+  const vistas = v.tarefas.filter((t) => num(t.id) != null && escopo.has(num(t.idRefurbish) ?? -1) && !vistasT.has(num(t.id)!) && (vistasT.add(num(t.id)!), true)).map(linhaTarefa);
   await gravarTarefas(vistas);
   const idsVistos = new Set(vistas.map((t) => t.idVobi));
 
@@ -152,8 +155,10 @@ export async function cargaInicialProgramacao() {
     ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), resultado: { lidas: tarefas.length, doEscopo: doEscopo.length, projetos: projs.length, etapasLidas: etapas.length, espelho: r, vinculo: v } };
     return { ok: true };
   } catch (e) {
-    ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), erro: (e as Error).message };
-    return { ok: false, mensagem: (e as Error).message };
+    const err = e as Error & { cause?: { message?: string } };
+    const msg = (err.cause?.message ?? err.message).slice(0, 400); // causa real do banco, sem a consulta inteira
+    ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), erro: msg };
+    return { ok: false, mensagem: msg };
   } finally { cargaEmAndamento = false; }
 }
 
