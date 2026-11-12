@@ -1,0 +1,1 @@
+ALTER TABLE "vobi_etapa" ALTER COLUMN "ordem" SET DATA TYPE double precision;

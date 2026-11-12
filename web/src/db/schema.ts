@@ -566,7 +566,7 @@ export const vobiEtapas = pgTable("vobi_etapa", {
   idVobi: integer("id_vobi").primaryKey(),
   idRefurbish: integer("id_refurbish").notNull(),
   nome: text("nome").notNull(),
-  ordem: integer("ordem"),
+  ordem: doublePrecision("ordem"), // o Vobi usa ordem fracionária (ex.: 8.75)
   inicio: timestamp("inicio", { withTimezone: true }),
   fim: timestamp("fim", { withTimezone: true }),
   vistoEm: timestamp("visto_em", { withTimezone: true }).notNull().defaultNow(),
