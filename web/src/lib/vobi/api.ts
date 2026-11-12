@@ -54,7 +54,8 @@ async function get<T>(caminho: string, params: Record<string, string | number>, 
   // limite de requisições do Vobi (429): espera mais e insiste mais (até ~10 min no total); 5xx: até 4 tentativas
   const limite = r.status === 429 ? 7 : 4;
   if ((r.status === 429 || r.status >= 500) && tentativa < limite) {
-    const espera = Number(r.headers.get("retry-after")) * 1000 || (r.status === 429 ? 15_000 * 2 ** Math.min(tentativa, 3) : 1000 * 2 ** tentativa);
+    const ra = r.headers.get("retry-after");
+    const espera = ra != null && Number.isFinite(Number(ra)) ? Number(ra) * 1000 : (r.status === 429 ? 15_000 * 2 ** Math.min(tentativa, 3) : 1000 * 2 ** tentativa);
     await dormir(Math.min(espera, 120_000));
     return get(caminho, params, tentativa + 1);
   }
@@ -115,7 +116,7 @@ export async function lerVobi(progresso?: Progresso, codigosBase: number[] = [])
   for (const [i, id] of ids.entries()) {
     const rows = await listarTudo("/v2/refurbish-step", { "where[idRefurbish]": String(id) }, undefined, 100);
     // sem as tarefas embutidas: só o que o A360 usa
-    for (const r of rows) etapas.push({ id: r.id, idRefurbish: r.idRefurbish, name: r.name, order: r.order });
+    for (const r of rows) etapas.push({ id: r.id, idRefurbish: r.idRefurbish, name: r.name, order: r.order, startDate: r.startDate, endDate: r.endDate });
     await progresso?.("/v2/refurbish-step", i + 1, ids.length);
   }
   const etapasProjeto = await listarTudo("/v2/step", {}, progresso);
@@ -123,3 +124,15 @@ export async function lerVobi(progresso?: Progresso, codigosBase: number[] = [])
   return { projetos, ausentes, listagem, tarefas, etapas, etapasProjeto, clientes };
 }
 export type LeituraVobi = Awaited<ReturnType<typeof lerVobi>>;
+
+/** Uma tarefa pelo número (GET /v2/task/{id}) — só leitura. null = o Vobi respondeu que não existe (404). */
+export async function lerTarefa(id: number): Promise<Record<string, unknown> | null> {
+  try {
+    const r = await get<Record<string, unknown> & { rows?: Record<string, unknown>[] }>(`/v2/task/${id}`, {});
+    const t = Array.isArray(r.rows) ? r.rows[0] : r;
+    return t && Number(t.id) === id ? t : null;
+  } catch (e) {
+    if (e instanceof ErroVobi && e.status === 404) return null;
+    throw e;
+  }
+}

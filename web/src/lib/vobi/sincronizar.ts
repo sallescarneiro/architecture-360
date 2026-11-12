@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import { executarCarga } from "@/lib/importador/importador";
 import { ErroVobi, apiConfigurada, lerVobi } from "./api";
 import { montarArquivos } from "./adaptador";
+import { atualizarEspelho } from "./espelho";
 
 export type ResultadoSinc = { cargaId: number | null; status: string; mensagem: string };
 export const hojeSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -40,6 +41,8 @@ export async function sincronizarVobi(opts: { disparo: "agenda" | "manual"; usua
     for (const r of m.diagnostico.responsaveis.novosPorCorrespondencia) {
       await db.insert(schema.vobiResponsaveis).values({ idVobi: r.id, nome: r.nome, origem: "auto_csv" }).onConflictDoNothing();
     }
+    // T-219: espelho de etapas/tarefas com os números do Vobi + reconciliação das atividades da Agenda (só leitura)
+    try { await atualizarEspelho(leitura); } catch (e) { console.error("[vobi] espelho:", (e as Error).message); }
     const meta = {
       hashProjetos: m.projetos.hash, linhasProjetos: m.projetos.linhas.length, hashTarefas: m.tarefas.hash, linhasTarefas: m.tarefas.linhas.length,
       arqClientes: m.clientes ? "API Vobi · clientes" : null, hashClientes: m.clientes?.hash ?? null, linhasClientes: m.clientes?.linhas.length ?? null,

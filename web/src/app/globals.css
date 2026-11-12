@@ -296,3 +296,8 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .tl-origem-a360{background:var(--vinho)}.tl-origem-vobi{background:#8a9bb0}
 .tl-corpo{min-width:0;font-size:.86rem}
 @media (max-width:700px){.tl-item{grid-template-columns:1fr}}
+
+/* T-219 — Agenda gerencial: atividade do A360 com marcador cheio; prazo do Vobi tracejado */
+.ev-ativ { font-weight: 600; }
+.ev-prazo { border-style: dashed !important; opacity: 0.9; }
+.ev-inicio { font-weight: 400; opacity: 0.75; }

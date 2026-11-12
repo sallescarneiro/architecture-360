@@ -555,3 +555,96 @@ export const historicoEntregavel = pgTable("entregavel_historico", {
   depois: jsonb("depois"),
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("entregavel_historico_idx").on(t.entregavelId)]);
+
+// ---------------------------------------------------------------------------
+// T-219 — Agenda gerencial das arquitetas + base da integração bidirecional com o Vobi (Fase 0: sem escrita no Vobi).
+// ---------------------------------------------------------------------------
+
+/** Espelho das etapas do cronograma (refurbish-step) lidas pela API — identificador real do Vobi. */
+export const vobiEtapas = pgTable("vobi_etapa", {
+  idVobi: integer("id_vobi").primaryKey(),
+  idRefurbish: integer("id_refurbish").notNull(),
+  nome: text("nome").notNull(),
+  ordem: integer("ordem"),
+  inicio: timestamp("inicio", { withTimezone: true }),
+  fim: timestamp("fim", { withTimezone: true }),
+  vistoEm: timestamp("visto_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("vobi_etapa_proj_idx").on(t.idRefurbish)]);
+
+/** Espelho das tarefas do Vobi (task) com o número único — base do vínculo atividade ↔ tarefa. Nunca apagado: ausência é marcada. */
+export const vobiTarefas = pgTable("vobi_tarefa", {
+  idVobi: integer("id_vobi").primaryKey(),
+  idRefurbish: integer("id_refurbish"),
+  idEtapa: integer("id_etapa"),
+  nome: text("nome").notNull(),
+  idResponsavel: integer("id_responsavel"),
+  status: integer("status"),
+  prioridade: integer("prioridade"),
+  inicio: timestamp("inicio", { withTimezone: true }),
+  fim: timestamp("fim", { withTimezone: true }),
+  duracaoDias: integer("duracao_dias"),
+  atualizadoVobiEm: timestamp("atualizado_vobi_em", { withTimezone: true }),
+  vistoEm: timestamp("visto_em", { withTimezone: true }).notNull().defaultNow(),
+  ausenteDesde: timestamp("ausente_desde", { withTimezone: true }),
+}, (t) => [index("vobi_tarefa_proj_idx").on(t.idRefurbish), index("vobi_tarefa_resp_idx").on(t.idResponsavel)]);
+
+/** Valores de uma tarefa nos termos do Vobi (o que é comparado e, nas próximas fases, enviado). */
+export type CamposVobi = {
+  nome?: string; idEtapa?: number | null; idResponsavel?: number | null; inicio?: string | null; fim?: string | null;
+  prioridade?: number | null; status?: number | null; duracaoDias?: number | null;
+};
+
+/**
+ * Atividade programada pela gestão. Independente (só A360) ou vinculada a uma tarefa do Vobi (existente ou a criar).
+ * O prazo É a Data de término (fim) — o mesmo campo endDate da tarefa no Vobi (decisão de Rodrigo, 12/11/2026).
+ */
+export const atividades = pgTable("atividade", {
+  id: serial("id").primaryKey(),
+  vinculo: text("vinculo").notNull(), // independente | tarefa_existente | nova_tarefa
+  tipo: text("tipo").notNull(), // tarefa (vinculadas) | reuniao_interna | treinamento | estudo | alinhamento | administrativa | outra
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao"),
+  responsavelId: integer("responsavel_id").notNull().references(() => usuarios.id),
+  inicio: timestamp("inicio", { withTimezone: true }).notNull(),
+  fim: timestamp("fim", { withTimezone: true }).notNull(),
+  diaInteiro: boolean("dia_inteiro").notNull().default(false),
+  estimadaHoras: integer("estimada_horas"),
+  prioridade: integer("prioridade").notNull().default(2), // 1 Baixa · 2 Média · 3 Alta (códigos do Vobi)
+  status: integer("status").notNull().default(1), // 1 Planejado · 2 Em andamento · 4 Concluído · 5 Cancelado (códigos do Vobi)
+  projetoCodigo: integer("projeto_codigo"),
+  etapaVobiId: integer("etapa_vobi_id"),
+  tarefaVobiId: integer("tarefa_vobi_id").unique(), // uma tarefa do Vobi ↔ no máximo uma atividade
+  estadoVobi: text("estado_vobi").notNull().default("local"), // local | aguardando_envio | sincronizada | conflito | divergencia
+  baseVobi: jsonb("base_vobi").$type<CamposVobi & { atualizadoVobiEm?: string | null }>(), // última versão combinada com o Vobi
+  pendentes: jsonb("pendentes").$type<CamposVobi>().notNull().default({}), // mudanças feitas no A360 ainda não enviadas
+  conflitos: jsonb("conflitos").$type<Record<string, { a360: unknown; vobi: unknown }>>().notNull().default({}),
+  criadoPorId: integer("criado_por_id").references(() => usuarios.id),
+  atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("atividade_resp_idx").on(t.responsavelId, t.inicio), index("atividade_proj_idx").on(t.projetoCodigo)]);
+
+export const atividadeHistorico = pgTable("atividade_historico", {
+  id: serial("id").primaryKey(),
+  atividadeId: integer("atividade_id").notNull().references(() => atividades.id),
+  origem: text("origem").notNull(), // a360 | vobi | sistema
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  resumo: text("resumo").notNull(),
+  antes: jsonb("antes"),
+  depois: jsonb("depois"),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("atividade_historico_idx").on(t.atividadeId)]);
+
+/** Fila de envio ao Vobi. Fase 0: registros ficam "aguardando" — nada é processado nem enviado (escrita desligada). */
+export const vobiEnvios = pgTable("vobi_envio", {
+  id: serial("id").primaryKey(),
+  atividadeId: integer("atividade_id").notNull().references(() => atividades.id),
+  operacao: text("operacao").notNull(), // criar | atualizar | cancelar
+  campos: jsonb("campos").$type<CamposVobi>().notNull(),
+  estado: text("estado").notNull().default("aguardando"), // aguardando | simulado | enviado | erro | conflito | descartado
+  tentativas: integer("tentativas").notNull().default(0),
+  resposta: text("resposta"),
+  criadoPorId: integer("criado_por_id").references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  processadoEm: timestamp("processado_em", { withTimezone: true }),
+}, (t) => [index("vobi_envio_ativ_idx").on(t.atividadeId), index("vobi_envio_estado_idx").on(t.estado)]);

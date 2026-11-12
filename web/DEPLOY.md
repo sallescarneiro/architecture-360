@@ -201,3 +201,19 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
   - Mudança de 3 tarefas + 1 nova: aplicada sozinha.
   - Responsável sem nome indicado em Pessoas: as tarefas passam a mostrar o nome e o e-mail.
   - O HTTP 429 do simulador foi tratado com nova tentativa.
+
+## T-219 · Agenda gerencial + base da integração bidirecional com o Vobi — Fase 0 (12/11/2026)
+- **Migração 0012** (reversão em `drizzle/reversao/0012_agenda_gerencial.down.sql`): `atividade`, `atividade_historico`, `vobi_envio` (fila), `vobi_etapa` e `vobi_tarefa` (espelho com os números do Vobi).
+- **Agenda única** (/agenda): compromissos do Google + atividades do A360 + prazos das tarefas do Vobi (camada opcional).
+  - Gestão (admin, gestão e coordenação) vê a equipe toda ou uma pessoa, filtra por projeto, programa e altera.
+  - Arquiteta vê só a própria agenda; o servidor ignora `?pessoa=`, devolve 404 para a atividade de outra pessoa e sem-permissão para criar.
+- **Atividade:** pode ser independente (tipo), uma tarefa existente do Vobi ou uma nova tarefa no projeto. O prazo é a Data de término, o mesmo endDate do Vobi. Nomes e códigos seguem o Vobi.
+- **Fase 0, sem escrita no Vobi:** não há código de envio. Mudanças em atividades vinculadas ficam em `pendentes` e na fila `vobi_envio` como "aguardando".
+- **Leitura diária (T-218):** atualiza o espelho e reconcilia (`src/lib/vobi/reconciliar.ts`, funções puras):
+  - mudança só no Vobi é adotada;
+  - campos diferentes mudados nos dois lados se combinam;
+  - o mesmo campo mudado nos dois lados vai para Conflitos (/agenda/pendencias), e a gestão decide;
+  - tarefa ausente é conferida pelo número (GET task/{id}); só um 404 marca divergência, e nada é apagado.
+- **Testes:**
+  - Locais (`.local/t219-unit.mts`): 15 casos das regras.
+  - Ponta a ponta com o Vobi simulado (`.local/mockvobi`, `.local/t219.mts`): criar os três tipos de atividade, bloqueio de duplicidade, permissões da arquiteta, adoção, conflito, divergência e resolução de conflito.

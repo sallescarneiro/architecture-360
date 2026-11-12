@@ -85,6 +85,13 @@
       "when": 1794425380219,
       "tag": "0011_vobi_api",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794481041075,
+      "tag": "0012_agenda_gerencial",
+      "breakpoints": true
     }
   ]
 }
