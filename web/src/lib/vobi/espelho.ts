@@ -166,7 +166,24 @@ export async function cargaInicialProgramacao() {
     const { listarTudo } = await import("./api");
     // data de início prevista de todos os projetos (inclui arquivados/finalizados), para o recorte
     const projetos = await listarTudo<R>("/v2/refurbish", { "where[allSteps]": "true" }, undefined, 200);
-    const inicioAtualizados = await gravarInicioPrevisto(projetos);
+    // diagnóstico (só nomes de campos e contagens): quais campos de data a listagem devolve
+    const camposData: Record<string, number> = {};
+    for (const p of projetos) for (const [k, v] of Object.entries(p)) if (/date/i.test(k)) camposData[k] = (camposData[k] ?? 0) + (v ? 1 : 0);
+    let inicioAtualizados = await gravarInicioPrevisto(projetos);
+    // a listagem pode não trazer a data de início prevista: lê um a um os projetos da base que ficaram sem ela
+    let lidosUmAUm = 0;
+    if (!("startDate" in camposData) || camposData.startDate === 0) {
+      const { get } = await import("./api");
+      const semData = ((await db.execute(sql`select codigo from projeto where inicio_previsto is null`)).rows as { codigo: number }[]).map((x) => Number(x.codigo));
+      const lidos: R[] = [];
+      for (const cod of semData) {
+        try { const r = await get<R & { rows?: R[] }>(`/v2/refurbish/${cod}`, {}); const p = Array.isArray(r.rows) ? r.rows[0] : r; if (p && num(p.id) === cod) lidos.push(p); } catch { /* sem resposta: segue */ }
+        lidosUmAUm++;
+        await new Promise((res) => setTimeout(res, 300));
+      }
+      for (const p of lidos) for (const [k, v] of Object.entries(p)) if (/date/i.test(k)) camposData[`umAUm.${k}`] = (camposData[`umAUm.${k}`] ?? 0) + (v ? 1 : 0);
+      inicioAtualizados += await gravarInicioPrevisto(lidos);
+    }
     const tarefas = await listarTudo<R>("/v2/task", {}, undefined, 500);
     const escopo = await projetosDoA360();
     const doEscopo = tarefas.filter((t) => escopo.has(num(t.idRefurbish) ?? -1));
@@ -179,7 +196,7 @@ export async function cargaInicialProgramacao() {
     }
     const r = await atualizarEspelho({ projetos: [], ausentes: [], listagem: [], tarefas: doEscopo, etapas, etapasProjeto: [], clientes: [] } as unknown as LeituraVobi);
     const v = await vincularTarefasDaCarga();
-    ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), resultado: { projetosLidos: projetos.length, inicioPrevistoAtualizado: inicioAtualizados, lidas: tarefas.length, doEscopo: doEscopo.length, projetos: projs.length, etapasLidas: etapas.length, espelho: r, vinculo: v } };
+    ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), resultado: { projetosLidos: projetos.length, camposData, lidosUmAUm, inicioPrevistoAtualizado: inicioAtualizados, lidas: tarefas.length, doEscopo: doEscopo.length, projetos: projs.length, etapasLidas: etapas.length, espelho: r, vinculo: v } };
     return { ok: true };
   } catch (e) {
     const err = e as Error & { cause?: { message?: string } };
