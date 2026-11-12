@@ -26,6 +26,12 @@ export default async function EntregaveisPage({ searchParams }: { searchParams: 
           <Stat label="Ajustes pedidos pelo cliente" value={cont.ajustesCliente} tone={cont.ajustesCliente ? "bad" : "neutral"} href={href({ status: "ajustes_cliente" })} />
         </div>
       )}
+      <Card title="Modelos institucionais" subtitle="Base para os arquivos entregáveis da rucelle. Uso opcional: o timbrado não é obrigatório em todos os documentos.">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <a className="btn btn-secondary" href="/api/modelos/timbrado">Baixar papel timbrado rucelle (.docx)</a>
+          <span className="text-[var(--muted)]">Abra no Word ou no Google Docs e escreva no corpo: cabeçalho com a marca e rodapé com os contatos já vêm prontos. As atas de reunião também podem ser exportadas com o timbrado.</span>
+        </div>
+      </Card>
       <Card>
         <form method="get" className="flex flex-wrap items-end gap-2">
           <label className="text-xs font-semibold text-[var(--txt-2)]">Situação<select name="status" className="input mt-1" defaultValue={f.status}><option value="abertos">Em aberto</option><option value="todos">Todos</option>{Object.entries(STATUS).map(([k, s]) => <option key={k} value={k}>{s.rotulo}</option>)}</select></label>

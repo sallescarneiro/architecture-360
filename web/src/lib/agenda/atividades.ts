@@ -70,7 +70,7 @@ export async function lerFormulario(fd: FormData): Promise<{ dados: DadosAtivida
     if (!projetoCodigo) return { erro: "Escolha o projeto do Vobi." };
     const proj = (await db.select({ c: schema.projetos.codigo }).from(schema.projetos).where(eq(schema.projetos.codigo, projetoCodigo)))[0];
     if (!proj) return { erro: "Projeto não encontrado entre os projetos lidos do Vobi." };
-    if (!(await projetoElegivel(projetoCodigo))) return { erro: "Projeto fora do recorte 2026: fica só no Vobi (regra do A360)." };
+    if (!(await projetoElegivel(projetoCodigo))) return { erro: "Projeto fora do recorte 2026: fica só no Vobi (regra do A360). A gestão pode incorporá-lo em Projetos › Buscar projeto no Vobi." };
     etapaVobiId = n("etapa");
     if (etapaVobiId) {
       const et = (await db.select().from(schema.vobiEtapas).where(eq(schema.vobiEtapas.idVobi, etapaVobiId)))[0];

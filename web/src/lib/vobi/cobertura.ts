@@ -92,7 +92,7 @@ export async function indicadoresCobertura() {
       (select count(*)::int from tarefa where projeto_codigo in ${SQL_ELEGIVEIS} and id_vobi is null and nao_encontrado_desde is null) carga_sem_vinculo,
       (select count(*)::int from atividade where tarefa_vobi_id is not null) atividades,
       (select count(*)::int from vobi_tarefa where id_refurbish not in ${SQL_ELEGIVEIS}) fora_recorte,
-      (select count(*)::int from projeto where not (criado_em >= '2026-01-01')) projetos_fora`);
+      (select count(*)::int from projeto where codigo not in ${SQL_ELEGIVEIS}) projetos_fora`);
   // pendências: carga sem número (separando nome repetido = ambíguo) e tarefas do Vobi sem tarefa da carga
   const ambiguas = await q<{ k: string; n: number }>(sql`select split_part(chave,'|',1)||'|'||split_part(chave,'|',2)||'|'||split_part(chave,'|',3) k, count(*)::int n
       from tarefa where projeto_codigo in ${SQL_ELEGIVEIS} and id_vobi is null and nao_encontrado_desde is null group by 1 having count(*) > 1`);

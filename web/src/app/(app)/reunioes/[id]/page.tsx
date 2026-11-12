@@ -50,6 +50,8 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
         actions={<div className="flex flex-wrap gap-2">
           {editavel && <LinkButton href={`/reunioes/${r.id}/editar?volta=${encodeURIComponent(volta)}`}>Editar dados</LinkButton>}
           {r.status === "planejada" && editavel && <form action={mudarStatusAction}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} /><input type="hidden" name="status" value="realizada" /><Button variant="primary">Marcar como realizada</Button></form>}
+          <a className="btn btn-secondary" href={`/api/reunioes/ata?id=${r.id}`}>Exportar ata (.docx)</a>
+          <a className="btn btn-secondary" href={`/api/reunioes/ata?id=${r.id}&timbrado=1`}>Exportar ata com papel timbrado</a>
           <LinkButton href={volta}>← Voltar</LinkButton>
         </div>} />
       {avisos.map((a, i) => <div key={i} className="leitura"><b>OK</b>{a}</div>)}

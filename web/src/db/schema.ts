@@ -100,6 +100,9 @@ export const projetos = pgTable("projeto", {
   status: text("status"),
   statusClasse: text("status_classe"), // ativo | pausado | encerrado
   criadoEm: text("criado_em"),
+  // T-219 (decisão de 12/11/2026): data de início prevista do projeto no Vobi (startDate, AAAA-MM-DD) — define o recorte 2026.
+  // Gravada a cada leitura da API, fora do importador (não entra na comparação da carga).
+  inicioPrevisto: text("inicio_previsto"),
   metragem: real("metragem"),
   etiquetas: jsonb("etiquetas").$type<string[]>().notNull().default([]),
   colaboradores: jsonb("colaboradores").$type<string[]>().notNull().default([]),
@@ -672,3 +675,18 @@ export const vobiEnvios = pgTable("vobi_envio", {
   simulacao: jsonb("simulacao").$type<Simulacao>(),
   simuladoEm: timestamp("simulado_em", { withTimezone: true }),
 }, (t) => [index("vobi_envio_ativ_idx").on(t.atividadeId), index("vobi_envio_estado_idx").on(t.estado)]);
+
+// ---------------------------------------------------------------------------
+// T-219 — Projetos incorporados sob demanda pela gestão ("Buscar projeto no Vobi", 12/11/2026). Uma linha por pedido.
+// Projeto com pedido "integrado" entra no recorte (Agenda, indicadores, sincronização futura) e não é marcado como
+// ausente pela carga diária. Só leitura no Vobi.
+// ---------------------------------------------------------------------------
+export const projetosSobDemanda = pgTable("projeto_sob_demanda", {
+  id: serial("id").primaryKey(),
+  codigo: integer("codigo").notNull(), // número original do projeto no Vobi
+  nome: text("nome").notNull(),
+  solicitadoPorId: integer("solicitado_por_id").notNull().references(() => usuarios.id),
+  solicitadoEm: timestamp("solicitado_em", { withTimezone: true }).notNull().defaultNow(),
+  situacao: text("situacao").notNull(), // integrado | ja_existia | falhou
+  detalhe: jsonb("detalhe").$type<Record<string, unknown>>().notNull().default({}),
+}, (t) => [index("projeto_sob_demanda_codigo_idx").on(t.codigo)]);

@@ -8,6 +8,7 @@ import { ErroVobi, apiConfigurada, lerVobi } from "./api";
 import { montarArquivos } from "./adaptador";
 import { atualizarEspelho } from "./espelho";
 import { ensaiarFila } from "./ensaio";
+import { projetosSobDemanda } from "./escopo";
 
 export type ResultadoSinc = { cargaId: number | null; status: string; mensagem: string };
 export const hojeSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -35,7 +36,7 @@ export async function sincronizarVobi(opts: { disparo: "agenda" | "manual"; usua
       if (Date.now() - ultimoAviso < 5000) return;
       ultimoAviso = Date.now();
       await db.update(schema.cargas).set({ motivo: `lendo o Vobi: ${NOMES[caminho] ?? caminho} ${lidos.toLocaleString("pt-BR")}${total != null ? ` de ${total.toLocaleString("pt-BR")}` : ""}` }).where(eq(schema.cargas.id, id));
-    }, codigosBase);
+    }, codigosBase, await projetosSobDemanda());
     await db.update(schema.cargas).set({ motivo: "leitura concluída; comparando com a base" }).where(eq(schema.cargas.id, id));
     const m = await montarArquivos(leitura);
     // id → nome resolvidos por correspondência com a última exportação: guardados (não sobrescrevem definição manual)

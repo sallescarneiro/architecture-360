@@ -202,7 +202,9 @@ async function processar(tx: Tx, cargaId: number, dataCarga: string, proj: Arqui
   }
   let projNaoEnc = 0;
   for (const p of await tx.select({ codigo: schema.projetos.codigo }).from(schema.projetos)
-    .where(and(lt(schema.projetos.ultimaCarga, cargaId), isNull(schema.projetos.naoEncontradoDesde)))) {
+    // T-219 (12/11/2026): projeto incorporado sob demanda pela gestão nunca é marcado como ausente pela carga
+    .where(and(lt(schema.projetos.ultimaCarga, cargaId), isNull(schema.projetos.naoEncontradoDesde),
+      sql`${schema.projetos.codigo} not in (select codigo from projeto_sob_demanda where situacao = 'integrado')`))) {
     await tx.update(schema.projetos).set({ naoEncontradoDesde: cargaId }).where(eq(schema.projetos.codigo, p.codigo));
     await alerta("projeto_nao_encontrado", "projeto", String(p.codigo), "ausente na exportação");
     projNaoEnc++;

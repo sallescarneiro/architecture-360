@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { contagem, linkVobiProjeto, ultimaCargaAceita } from "@/lib/consultas";
@@ -17,7 +17,7 @@ import { urlCom } from "@/lib/listas";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 
 /** Detalhe do projeto (somente leitura): dados do Vobi, cliente vinculado e tarefas da última carga. */
-export default async function ProjetoPage({ params }: { params: Promise<{ codigo: string }> }) {
+export default async function ProjetoPage({ params, searchParams }: { params: Promise<{ codigo: string }>; searchParams: Promise<{ vobi?: string }> }) {
   const u = await exigirUsuario();
   const gestao = veIndicadoresIndividuais(u.perfil);
   const { codigo } = await params;
@@ -39,6 +39,11 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
   const tarefas = await db.select().from(schema.tarefas)
     .where(and(eq(schema.tarefas.projetoCodigo, p.codigo), isNull(schema.tarefas.naoEncontradoDesde)))
     .orderBy(asc(schema.tarefas.etapaCsv), asc(schema.tarefas.dataFim), asc(schema.tarefas.nome)); // etapa original do Vobi (decisão de 10/11/2026: nomes preservados)
+  // T-219 — projeto incorporado sob demanda: mostra o registro e onde estão as tarefas (Agenda) até a próxima carga aceita
+  const sd = (await db.execute(sql`select d.solicitado_em, u.nome usuario,
+      (select count(*)::int from vobi_tarefa t where t.id_refurbish = d.codigo) tarefas
+    from projeto_sob_demanda d join usuario u on u.id = d.solicitado_por_id where d.codigo = ${p.codigo} and d.situacao = 'integrado' order by d.id limit 1`)).rows[0] as { solicitado_em: string; usuario: string; tarefas: number } | undefined;
+  const avisoVobi = (await searchParams).vobi;
   const hoje = hojeIso();
   const prazos = new Map(tarefas.map((t) => [t.chave, statusPrazo(t.status, t.dataFim, hoje)]));
   const abertas = tarefas.filter((t) => prazos.get(t.chave)!.aberta);
@@ -57,6 +62,8 @@ export default async function ProjetoPage({ params }: { params: Promise<{ codigo
         subtitle={<>Cód. Vobi {p.codigo} · <Badge tone={p.statusClasse === "encerrado" ? "neutral" : p.statusClasse === "pausado" ? "warn" : "ok"}>{p.status}</Badge> · criado em {p.criadoEm ?? "—"}{p.metragem ? ` · ${p.metragem} m²` : ""}{p.etiquetas.length ? ` · ${p.etiquetas.join(", ")}` : ""}
           <span className="mt-1 block text-xs">Origem: Vobi{carga ? ` · exportação de ${carga.dataCarga.split("-").reverse().join("/")} (carga ${carga.id})` : ""} · prazos comparados com hoje{p.naoEncontradoDesde ? " · não encontrado na última exportação" : ""} <Badge tone="neutral">somente leitura</Badge></span></>}
         actions={<div className="flex gap-2"><Link href={`/projetos/${p.codigo}/linha-do-tempo`} className="btn btn-primary btn-sm">Linha do tempo</Link><a className="btn btn-secondary btn-sm" href={linkVobiProjeto(p.codigo)} target="_blank" rel="noreferrer">Abrir no Vobi ↗</a><Link href="/projetos" className="btn btn-secondary btn-sm">← Projetos</Link></div>} />
+      {avisoVobi === "ja_existia" && <div className="leitura"><b>Vobi</b>Este projeto já fazia parte do A360 e da Agenda — nada foi duplicado.</div>}
+      {sd && <div className="leitura"><b>Sob demanda</b>Incorporado do Vobi em {new Date(sd.solicitado_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} por {sd.usuario}: {sd.tarefas} tarefas na <Link className="underline" href={`/agenda?projeto=${p.codigo}`}>Programação do Vobi (Agenda)</Link>. A lista de tarefas abaixo é a da carga e passa a incluí-las a partir da próxima carga aceita.</div>}
 
       {(alertasAbertos.length > 0 || flagsProj.some((f) => f.situacao === "aberta")) && (
         <div className="leitura"><b>Atenção</b>{alertasAbertos.length ? <>{alertasAbertos.length} alerta(s) de divergência aberto(s){alertasAbertos.some((a) => a.prioridade === "critico") ? " (há crítico)" : ""}: {alertasAbertos.slice(0, 2).map((a) => <Link key={a.id} className="underline" href={`/alertas/${a.id}`}>{a.titulo.slice(0, 70)}</Link>).reduce<React.ReactNode[]>((acc, x, i) => (i ? [...acc, " · ", x] : [x]), [])}. </> : null}{flagsProj.filter((f) => f.situacao === "aberta").length ? <>{flagsProj.filter((f) => f.situacao === "aberta").length} flag(s) de limitação de dados — <Link className="underline" href={`/projetos/${p.codigo}/linha-do-tempo#flags`}>ver na linha do tempo</Link>.</> : null}</div>

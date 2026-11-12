@@ -27,11 +27,11 @@ export default async function CoberturaPage({ searchParams }: { searchParams: Pr
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Architecture 360 · Agenda" title="Cobertura da programação do Vobi"
-        subtitle="Recorte 2026: só projetos iniciados em 2026 entram na Agenda e na sincronização. Só leitura: nada é gravado no Vobi."
+        subtitle="Recorte 2026: entram na Agenda e na sincronização os projetos com data de início prevista no Vobi em 2026 ou depois, e os incorporados pela gestão em Projetos › Buscar projeto no Vobi. Só leitura: nada é gravado no Vobi."
         actions={<div className="flex flex-wrap gap-2"><form action={cargaInicialAction}><button className="btn btn-primary" disabled={!!ci && !ci.fim}>{ci && !ci.fim ? "Carga inicial em andamento…" : "Carga inicial da Programação do Vobi"}</button></form><LinkButton href="/agenda/cobertura?ler=1">Diagnóstico direto no Vobi</LinkButton><LinkButton href="/agenda/pendencias">Pendências</LinkButton></div>} />
       {ci && <div className={`leitura${ci.erro ? " leitura-bad" : ""}`}><b>Carga inicial</b>{!ci.fim ? `em andamento desde ${new Date(ci.inicio).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })} — atualize a página em instantes (só leitura no Vobi).` : ci.erro ? `falhou: ${ci.erro}` : `concluída às ${new Date(ci.fim).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })}: ${JSON.stringify(ci.resultado)}`}</div>}
 
-      <Card title="Cobertura no A360 — recorte 2026 (projetos iniciados em 2026)" subtitle={`Tarefas dos projetos iniciados em 2026 guardadas com o número do Vobi${ind.importadas.lidoEm ? ` · última leitura ${new Date(ind.importadas.lidoEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : " · ainda não importadas"}. Escrita no Vobi desligada.`}>
+      <Card title="Cobertura no A360 — recorte 2026 (início previsto em 2026 ou incorporados)" subtitle={`Tarefas dos projetos do recorte guardadas com o número do Vobi${ind.importadas.lidoEm ? ` · última leitura ${new Date(ind.importadas.lidoEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : " · ainda não importadas"}. Escrita no Vobi desligada.`}>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Importadas e identificadas" value={ind.importadas.total} note={`${ind.importadas.comData} com data · ${ind.importadas.semData} sem data`} />
           <Stat label="Vínculo confirmado (tarefa da carga ↔ nº Vobi)" value={ind.vinculo.cargaConfirmadas} tone="ok" note={`${ind.vinculo.atividades} programadas no A360`} />
@@ -41,7 +41,7 @@ export default async function CoberturaPage({ searchParams }: { searchParams: Pr
           <Stat label="Aptas para programação e envio" value={ind.aptas.aptas} tone="ok" note={`de ${ind.aptas.abertas} abertas`} />
         </div>
         <div className="mt-3 grid gap-1 text-sm">
-          <div>Fora do recorte: {ind.foraDoRecorte.projetos} projetos do A360 iniciados antes de 2026 e {ind.foraDoRecorte.tarefasPreservadas} tarefas deles já copiadas — preservadas, sem atualização, fora da Agenda e dos indicadores.</div>
+          <div>Fora do recorte: {ind.foraDoRecorte.projetos} projetos da base do A360 com início previsto antes de 2026 ou sem data de início prevista e {ind.foraDoRecorte.tarefasPreservadas} tarefas deles já copiadas — preservadas nos demais módulos, sem atualização, fora da Agenda e dos indicadores. A gestão pode incorporar um deles em <Link className="underline" href="/projetos/vobi">Buscar projeto no Vobi</Link>.</div>
           <div>Por status: {ind.importadas.planejadas} planejadas · {ind.importadas.andamento} em andamento · {ind.importadas.concluidas} concluídas · {ind.importadas.canceladas} canceladas{ind.importadas.ausentes ? ` · ${ind.importadas.ausentes} não encontradas na última conferência (mantidas)` : ""}.</div>
           <div>Pendências de reconciliação: {ind.pendentes.cargaSemVinculo} tarefas da carga sem número do Vobi ({ind.pendentes.ambiguasGrupos} grupos com nome repetido, {ind.pendentes.ambiguasTarefas} tarefas — não associadas por aproximação) · {ind.pendentes.vobiSemCarga} tarefas do Vobi sem tarefa da carga correspondente ({ind.pendentes.vobiSemCargaComData} com data; {ind.pendentes.vobiSemCargaEncerrados} em projetos encerrados, que a carga não traz — estão na Agenda pelo número) · {ind.pendentes.responsavelSoNumero} com responsável só por número · {ind.pendentes.semResponsavel} sem responsável.</div>
           <div>Bloqueio por tarefa (abertas): {ind.aptas.bloqueadasResponsavel} por responsável sem mapeamento · {ind.aptas.bloqueadasSemResponsavel} sem responsável · {ind.aptas.semTermino} sem data de término. As demais não são afetadas.</div>
@@ -63,9 +63,9 @@ export default async function CoberturaPage({ searchParams }: { searchParams: Pr
             <div className="mt-3 overflow-x-auto"><table className="tbl"><thead><tr><th>Status no Vobi</th><th>Tarefas</th><th>Início e término</th><th>Só início</th><th>Só término</th><th>Sem data</th></tr></thead><tbody>
               {Object.entries(d.porStatus).map(([s, c]) => <tr key={s}><td>{s}</td><td>{c.total}</td><td>{c.ambas}</td><td>{c.soInicio}</td><td>{c.soTermino}</td><td>{c.semData}</td></tr>)}
             </tbody></table></div>
-            <div className="mt-3 text-sm">Escopo: {d.escopo.projetoNoA360} em projetos iniciados em 2026 ({d.escopo.projetoAtivoNoA360} em projetos ativos) · {d.escopo.projetoForaDoA360} em projetos anteriores a 2026 (ficam só no Vobi; não contam como pendência) · {d.escopo.semProjeto} sem projeto (fora do escopo).</div>
+            <div className="mt-3 text-sm">Escopo: {d.escopo.projetoNoA360} em projetos do recorte 2026 ({d.escopo.projetoAtivoNoA360} em projetos ativos) · {d.escopo.projetoForaDoA360} em projetos fora do recorte — início previsto antes de 2026 ou sem data (ficam só no Vobi; não contam como pendência) · {d.escopo.semProjeto} sem projeto (fora do escopo).</div>
           </Card>
-          <Card title="Tarefas com data em projetos iniciados em 2026 × Agenda do A360">
+          <Card title="Tarefas com data em projetos do recorte 2026 × Agenda do A360">
             <div className="grid gap-3 sm:grid-cols-4">
               <Stat label="Tarefas com data (recorte 2026)" value={d.comDataNoA360.total} />
               <Stat label="Representadas na Agenda pelo número (Programação do Vobi)" value={d.comDataNoA360.noEspelho} tone="ok" note={pct(d.comDataNoA360.noEspelho, d.comDataNoA360.total)} />

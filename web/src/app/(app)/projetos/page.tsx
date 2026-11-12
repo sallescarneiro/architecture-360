@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { linkVobiProjeto } from "@/lib/consultas";
+import { podeGerirAgenda } from "@/lib/agenda/atividades";
 import { ROTULO_VINCULO, TOM_VINCULO } from "@/lib/clientes";
 import { RISCO_REFACAO_FRACAO, SITUACOES_PROJETO, lerFiltrosProjetos, listarProjetos, urlCom, type ParamsLista, urlVolta } from "@/lib/listas";
 import { restricaoDe } from "@/lib/participacao";
@@ -33,7 +34,7 @@ export default async function ProjetosPage({ searchParams }: { searchParams: Pro
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Operação" title="Projetos"
         subtitle={<>Dados do Vobi de <b>{fmt(r.carga.dataCarga)}</b> (carga {r.carga.id}) · prazos comparados com hoje, {fmt(r.hoje)}. {restricao && <>Você vê os projetos em que participa no Vobi (colaboradora ou responsável por tarefa){!restricao.nomes.length && <> — <b>seu e-mail ainda não está associado a um nome do Vobi</b>; peça à gestão em Pessoas</>}. </>}&ldquo;Exigem acompanhamento&rdquo; = alguma tarefa atrasada ou ≥ {Math.round(RISCO_REFACAO_FRACAO * 100)}% das horas em Refação; tarefas sem responsável não contam (limitação da fonte).</>}
-        actions={volta ? <LinkButton href={volta}>← Painel de Gestão</LinkButton> : <LinkButton href="/meu-dia">← Meu dia</LinkButton>} />
+        actions={<div className="flex flex-wrap gap-2">{podeGerirAgenda(u.perfil) && <LinkButton href="/projetos/vobi">Buscar projeto no Vobi</LinkButton>}{volta ? <LinkButton href={volta}>← Painel de Gestão</LinkButton> : <LinkButton href="/meu-dia">← Meu dia</LinkButton>}</div>} />
 
       <form method="get" action={base} className="card flex flex-wrap items-end gap-3 p-3 md:p-4">
         {f.situacao !== "ativos" && <input type="hidden" name="situacao" value={f.situacao} />}

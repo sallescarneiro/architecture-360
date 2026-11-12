@@ -4,6 +4,7 @@ import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { CamposVobi } from "@/db/schema";
 import { lerTarefa, type LeituraVobi } from "./api";
+import { gravarInicioPrevisto, SQL_ELEGIVEIS } from "./escopo";
 import { camposDaTarefa, estadoDe, NOME_CAMPO, reconciliar, type Campo } from "./reconciliar";
 
 type R = Record<string, unknown>;
@@ -56,12 +57,10 @@ export async function mapaResponsaveis() {
   return { usuarioParaVobi, vobiParaUsuario };
 }
 
-/** Atualiza o espelho com a leitura completa da API e reconcilia as atividades vinculadas. */
-export async function atualizarEspelho(v: LeituraVobi): Promise<{ etapas: number; tarefas: number; reconciliadas: number; conflitos: number }> {
-  // etapas (projetos da listagem lidos projeto a projeto)
-  // sem repetir o mesmo número (a paginação do Vobi pode devolver a mesma etapa duas vezes)
+/** Grava (upsert) as etapas lidas no espelho, sem repetir o mesmo número (a paginação do Vobi pode devolver a mesma etapa duas vezes). */
+async function gravarEtapas(lidas: R[]) {
   const vistasEt = new Set<number>();
-  const etapas = v.etapas.filter((e) => num(e.id) != null && num(e.idRefurbish) != null && !vistasEt.has(num(e.id)!) && (vistasEt.add(num(e.id)!), true)).map((e) => ({
+  const etapas = lidas.filter((e) => num(e.id) != null && num(e.idRefurbish) != null && !vistasEt.has(num(e.id)!) && (vistasEt.add(num(e.id)!), true)).map((e) => ({
     idVobi: num(e.id)!, idRefurbish: num(e.idRefurbish)!, nome: txt(e.name) || "(sem nome)", ordem: num(e.order), inicio: data(e.startDate), fim: data(e.endDate), vistoEm: new Date(),
   }));
   for (let i = 0; i < etapas.length; i += 500) {
@@ -70,6 +69,28 @@ export async function atualizarEspelho(v: LeituraVobi): Promise<{ etapas: number
       set: { idRefurbish: sql`excluded.id_refurbish`, nome: sql`excluded.nome`, ordem: sql`excluded.ordem`, inicio: sql`excluded.inicio`, fim: sql`excluded.fim`, vistoEm: sql`excluded.visto_em` },
     });
   }
+  return etapas;
+}
+
+/**
+ * T-219 — grava no espelho as etapas e tarefas de UM projeto (incorporação sob demanda): mesmo upsert, mesmo histórico,
+ * depois vínculo com a carga e reconciliação. Não toca em tarefas de outros projetos.
+ */
+export async function gravarEspelhoProjeto(codigo: number, etapasLidas: R[], tarefasLidas: R[]) {
+  const etapas = await gravarEtapas(etapasLidas.filter((e) => num(e.idRefurbish) === codigo));
+  const vistos = new Set<number>();
+  const tarefas = tarefasLidas.filter((t) => num(t.id) != null && num(t.idRefurbish) === codigo && !vistos.has(num(t.id)!) && (vistos.add(num(t.id)!), true)).map(linhaTarefa);
+  await gravarTarefas(tarefas);
+  const vinculo = await vincularTarefasDaCarga();
+  const r = await reconciliarAtividades();
+  return { etapas: etapas.length, tarefas: tarefas.length, vinculo, ...r };
+}
+
+/** Atualiza o espelho com a leitura completa da API e reconcilia as atividades vinculadas. */
+export async function atualizarEspelho(v: LeituraVobi): Promise<{ etapas: number; tarefas: number; reconciliadas: number; conflitos: number }> {
+  // data de início prevista (define o recorte 2026) — antes de calcular o escopo
+  await gravarInicioPrevisto(v.projetos ?? []);
+  const etapas = await gravarEtapas(v.etapas);
   // tarefas do escopo: projetos que já estão no A360 (decisão de 12/11: as 2.259, qualquer status, com ou sem data;
   // fora: projetos antigos fora do recorte e tarefas sem projeto)
   const escopo = await projetosDoA360();
@@ -107,14 +128,14 @@ export async function vincularTarefasDaCarga(): Promise<{ confirmadas: number; n
   const r = (await db.execute(sql`
     with v as (
       select t.id_vobi, t.id_refurbish || '|' || coalesce(e.nome, '') || '|' || t.nome k from vobi_tarefa t left join vobi_etapa e on e.id_vobi = t.id_etapa
-      where t.id_refurbish in (select codigo from projeto where criado_em >= '2026-01-01')
+      where t.id_refurbish in ${SQL_ELEGIVEIS}
     ) select id_vobi, k from v`)).rows as { id_vobi: number; k: string }[];
   const { chaveTexto, etapaCanonica } = await import("@/lib/importador/normalizacao");
   const chaveDe = (projeto: string, etapa: string, nome: string) => `${projeto}|${chaveTexto(etapaCanonica(etapa).etapa)}|${chaveTexto(nome)}`;
   const vobi = new Map<string, number[]>();
   for (const x of r) { const [p, e, ...n] = x.k.split("|"); const k = chaveDe(p, e, n.join("|")); vobi.set(k, [...(vobi.get(k) ?? []), Number(x.id_vobi)]); }
   const carga = new Map<string, { chave: string; idVobi: number | null }[]>();
-  for (const t of (await db.execute(sql`select chave, id_vobi from tarefa where projeto_codigo in (select codigo from projeto where criado_em >= '2026-01-01')`)).rows as { chave: string; id_vobi: number | null }[]) {
+  for (const t of (await db.execute(sql`select chave, id_vobi from tarefa where projeto_codigo in ${SQL_ELEGIVEIS}`)).rows as { chave: string; id_vobi: number | null }[]) {
     const k = t.chave.split("|").slice(0, 3).join("|"); carga.set(k, [...(carga.get(k) ?? []), { chave: t.chave, idVobi: t.id_vobi == null ? null : Number(t.id_vobi) }]);
   }
   let confirmadas = 0, novas = 0, ambiguas = 0, divergentes = 0;
@@ -143,6 +164,9 @@ export async function cargaInicialProgramacao() {
   ultimaCargaInicial = { inicio: new Date().toISOString() };
   try {
     const { listarTudo } = await import("./api");
+    // data de início prevista de todos os projetos (inclui arquivados/finalizados), para o recorte
+    const projetos = await listarTudo<R>("/v2/refurbish", { "where[allSteps]": "true" }, undefined, 200);
+    const inicioAtualizados = await gravarInicioPrevisto(projetos);
     const tarefas = await listarTudo<R>("/v2/task", {}, undefined, 500);
     const escopo = await projetosDoA360();
     const doEscopo = tarefas.filter((t) => escopo.has(num(t.idRefurbish) ?? -1));
@@ -155,7 +179,7 @@ export async function cargaInicialProgramacao() {
     }
     const r = await atualizarEspelho({ projetos: [], ausentes: [], listagem: [], tarefas: doEscopo, etapas, etapasProjeto: [], clientes: [] } as unknown as LeituraVobi);
     const v = await vincularTarefasDaCarga();
-    ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), resultado: { lidas: tarefas.length, doEscopo: doEscopo.length, projetos: projs.length, etapasLidas: etapas.length, espelho: r, vinculo: v } };
+    ultimaCargaInicial = { ...ultimaCargaInicial, fim: new Date().toISOString(), resultado: { projetosLidos: projetos.length, inicioPrevistoAtualizado: inicioAtualizados, lidas: tarefas.length, doEscopo: doEscopo.length, projetos: projs.length, etapasLidas: etapas.length, espelho: r, vinculo: v } };
     return { ok: true };
   } catch (e) {
     const err = e as Error & { cause?: { message?: string } };

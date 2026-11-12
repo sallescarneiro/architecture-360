@@ -136,7 +136,12 @@ AGENDA_GESTAO = ("agenda", "Agenda gerencial", "Distribuir e acompanhar as ativi
 <h3>Alterar e cancelar</h3>""" + lista([
  'Abra a atividade e clique em <b>Alterar</b>. O tipo e o projeto não mudam depois de criados.',
  '<b>Cancelar</b> nunca exclui: a atividade fica com status Cancelado e sai da agenda; o histórico continua.',
- 'Para a arquiteta aparecer como responsável de tarefas do Vobi, o nome dela no Vobi precisa estar ligado ao e-mail em <b>Pessoas</b>, incluindo os responsáveis que o Vobi informa só por número.']) + regra("A Agenda é programação e acompanhamento, não cobrança: o A360 não envia notificação nem cobrança automática para as arquitetas.", nao=False, rot="princípio") + regra("Arquiteta não vê a agenda das colegas nem a visão da equipe, e não cria atividade. A regra vale no servidor, inclusive se alguém tentar abrir o endereço direto."))
+ 'Para a arquiteta aparecer como responsável de tarefas do Vobi, o nome dela no Vobi precisa estar ligado ao e-mail em <b>Pessoas</b>, incluindo os responsáveis que o Vobi informa só por número.']) + """
+<h3>Quais projetos entram na Agenda (recorte 2026)</h3>""" + lista([
+ 'Entram os projetos com <b>data de início prevista</b> no Vobi em 2026 ou depois. Projeto sem data de início prevista não entra sozinho.',
+ 'Projetos anteriores continuam nos demais módulos do A360 como estavam, mas ficam fora da Agenda, da sincronização e dos indicadores da Agenda.',
+ 'Para trazer um projeto que ficou de fora (anterior a 2026, sem data de início prevista ou arquivado): em <b>Projetos</b>, clique em <b>Buscar projeto no Vobi</b>, procure pelo nome ou pelo número, confira os dados e clique em <b>Confirmar incorporação ao A360</b>. As tarefas e etapas entram na Agenda com os números do Vobi. Se o projeto já faz parte, o A360 avisa e abre o projeto; nada é duplicado.',
+ 'Cada incorporação fica registrada com quem pediu, quando e a situação. Nada é gravado no Vobi.']) + regra("A Agenda é programação e acompanhamento, não cobrança: o A360 não envia notificação nem cobrança automática para as arquitetas.", nao=False, rot="princípio") + regra("Arquiteta não vê a agenda das colegas nem a visão da equipe, e não cria atividade. A regra vale no servidor, inclusive se alguém tentar abrir o endereço direto."))
 
 # -------------------------------------------------------------------- ARQUITETA
 ARQ = dict(
@@ -192,11 +197,13 @@ ARQ = dict(
  'Depois da reunião, se gravou no Meet: baixe a transcrição do Drive (Documento Google › exportar .docx ou .txt) e envie em <b>Transcrição</b>. A IA gera a ata com resumo, decisões, aprovações e encaminhamentos.',
  'Confira cada item extraído: <b>Confirmar</b> os corretos, descartar os errados. Itens marcados "confirmar" são sugestões, não registros.',
  'Sem transcrição: escreva a ata e registre decisões, aprovações e encaminhamentos à mão.',
- 'Marque a reunião como <b>realizada</b>. O histórico guarda tudo, inclusive versões da ata.']) + regra("Encaminhamento no A360 é registro de acompanhamento. Ele não cria tarefa no Vobi e não gera cobrança para ninguém.") + regra("A IA não inventa: cada item mostra o trecho de origem e o nível de confiança (mencionado, síntese, inferência, a confirmar). Se um item não tem trecho, desconfie e descarte.", nao=False, rot="atenção")),
+ 'Marque a reunião como <b>realizada</b>. O histórico guarda tudo, inclusive versões da ata.',
+ 'Para mandar ou arquivar a ata: <b>Exportar ata (.docx)</b> ou <b>Exportar ata com papel timbrado</b> (logo e contatos da rucelle). O timbrado é opcional. Só entram itens confirmados.']) + regra("Encaminhamento no A360 é registro de acompanhamento. Ele não cria tarefa no Vobi e não gera cobrança para ninguém.") + regra("A IA não inventa: cada item mostra o trecho de origem e o nível de confiança (mencionado, síntese, inferência, a confirmar). Se um item não tem trecho, desconfie e descarte.", nao=False, rot="atenção")),
   ("entregaveis", "Entregáveis", "O que vai ao cliente e a prova da aprovação", """
 <p>Layout, apresentação, caderno executivo, imagens 3D: cada entregável tem versões, passa pela revisão interna da coordenação e recebe a resposta do cliente <b>com evidência</b>. É registro interno; nada é enviado ao cliente por aqui.</p>
 """ + fig("arq-entregavel-novo", "Novo entregável: título, tipo, responsável, projeto (do Vobi) e o que o cliente precisa aprovar.") + fig("arq-entregavel", "Entregável com versão, aprovação interna, resposta do cliente com evidência, situação, comentários e histórico.", alta=True) + fig("arq-entregavel-resposta-cliente", "Registrar a resposta do cliente: decisão, como chegou (e-mail, mensagem, ata, item de reunião), data, quem respondeu e o trecho ou arquivo.", alta=True) + passos([
  'Em <b>Entregáveis › + Novo entregável</b> (ou pela página do projeto): título, tipo, descrição.',
+ 'Precisa do papel timbrado da rucelle para montar um documento? Em <b>Entregáveis › Modelos institucionais</b>, baixe o modelo (.docx) e escreva no corpo.',
  'Registre a <b>versão</b>: link do Drive ou arquivo (até 15 MB) e o que mudou.',
  'Clique em <b>Enviar para revisão interna</b>. A coordenação aprova ou pede ajustes.',
  'Aprovado internamente? Envie ao cliente pelo canal habitual e marque <b>enviado ao cliente</b>.',

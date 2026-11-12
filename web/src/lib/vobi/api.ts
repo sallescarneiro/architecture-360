@@ -38,7 +38,7 @@ async function obterToken(): Promise<string> {
   return jwt;
 }
 
-async function get<T>(caminho: string, params: Record<string, string | number>, tentativa = 0): Promise<T> {
+export async function get<T>(caminho: string, params: Record<string, string | number>, tentativa = 0): Promise<T> {
   const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
   let r: Response;
   try {
@@ -86,7 +86,7 @@ export async function listarTudo<T = Record<string, unknown>>(caminho: string, f
  * `codigosBase`: projetos que já estão na base do A360. A listagem do Vobi traz só os ativos; os que faltarem são
  * procurados um a um (GET /v2/refurbish/{id}). Os que nem assim vierem voltam em `ausentes` para o adaptador decidir.
  */
-export async function lerVobi(progresso?: Progresso, codigosBase: number[] = []) {
+export async function lerVobi(progresso?: Progresso, codigosBase: number[] = [], sobDemanda: number[] = []) {
   const ativos = await listarTudo("/v2/refurbish", {}, progresso);
   const vistos = new Set<number>(ativos.map((p) => Number(p.id)));
   const projetos = [...ativos];
@@ -109,7 +109,9 @@ export async function lerVobi(progresso?: Progresso, codigosBase: number[] = [])
   // lê projeto a projeto, só dos projetos do escopo (lidos + ausentes da base) que têm tarefa.
   // Tarefas: mesmo escopo da exportação CSV — só as dos projetos da listagem (ativos/pausados); projetos encerrados entram
   // só como projeto (status atualizado), sem trazer de volta as tarefas antigas deles.
-  const listagem = ativos.map((p) => Number(p.id));
+  // T-219 (12/11/2026): projetos incorporados sob demanda pela gestão entram no mesmo escopo dos ativos (tarefas e etapas),
+  // mesmo arquivados/finalizados no Vobi — já foram lidos acima, um a um, por estarem na base.
+  const listagem = [...new Set([...ativos.map((p) => Number(p.id)), ...sobDemanda.filter((c) => vistos.has(c))])];
   const escopo = new Set<number>(listagem);
   const ids = [...new Set(tarefas.map((t) => Number(t.idRefurbish)).filter((x) => Number.isFinite(x) && escopo.has(x)))];
   const etapas: Record<string, unknown>[] = [];
