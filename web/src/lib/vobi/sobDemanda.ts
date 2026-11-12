@@ -45,8 +45,11 @@ async function resumo(p: R, mapaPassos: Map<number, string>): Promise<ProjetoVob
   const codigo = num(p.id)!;
   const noA360 = (await db.select({ c: schema.projetos.codigo }).from(schema.projetos).where(eq(schema.projetos.codigo, codigo))).length > 0;
   const incorporado = ((await db.execute(sql`select 1 from projeto_sob_demanda where codigo = ${codigo} and situacao = 'integrado' limit 1`)).rows.length) > 0;
+  // a API não traz o nome do cliente no projeto: busca pelo número no cadastro de clientes já espelhado
+  const idCli = num(p.idCompanyCustomer);
+  const cli = limpar(txt(p.companyCustomer)) || (idCli ? ((await db.select({ nome: schema.clientesVobi.nome }).from(schema.clientesVobi).where(eq(schema.clientesVobi.codigo, idCli)))[0]?.nome ?? "") : "");
   return {
-    codigo, nome: limpar(txt(p.name)), cliente: limpar(txt(p.companyCustomer)),
+    codigo, nome: limpar(txt(p.name)), cliente: cli,
     status: limpar(txt(p.activeStep)) || mapaPassos.get(num(p.idStep) ?? -1) || limpar(txt(p.status)) || "—",
     inicioPrevisto: dataInicioPrevisto(p.startDate), criadoEm: dataInicioPrevisto(p.creationDate ?? p.createdAt),
     noA360, elegivel: noA360 && (await projetoElegivel(codigo)), incorporado,
