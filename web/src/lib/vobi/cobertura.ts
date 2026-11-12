@@ -96,7 +96,8 @@ export async function indicadoresCobertura() {
   // pendências: carga sem número (separando nome repetido = ambíguo) e tarefas do Vobi sem tarefa da carga
   const ambiguas = await q<{ k: string; n: number }>(sql`select split_part(chave,'|',1)||'|'||split_part(chave,'|',2)||'|'||split_part(chave,'|',3) k, count(*)::int n
       from tarefa where projeto_codigo in ${SQL_ELEGIVEIS} and id_vobi is null and nao_encontrado_desde is null group by 1 having count(*) > 1`);
-  const [vobiSemCarga] = await q<{ n: number; com_data: number }>(sql`select count(*)::int n, count(*) filter (where t.inicio is not null or t.fim is not null)::int com_data
+  const [vobiSemCarga] = await q<{ n: number; com_data: number; encerrados: number }>(sql`select count(*)::int n, count(*) filter (where t.inicio is not null or t.fim is not null)::int com_data,
+      count(*) filter (where (select p.status_classe from projeto p where p.codigo = t.id_refurbish) = 'encerrado')::int encerrados
       from vobi_tarefa t where t.id_refurbish in ${SQL_ELEGIVEIS} and not exists (select 1 from tarefa c where c.id_vobi = t.id_vobi)`);
   const resp = await q<{ id: number | null; nome: string | null; mapeado: boolean; n: number; abertas: number }>(sql`select t.id_responsavel id, vr.nome, (t.id_responsavel in ${mapResp}) mapeado,
       count(*)::int n, count(*) filter (where coalesce(t.status,1) in (1,2))::int abertas
@@ -116,7 +117,7 @@ export async function indicadoresCobertura() {
     foraDoRecorte: { tarefasPreservadas: n(vinc?.fora_recorte), projetos: n(vinc?.projetos_fora) },
     pendentes: {
       cargaSemVinculo: n(vinc?.carga_sem_vinculo), ambiguasGrupos: ambiguas.length, ambiguasTarefas: ambiguas.reduce((s, a) => s + n(a.n), 0), ambiguasExemplos: ambiguas.slice(0, 20),
-      vobiSemCarga: n(vobiSemCarga?.n), vobiSemCargaComData: n(vobiSemCarga?.com_data),
+      vobiSemCarga: n(vobiSemCarga?.n), vobiSemCargaComData: n(vobiSemCarga?.com_data), vobiSemCargaEncerrados: n(vobiSemCarga?.encerrados),
       responsavelSoNumero: naoMapeados.reduce((s, r) => s + n(r.n), 0), semResponsavel: n(semResp?.n),
     },
     responsaveis: {
