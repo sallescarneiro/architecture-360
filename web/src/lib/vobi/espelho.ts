@@ -93,8 +93,10 @@ export async function atualizarEspelho(v: LeituraVobi): Promise<{ etapas: number
   return { etapas: etapas.length, tarefas: vistas.length, ...r };
 }
 
+/** Escopo do espelho = projetos do recorte 2026 (regra definitiva de 12/11/2026). */
 export async function projetosDoA360(): Promise<Set<number>> {
-  return new Set(((await db.execute(sql`select codigo from projeto`)).rows as { codigo: number }[]).map((p) => Number(p.codigo)));
+  const { projetosElegiveis } = await import("./escopo");
+  return projetosElegiveis();
 }
 
 /**
@@ -105,13 +107,14 @@ export async function vincularTarefasDaCarga(): Promise<{ confirmadas: number; n
   const r = (await db.execute(sql`
     with v as (
       select t.id_vobi, t.id_refurbish || '|' || coalesce(e.nome, '') || '|' || t.nome k from vobi_tarefa t left join vobi_etapa e on e.id_vobi = t.id_etapa
+      where t.id_refurbish in (select codigo from projeto where criado_em >= '2026-01-01')
     ) select id_vobi, k from v`)).rows as { id_vobi: number; k: string }[];
   const { chaveTexto, etapaCanonica } = await import("@/lib/importador/normalizacao");
   const chaveDe = (projeto: string, etapa: string, nome: string) => `${projeto}|${chaveTexto(etapaCanonica(etapa).etapa)}|${chaveTexto(nome)}`;
   const vobi = new Map<string, number[]>();
   for (const x of r) { const [p, e, ...n] = x.k.split("|"); const k = chaveDe(p, e, n.join("|")); vobi.set(k, [...(vobi.get(k) ?? []), Number(x.id_vobi)]); }
   const carga = new Map<string, { chave: string; idVobi: number | null }[]>();
-  for (const t of (await db.execute(sql`select chave, id_vobi from tarefa where projeto_codigo is not null`)).rows as { chave: string; id_vobi: number | null }[]) {
+  for (const t of (await db.execute(sql`select chave, id_vobi from tarefa where projeto_codigo in (select codigo from projeto where criado_em >= '2026-01-01')`)).rows as { chave: string; id_vobi: number | null }[]) {
     const k = t.chave.split("|").slice(0, 3).join("|"); carga.set(k, [...(carga.get(k) ?? []), { chave: t.chave, idVobi: t.id_vobi == null ? null : Number(t.id_vobi) }]);
   }
   let confirmadas = 0, novas = 0, ambiguas = 0, divergentes = 0;

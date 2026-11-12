@@ -8,6 +8,7 @@ import type { CamposVobi } from "@/db/schema";
 import type { Perfil, Usuario } from "@/lib/auth";
 import { atualizarFila, mapaResponsaveis } from "@/lib/vobi/espelho";
 import { camposDaTarefa, diferencas, estadoDe, NOME_CAMPO, type Campo } from "@/lib/vobi/reconciliar";
+import { projetoElegivel, SQL_ELEGIVEIS } from "@/lib/vobi/escopo";
 
 export type Atividade = typeof schema.atividades.$inferSelect;
 export const podeGerirAgenda = (p: Perfil) => p === "admin" || p === "gestao" || p === "coordenacao";
@@ -69,6 +70,7 @@ export async function lerFormulario(fd: FormData): Promise<{ dados: DadosAtivida
     if (!projetoCodigo) return { erro: "Escolha o projeto do Vobi." };
     const proj = (await db.select({ c: schema.projetos.codigo }).from(schema.projetos).where(eq(schema.projetos.codigo, projetoCodigo)))[0];
     if (!proj) return { erro: "Projeto não encontrado entre os projetos lidos do Vobi." };
+    if (!(await projetoElegivel(projetoCodigo))) return { erro: "Projeto fora do recorte 2026: fica só no Vobi (regra do A360)." };
     etapaVobiId = n("etapa");
     if (etapaVobiId) {
       const et = (await db.select().from(schema.vobiEtapas).where(eq(schema.vobiEtapas.idVobi, etapaVobiId)))[0];
@@ -229,7 +231,7 @@ export async function pessoasDaAgenda() {
 /** Dados de apoio do formulário: projetos ativos, etapas e tarefas (espelho do Vobi), marcando as já programadas. */
 export async function apoioVinculo() {
   const projetos = (await db.execute(sql`select p.codigo, p.nome, c.nome cliente from projeto p left join cliente_vobi c on c.codigo = p.cliente_codigo
-      where p.nao_encontrado_desde is null and p.status_classe <> 'encerrado' order by p.nome`)).rows as { codigo: number; nome: string; cliente: string | null }[];
+      where p.nao_encontrado_desde is null and p.status_classe <> 'encerrado' and p.codigo in ${SQL_ELEGIVEIS} order by p.nome`)).rows as { codigo: number; nome: string; cliente: string | null }[];
   const etapas = await db.select({ id: schema.vobiEtapas.idVobi, projeto: schema.vobiEtapas.idRefurbish, nome: schema.vobiEtapas.nome, ordem: schema.vobiEtapas.ordem })
     .from(schema.vobiEtapas).orderBy(asc(schema.vobiEtapas.idRefurbish), asc(schema.vobiEtapas.ordem));
   const tarefas = (await db.execute(sql`select t.id_vobi id, t.id_refurbish projeto, t.id_etapa etapa, t.nome, t.id_responsavel resp, t.status, t.prioridade,
@@ -251,7 +253,7 @@ export async function programacaoVobi(f: { idsVobi: number[] | null; de: Date; a
   const cond = [
     sql`coalesce(${schema.vobiTarefas.inicio}, ${schema.vobiTarefas.fim}) <= ${f.ate.toISOString()}`,
     sql`coalesce(${schema.vobiTarefas.fim}, ${schema.vobiTarefas.inicio}) >= ${f.de.toISOString()}`,
-    sql`${schema.vobiTarefas.idRefurbish} in (select codigo from projeto)`,
+    sql`${schema.vobiTarefas.idRefurbish} in ${SQL_ELEGIVEIS}`,
   ];
   if (f.idsVobi) cond.push(inArray(schema.vobiTarefas.idResponsavel, f.idsVobi.length ? f.idsVobi : [-1]));
   if (f.projeto) cond.push(eq(schema.vobiTarefas.idRefurbish, f.projeto));
@@ -263,7 +265,7 @@ export async function programacaoVobi(f: { idsVobi: number[] | null; de: Date; a
 
 /** Tarefas do Vobi sem nenhuma data (não são descartadas: ficam listadas por pessoa). */
 export async function semDataVobi(f: { idsVobi: number[] | null; projeto?: number | null }) {
-  const cond = [isNull(schema.vobiTarefas.inicio), isNull(schema.vobiTarefas.fim), sql`${schema.vobiTarefas.idRefurbish} in (select codigo from projeto)`,
+  const cond = [isNull(schema.vobiTarefas.inicio), isNull(schema.vobiTarefas.fim), sql`${schema.vobiTarefas.idRefurbish} in ${SQL_ELEGIVEIS}`,
     or(isNull(schema.vobiTarefas.status), inArray(schema.vobiTarefas.status, [1, 2]))!];
   if (f.idsVobi) cond.push(inArray(schema.vobiTarefas.idResponsavel, f.idsVobi.length ? f.idsVobi : [-1]));
   if (f.projeto) cond.push(eq(schema.vobiTarefas.idRefurbish, f.projeto));
@@ -285,6 +287,7 @@ export async function programarDoVobi(u: Usuario, idVobi: number): Promise<{ ok:
   const t = (await db.select().from(schema.vobiTarefas).where(eq(schema.vobiTarefas.idVobi, idVobi)))[0];
   if (!t) return { ok: false, mensagem: "Tarefa não encontrada no espelho do Vobi." };
   if (!t.idRefurbish) return { ok: false, mensagem: "Tarefa sem projeto: fora do escopo do A360." };
+  if (!(await projetoElegivel(t.idRefurbish))) return { ok: false, mensagem: "Projeto fora do recorte 2026: a tarefa fica só no Vobi." };
   const { vobiParaUsuario } = await mapaResponsaveis();
   const resp = t.idResponsavel != null ? vobiParaUsuario.get(t.idResponsavel) : undefined;
   if (!resp) return { ok: false, mensagem: t.idResponsavel == null ? "A tarefa está sem responsável no Vobi." : `O responsável nº ${t.idResponsavel} ainda não está mapeado em Pessoas.` };

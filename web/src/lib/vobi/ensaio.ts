@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { CamposVobi, Simulacao } from "@/db/schema";
 import { mapaResponsaveis } from "./espelho";
+import { projetoElegivel } from "./escopo";
 import { camposDaTarefa, CAMPOS_PROGRAMACAO, NOME_CAMPO, reconciliar, type Campo } from "./reconciliar";
 
 export const ESCRITA_VOBI = "desligada" as const; // VOBI_ESCRITA permanece desligada — não há código de envio
@@ -53,6 +54,7 @@ export async function simularEnvio(envioId: number): Promise<Simulacao | null> {
       if (!et) bloqueia(`etapa nº ${c.idEtapa} não está no espelho do Vobi`);
       else if (a.projetoCodigo && et.idRefurbish !== a.projetoCodigo) bloqueia("a etapa não é do projeto da atividade");
     }
+    if (a.projetoCodigo && !(await projetoElegivel(a.projetoCodigo))) bloqueia("projeto fora do recorte 2026: só no Vobi, não é elegível para sincronização");
     if (a.projetoCodigo) {
       const p = (await db.select({ classe: schema.projetos.statusClasse, ausente: schema.projetos.naoEncontradoDesde }).from(schema.projetos).where(eq(schema.projetos.codigo, a.projetoCodigo)))[0];
       if (!p) bloqueia(`projeto nº ${a.projetoCodigo} não está na base`);
