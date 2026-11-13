@@ -26,6 +26,9 @@ ALTER TABLE "reuniao" ADD COLUMN "gravacao_duracao_min" integer;--> statement-br
 ALTER TABLE "reuniao" ADD COLUMN "aviso_gravacao_forma" text;--> statement-breakpoint
 ALTER TABLE "reuniao" ADD COLUMN "aviso_gravacao_por" integer;--> statement-breakpoint
 ALTER TABLE "reuniao" ADD COLUMN "aviso_gravacao_em" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "reuniao" ADD COLUMN "aviso_transcricao_forma" text;--> statement-breakpoint
+ALTER TABLE "reuniao" ADD COLUMN "aviso_transcricao_por" integer;--> statement-breakpoint
+ALTER TABLE "reuniao" ADD COLUMN "aviso_transcricao_em" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "reuniao_transcricao" ADD COLUMN "hash" text;--> statement-breakpoint
 ALTER TABLE "reuniao_transcricao" ADD COLUMN "link_original" text;--> statement-breakpoint
 ALTER TABLE "reuniao_transcricao" ADD COLUMN "entrada" text;--> statement-breakpoint

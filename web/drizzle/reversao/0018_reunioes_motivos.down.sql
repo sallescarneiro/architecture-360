@@ -4,5 +4,6 @@ DROP TABLE IF EXISTS "reuniao_motivo_historico";
 DROP TABLE IF EXISTS "reuniao_motivo";
 ALTER TABLE "reuniao" DROP COLUMN IF EXISTS "motivo_id", DROP COLUMN IF EXISTS "origem", DROP COLUMN IF EXISTS "gravacao_url",
   DROP COLUMN IF EXISTS "gravacao_plataforma", DROP COLUMN IF EXISTS "gravacao_data", DROP COLUMN IF EXISTS "gravacao_duracao_min",
-  DROP COLUMN IF EXISTS "aviso_gravacao_forma", DROP COLUMN IF EXISTS "aviso_gravacao_por", DROP COLUMN IF EXISTS "aviso_gravacao_em";
+  DROP COLUMN IF EXISTS "aviso_gravacao_forma", DROP COLUMN IF EXISTS "aviso_gravacao_por", DROP COLUMN IF EXISTS "aviso_gravacao_em",
+  DROP COLUMN IF EXISTS "aviso_transcricao_forma", DROP COLUMN IF EXISTS "aviso_transcricao_por", DROP COLUMN IF EXISTS "aviso_transcricao_em";
 ALTER TABLE "reuniao_transcricao" DROP COLUMN IF EXISTS "hash", DROP COLUMN IF EXISTS "link_original", DROP COLUMN IF EXISTS "entrada";

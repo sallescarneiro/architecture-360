@@ -1,5 +1,5 @@
 {
-  "id": "5b184f97-e27a-47a8-ba54-f94e6c9df6db",
+  "id": "80150a2c-1578-4e60-86d9-51cd69583624",
   "prevId": "f4c8c429-46ae-4793-b5c2-a69f7190d802",
   "version": "7",
   "dialect": "postgresql",
@@ -3485,6 +3485,24 @@
         },
         "aviso_gravacao_em": {
           "name": "aviso_gravacao_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aviso_transcricao_forma": {
+          "name": "aviso_transcricao_forma",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aviso_transcricao_por": {
+          "name": "aviso_transcricao_por",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aviso_transcricao_em": {
+          "name": "aviso_transcricao_em",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false

@@ -338,6 +338,10 @@ export const reunioes = pgTable("reuniao", {
   avisoGravacaoForma: text("aviso_gravacao_forma"),
   avisoGravacaoPor: integer("aviso_gravacao_por"),
   avisoGravacaoEm: timestamp("aviso_gravacao_em", { withTimezone: true }),
+  // ciência sobre a transcrição, separada da gravação (reunião pode ter só transcrição, sem gravação)
+  avisoTranscricaoForma: text("aviso_transcricao_forma"),
+  avisoTranscricaoPor: integer("aviso_transcricao_por"),
+  avisoTranscricaoEm: timestamp("aviso_transcricao_em", { withTimezone: true }),
   criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),

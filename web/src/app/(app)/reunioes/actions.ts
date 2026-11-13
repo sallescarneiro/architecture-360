@@ -97,7 +97,8 @@ export async function situacaoItemAction(fd: FormData) {
 // Evolução T-188: transcrição, processamento, confirmação de itens, análise do projeto
 // ---------------------------------------------------------------------------
 /**
- * T-227 — registra gravação (só o link) e/ou transcrição (só o texto). Aviso de gravação obrigatório: sem ele, nada é salvo.
+ * T-227 — registra gravação (só o link) e/ou transcrição (só o texto), juntas ou separadas. Ciência dos participantes
+ * obrigatória para o que for salvo (gravação e transcrição tratadas separadamente); sem ela, nada é salvo.
  */
 export async function registrarGravacaoAction(fd: FormData) {
   const { u, r, volta } = await carregar(fd);
@@ -105,22 +106,20 @@ export async function registrarGravacaoAction(fd: FormData) {
   const { lerGravacao, registrarAviso, salvarGravacao } = await import("@/lib/reunioes");
   const pagina = `/reunioes/${r.id}/gravacao?volta=${encodeURIComponent(volta)}`;
   const erro = (m: string) => redirect(`${pagina}&erro=${encodeURIComponent(m)}`);
-  // 1. aviso de gravação (obrigatório, uma vez por reunião)
-  if (!r.avisoGravacaoEm) {
-    if (fd.get("aviso") !== "1") erro("Marque que os participantes foram informados da gravação e diga como. Nada foi salvo.");
-    const e = await registrarAviso(u, r, String(fd.get("aviso_forma") ?? ""));
-    if (e) erro(e);
-  }
-  // 2. gravação (link)
   const g = lerGravacao(fd);
   if ("erro" in g) erro(g.erro);
-  // 3. transcrição (arquivo ou texto colado)
   const lk = lerLinkOriginal(fd.get("link_original"));
   if ("erro" in lk) erro(lk.erro);
   const arquivo = fd.get("arquivo"), colado = String(fd.get("colado") ?? "");
   const temArquivo = arquivo instanceof File && arquivo.size > 0, temColado = colado.trim().length > 0;
   const dadosG = "dados" in g ? g.dados : null;
-  if (!dadosG && !temArquivo && !temColado) erro("Informe o link da gravação ou a transcrição.");
+  const temTranscricao = temArquivo || temColado;
+  if (!dadosG && !temTranscricao) erro("Informe o link da gravação, a transcrição ou os dois.");
+  // ciência obrigatória e separada: da gravação só se houver link; da transcrição só se houver transcrição. Sem ela, nada é salvo.
+  if (dadosG && !r.avisoGravacaoEm && fd.get("aviso_gravacao") !== "1") erro("Marque que os participantes foram informados da gravação e diga como. Nada foi salvo.");
+  if (temTranscricao && !r.avisoTranscricaoEm && fd.get("aviso_transcricao") !== "1") erro("Marque que os participantes foram informados da transcrição e diga como. Nada foi salvo.");
+  if (dadosG) { const e = await registrarAviso(u, r, "gravacao", String(fd.get("aviso_gravacao_forma") ?? "")); if (e) erro(e); }
+  if (temTranscricao) { const e = await registrarAviso(u, r, "transcricao", String(fd.get("aviso_transcricao_forma") ?? "")); if (e) erro(e); }
   if (dadosG) await salvarGravacao(u, r, dadosG);
   let tid: number | null = null;
   if (temArquivo || temColado) {

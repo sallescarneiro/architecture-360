@@ -25,9 +25,10 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
   if (!(await podeVer(u, r))) redirect("/sem-permissao");
   const editavel = await podeEditar(u, r);
   const [itens, historico, transcricoes, processamentos, acessos, motivo] = await Promise.all([itensDe(r.id), historicoDe(r.id), transcricoesDe(r.id), processamentosDe(r.id), acessosGravacao(r.id), motivoPorId(r.motivoId)]);
-  const ids = [...new Set([...transcricoes.map((t) => t.enviadoPor), r.avisoGravacaoPor].filter((x): x is number => !!x))];
+  const ids = [...new Set([...transcricoes.map((t) => t.enviadoPor), r.avisoGravacaoPor, r.avisoTranscricaoPor].filter((x): x is number => !!x))];
   const nomes = new Map(ids.length ? (await db.select({ id: schema.usuarios.id, nome: schema.usuarios.nome }).from(schema.usuarios).where(inArray(schema.usuarios.id, ids))).map((x) => [x.id, x.nome]) : []);
   const avisoPor = r.avisoGravacaoPor ? nomes.get(r.avisoGravacaoPor) ?? null : null;
+  const avisoTPor = r.avisoTranscricaoPor ? nomes.get(r.avisoTranscricaoPor) ?? null : null;
   const ataIA = (r.ataEstruturada ?? null) as AtaEstruturada | null;
   const pendentes = itens.filter((i) => !i.confirmado).length;
   const projeto = r.projetoCodigo ? (await db.select({ codigo: schema.projetos.codigo, nome: schema.projetos.nome, status: schema.projetos.status }).from(schema.projetos).where(eq(schema.projetos.codigo, r.projetoCodigo)).limit(1))[0] ?? null : null;
@@ -86,7 +87,7 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
               <div className="flex flex-wrap items-center gap-2"><a className="btn btn-primary" href={`/api/reunioes/gravacao?id=${r.id}`} target="_blank" rel="noreferrer">Abrir gravação</a><span className="text-xs text-[var(--muted)]">Seu acesso fica registrado. Quem pode ver o vídeo depende do compartilhamento na plataforma.</span></div>
             </>) : <p className="text-[var(--muted)]">Nenhum link de gravação registrado.</p>}
             {r.avisoGravacaoEm ? <p className="rounded-[10px] bg-[var(--ok-bg)] px-3 py-2 text-xs text-[var(--ok)]"><b>Participantes informados sobre a gravação</b> · {FORMAS_AVISO[r.avisoGravacaoForma ?? ""]?.toLowerCase() ?? "—"} · registrado por {avisoPor ?? "—"} em {dataHora(r.avisoGravacaoEm)}</p>
-              : <p className="text-xs text-[var(--muted)]">Aviso de gravação ainda não registrado (obrigatório para salvar link ou transcrição).</p>}
+              : <p className="text-xs text-[var(--muted)]">Ciência sobre a gravação ainda não registrada (obrigatória para salvar o link).</p>}
             {editavel && <div><LinkButton href={`/reunioes/${r.id}/gravacao?volta=${encodeURIComponent(volta)}`} className="btn-sm">{r.gravacaoUrl || transcricoes.length ? "Alterar gravação ou enviar nova transcrição" : "Registrar gravação e transcrição"}</LinkButton></div>}
           </div>
         </Card>
@@ -104,6 +105,9 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
                   </span>
                 </li>))}</ul>
             ) : <p className="text-[var(--muted)]">Nenhuma transcrição. No Google Meet ela fica no Drive como Documento Google: baixe como .docx ou .txt, ou copie o texto, e registre aqui.</p>}
+            {r.avisoTranscricaoEm ? <p className="rounded-[10px] bg-[var(--ok-bg)] px-3 py-2 text-xs text-[var(--ok)]"><b>Participantes informados sobre a transcrição</b> · {FORMAS_AVISO[r.avisoTranscricaoForma ?? ""]?.toLowerCase() ?? "—"} · registrado por {avisoTPor ?? "—"} em {dataHora(r.avisoTranscricaoEm)}</p>
+              : transcricoes.length > 0 && <p className="text-xs text-[var(--muted)]">Transcrição anterior a esta regra: ciência dos participantes não registrada.</p>}
+            {editavel && !transcricoes.length && <div><LinkButton href={`/reunioes/${r.id}/gravacao?volta=${encodeURIComponent(volta)}`} className="btn-sm">Registrar transcrição</LinkButton></div>}
             {!iaConfigurada() && <p className="text-xs text-[var(--st-relevante)]">IA não configurada neste ambiente (ANTHROPIC_API_KEY): o processamento usa regras simples e marca tudo como &ldquo;confirmar&rdquo;.</p>}
             {processamentos.length > 0 && (
             <details className="fold"><summary>Histórico de processamento<small>{processamentos.length} execução(ões)</small></summary>

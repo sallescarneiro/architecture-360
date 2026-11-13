@@ -80,6 +80,7 @@ export async function listarReunioes(u: Usuario, f: FiltrosReuniao): Promise<Reu
     gravacaoUrl: (x.gravacao_url as string | null) ?? null, gravacaoPlataforma: (x.gravacao_plataforma as string | null) ?? null, gravacaoData: (x.gravacao_data as string | null) ?? null,
     gravacaoDuracaoMin: x.gravacao_duracao_min == null ? null : Number(x.gravacao_duracao_min), avisoGravacaoForma: (x.aviso_gravacao_forma as string | null) ?? null,
     avisoGravacaoPor: x.aviso_gravacao_por == null ? null : Number(x.aviso_gravacao_por), avisoGravacaoEm: x.aviso_gravacao_em ? new Date(String(x.aviso_gravacao_em)) : null,
+    avisoTranscricaoForma: (x.aviso_transcricao_forma as string | null) ?? null, avisoTranscricaoPor: x.aviso_transcricao_por == null ? null : Number(x.aviso_transcricao_por), avisoTranscricaoEm: x.aviso_transcricao_em ? new Date(String(x.aviso_transcricao_em)) : null,
     motivoNome: (x.motivo_nome as string | null) ?? null, transcricaoKb: x.transcricao_kb == null ? null : Number(x.transcricao_kb), transcricaoAntiga: Boolean(x.transcricao_antiga),
     projetoNome: (x.projeto_nome as string | null) ?? null, clienteNome: (x.cliente_nome as string | null) ?? null, decisoes: Number(x.decisoes), encaminhamentosAbertos: Number(x.encaminhamentos_abertos),
   }));
@@ -227,13 +228,18 @@ export const prazoVencido = (prazo: string | null, hoje: string) => Boolean(praz
 export const PLATAFORMAS: Record<string, string> = { drive: "Google Drive (Meet)", zoom: "Zoom", teams: "Microsoft Teams", outra: "Outra" };
 export const FORMAS_AVISO: Record<string, string> = { inicio: "No início da reunião, verbalmente", convite: "No convite da reunião", mensagem: "Por mensagem ou e-mail antes da reunião", outro: "Outro" };
 
-/** Registra que os participantes foram informados (uma vez por reunião; fica no histórico). */
-export async function registrarAviso(u: Usuario, r: Reuniao, forma: string): Promise<string | null> {
-  if (r.avisoGravacaoEm) return null;
-  if (!FORMAS_AVISO[forma]) return "Diga como os participantes foram informados da gravação.";
+/**
+ * Registra a ciência dos participantes (uma vez por reunião; fica no histórico). Gravação e transcrição são tratadas
+ * separadamente: uma reunião pode ter só gravação, só transcrição ou as duas.
+ */
+export async function registrarAviso(u: Usuario, r: Reuniao, tipo: "gravacao" | "transcricao", forma: string): Promise<string | null> {
+  const ja = tipo === "gravacao" ? r.avisoGravacaoEm : r.avisoTranscricaoEm;
+  if (ja) return null;
+  if (!FORMAS_AVISO[forma]) return `Diga como os participantes foram informados da ${tipo === "gravacao" ? "gravação" : "transcrição"}.`;
+  const campos = tipo === "gravacao" ? { avisoGravacaoForma: forma, avisoGravacaoPor: u.id, avisoGravacaoEm: new Date() } : { avisoTranscricaoForma: forma, avisoTranscricaoPor: u.id, avisoTranscricaoEm: new Date() };
   await db.transaction(async (tx) => {
-    await tx.update(schema.reunioes).set({ avisoGravacaoForma: forma, avisoGravacaoPor: u.id, avisoGravacaoEm: new Date(), atualizadoEm: new Date() }).where(eq(schema.reunioes.id, r.id));
-    await registrar(tx as unknown as typeof db, r.id, u.id, "aviso_gravacao", `Participantes informados da gravação: ${FORMAS_AVISO[forma].toLowerCase()}`, null, { forma });
+    await tx.update(schema.reunioes).set({ ...campos, atualizadoEm: new Date() }).where(eq(schema.reunioes.id, r.id));
+    await registrar(tx as unknown as typeof db, r.id, u.id, tipo === "gravacao" ? "aviso_gravacao" : "aviso_transcricao", `Participantes informados da ${tipo === "gravacao" ? "gravação" : "transcrição"}: ${FORMAS_AVISO[forma].toLowerCase()}`, null, { forma });
   });
   return null;
 }
