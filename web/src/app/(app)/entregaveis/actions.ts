@@ -43,10 +43,12 @@ export async function statusEntregavelAction(fd: FormData) {
   redirect(volta(id, erro, "status"));
 }
 
-export async function aprovacaoInternaAction(fd: FormData) {
+// Um botão = uma ação: o valor do botão clicado não chega à ação do servidor (o "Pedir ajustes" era gravado como aprovação).
+export async function aprovacaoInternaAction(fd: FormData) { await revisaoInterna(fd, "aprovado"); }
+export async function ajustesInternaAction(fd: FormData) { await revisaoInterna(fd, "ajustes"); }
+async function revisaoInterna(fd: FormData, decisao: "aprovado" | "ajustes") {
   const u = await exigirUsuario(["admin", "gestao", "coordenacao"]);
   const id = Number(fd.get("id")); const e = await porId(id); if (!e) redirect("/entregaveis");
-  const decisao = String(fd.get("decisao")) === "ajustes" ? "ajustes" : "aprovado";
   const erro = await aprovacaoInterna(u, e, decisao, String(fd.get("observacao") ?? ""));
   revalidatePath(`/entregaveis/${id}`); revalidatePath("/entregaveis");
   redirect(volta(id, erro, "interna"));
