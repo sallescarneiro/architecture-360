@@ -33,7 +33,8 @@ export default async function ValidacaoPage({ searchParams }: { searchParams: Pr
     const seg = inicioSemana(dia), dias = P.diasUteis(seg);
     const [fer, ind, bl] = await Promise.all([P.feriadosEntre(seg, dias[4]), P.indisponibilidadesEntre(seg, dias[4]), P.blocosEntre(seg, dias[4], [pid])]);
     disp = P.fmtDias(dias.reduce((a, d) => a + P.disponivelNoDia(d, cfg, fer, ind), 0));
-    prog = P.fmtDias(bl.filter((b) => b.validacao !== "rascunho" && b.validacao !== "devolvida").reduce((a, b) => a + P.peso(b, cfg.jornadaHoras), 0));
+    const vb = bl.filter((b) => b.validacao !== "rascunho" && b.validacao !== "devolvida");
+    prog = P.fmtProgramado(vb.reduce((a, b) => a + P.peso(b), 0), vb.reduce((a, b) => a + P.horasComHorario(b), 0));
   }
   const url = (o: Record<string, string | number | undefined>) => `/agenda/validacao?${new URLSearchParams(Object.entries({ aba, ...o }).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString()}`;
   const ativ = (x: Record<string, unknown>) => ({ periodo: x.periodo as string | null, inicio: x.inicio ? new Date(String(x.inicio)) : null, fim: new Date(String(x.fim)), diaInteiro: !!x.dia_inteiro });

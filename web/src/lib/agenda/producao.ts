@@ -51,7 +51,7 @@ export const MOTIVOS_REPROG = ["Cliente pediu outra data", "Aguardando informaç
 export const gestor = (u: Usuario) => podeGerirAgenda(u.perfil); // admin, gestão, coordenação
 export const administraConfig = (u: Usuario) => u.perfil === "admin" || u.perfil === "gestao";
 
-const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, jornadaHoras: 8, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
+const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
 
 export async function configDe(usuarioId: number): Promise<ConfigPessoa> {
   return (await db.select().from(schema.agendaPessoas).where(eq(schema.agendaPessoas.usuarioId, usuarioId)))[0] ?? PADRAO(usuarioId);
@@ -119,13 +119,22 @@ export async function blocosEntre(de: string, ate: string, responsavelIds: numbe
 }
 export const diaDoBloco = (a: Atividade) => diaDe(a.fim);
 
-/** Peso em dias: dia inteiro 1; manhã/tarde 0,5; horário = duração ÷ jornada da pessoa (decisão de 13/11). */
-export function peso(a: Pick<Atividade, "periodo" | "inicio" | "fim" | "diaInteiro">, jornadaHoras: number): number {
+/**
+ * Peso em dias: dia inteiro 1; manhã/tarde 0,5. Horário específico NÃO vira fração de dia (decisão de 13/11: profissionais PJ,
+ * sem jornada contratual) — registra início e fim e é somado à parte, em horas (horasComHorario).
+ */
+export function peso(a: Pick<Atividade, "periodo" | "inicio" | "fim" | "diaInteiro">): number {
   if (a.periodo === "dia" || (!a.periodo && a.diaInteiro)) return 1;
   if (a.periodo === "manha" || a.periodo === "tarde") return 0.5;
-  if (!a.inicio) return 0;
-  const h = (a.fim.getTime() - a.inicio.getTime()) / 3_600_000;
-  return Math.max(0, Math.min(1, Math.round((h / (jornadaHoras || 8)) * 100) / 100));
+  return 0;
+}
+/** Horas das atividades com horário específico (início e fim), sem conversão em dias. */
+export function horasComHorario(a: Pick<Atividade, "periodo" | "inicio" | "fim" | "diaInteiro">): number {
+  if (peso(a) > 0 || !a.inicio) return 0;
+  return Math.max(0, (a.fim.getTime() - a.inicio.getTime()) / 3_600_000);
+}
+export function fmtProgramado(dias: number, horas: number): string {
+  return fmtDias(dias) + (horas > 0 ? ` + ${String(Math.round(horas * 10) / 10).replace(".", ",")} h com horário` : "");
 }
 export const fmtDias = (n: number) => `${String(Math.round(n * 100) / 100).replace(".", ",")} d`;
 export function rotuloPeriodo(a: Pick<Atividade, "periodo" | "inicio" | "fim" | "diaInteiro">): string {
@@ -421,17 +430,15 @@ export async function salvarConfig(u: Usuario, usuarioId: number, fd: FormData):
   const atual = await configDe(usuarioId);
   const nome = await nomeUsuario(usuarioId);
   const novo = {
-    uf: s("uf").toUpperCase().slice(0, 2) || null, municipio: s("municipio").slice(0, 80) || null, jornadaHoras: Number(s("jornada").replace(",", ".")),
+    uf: s("uf").toUpperCase().slice(0, 2) || null, municipio: s("municipio").slice(0, 80) || null,
     almocoInicio: s("almoco_inicio") || null, almocoFim: s("almoco_fim") || null, modelo: s("modelo"), validadora: s("validadora") === "1",
   };
   if (novo.uf && !/^[A-Z]{2}$/.test(novo.uf)) return { ok: false, mensagem: "UF inválida (duas letras)." };
-  if (!(novo.jornadaHoras >= 1 && novo.jornadaHoras <= 12)) return { ok: false, mensagem: "Jornada diária entre 1 e 12 horas." };
   if (!MODELOS[novo.modelo]) return { ok: false, mensagem: "Modelo inválido." };
   if ((novo.almocoInicio && !/^\d{2}:\d{2}$/.test(novo.almocoInicio)) || (novo.almocoFim && !/^\d{2}:\d{2}$/.test(novo.almocoFim))) return { ok: false, mensagem: "Horário de almoço inválido." };
   if (novo.almocoInicio && novo.almocoFim && novo.almocoFim <= novo.almocoInicio) return { ok: false, mensagem: "O fim do almoço precisa ser depois do início." };
   const mud: string[] = [];
   if ((atual.uf ?? "") !== (novo.uf ?? "") || (atual.municipio ?? "") !== (novo.municipio ?? "")) mud.push(`localidade ${[atual.municipio, atual.uf].filter(Boolean).join("/") || "—"} → ${[novo.municipio, novo.uf].filter(Boolean).join("/") || "—"}`);
-  if (atual.jornadaHoras !== novo.jornadaHoras) mud.push(`jornada ${atual.jornadaHoras} h → ${novo.jornadaHoras} h`);
   if ((atual.almocoInicio ?? "") !== (novo.almocoInicio ?? "") || (atual.almocoFim ?? "") !== (novo.almocoFim ?? "")) mud.push(`almoço ${atual.almocoInicio ?? "—"}–${atual.almocoFim ?? "—"} → ${novo.almocoInicio ?? "—"}–${novo.almocoFim ?? "—"}`);
   if (atual.modelo !== novo.modelo) mud.push(`${MODELOS[atual.modelo].rotulo} → ${MODELOS[novo.modelo].rotulo}`);
   if (atual.validadora !== novo.validadora) mud.push(novo.validadora ? "passa a validar propostas" : "deixa de validar propostas");

@@ -8,7 +8,7 @@ import { configAction, substitutaAction } from "../quadro/actions";
 
 const PERFIL: Record<string, string> = { admin: "administração", gestao: "gestão", coordenacao: "coordenação", arquiteta: "arquiteta" };
 
-/** Etapa A — Pessoas da agenda: localidade, jornada, almoço, modelo de programação e validadoras. Gestão altera; coordenação consulta. */
+/** Etapa A — Pessoas da agenda: localidade, almoço, modelo de programação e validadoras. Gestão altera; coordenação consulta. */
 export default async function PessoasAgendaPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const u = await exigirUsuario();
   if (!P.gestor(u)) redirect("/agenda/semana");
@@ -22,18 +22,17 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow={`Agenda · configuração${pode ? "" : " · consulta"}`} title="Pessoas da agenda"
-        subtitle="Localidade (para os feriados), jornada diária (para converter horários em dias), almoço e modelo de programação de cada pessoa, e quem valida as propostas. Ninguém recebe modelo automaticamente: “A definir” funciona como programação estruturada." />
+        subtitle="Localidade (para os feriados estaduais e municipais; sem localidade, só valem os nacionais), almoço e modelo de programação de cada pessoa, e quem valida as propostas. Ninguém recebe modelo automaticamente: “A definir” funciona como programação estruturada." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       <div className="flex flex-wrap items-start gap-4">
         <section className="card min-w-0 flex-[999_1_560px] p-4" aria-label="Pessoas">
           <div className="overflow-x-auto"><table className="tbl">
-            <thead><tr><th>Pessoa</th><th>Localidade</th><th>Jornada</th><th>Almoço</th><th>Modelo</th><th>Valida</th>{pode && <th></th>}</tr></thead>
+            <thead><tr><th>Pessoa</th><th>Localidade</th><th>Almoço</th><th>Modelo</th><th>Valida</th>{pode && <th></th>}</tr></thead>
             <tbody>{pessoas.map((p) => (
               <tr key={p.id} className={sel?.id === p.id ? "bg-[#fbf4f1]" : ""}>
                 <td><b>{p.nome}</b><span className="block text-[0.7rem] text-[var(--muted)]">{PERFIL[p.perfil] ?? p.perfil}</span></td>
                 <td>{[p.cfg.municipio, p.cfg.uf].filter(Boolean).join("/") || <span className="text-[var(--muted)]">não informada</span>}</td>
-                <td>{String(p.cfg.jornadaHoras).replace(".", ",")} h</td>
                 <td>{p.cfg.almocoInicio && p.cfg.almocoFim ? `${p.cfg.almocoInicio}–${p.cfg.almocoFim}` : <span className="text-[var(--muted)]">—</span>}</td>
                 <td>{p.perfil === "arquiteta" ? <span className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${p.cfg.modelo === "autonoma" ? "bg-[#e1f0e7] text-[#1f5a3b]" : p.cfg.modelo === "estruturada" ? "bg-[#eae4f4] text-[#4b3470]" : "border border-dashed border-[#b9aea7] bg-[#efebe8] text-[#5f5752]"}`}>{P.MODELOS[p.cfg.modelo].rotulo}</span> : <span className="text-[var(--muted)]">—</span>}</td>
                 <td className="text-xs">{p.cfg.validadora ? "sim" : p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje ? `substituta até ${dataCurta(p.cfg.substitutaAte)}` : "—"}</td>
@@ -64,7 +63,6 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                 <label className="block text-xs font-semibold text-[var(--txt-2)]">UF<input name="uf" maxLength={2} defaultValue={sel.cfg.uf ?? ""} className="input mt-1 uppercase" /></label>
                 <label className="block text-xs font-semibold text-[var(--txt-2)]">Município<input name="municipio" maxLength={80} defaultValue={sel.cfg.municipio ?? ""} className="input mt-1" /></label>
               </div>
-              <label className="block text-xs font-semibold text-[var(--txt-2)]">Jornada diária (horas)<input name="jornada" type="number" min={1} max={12} step={0.5} defaultValue={sel.cfg.jornadaHoras} className="input mt-1" /></label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block text-xs font-semibold text-[var(--txt-2)]">Almoço · início<input type="time" name="almoco_inicio" defaultValue={sel.cfg.almocoInicio ?? ""} className="input mt-1" /></label>
                 <label className="block text-xs font-semibold text-[var(--txt-2)]">Almoço · fim<input type="time" name="almoco_fim" defaultValue={sel.cfg.almocoFim ?? ""} className="input mt-1" /></label>

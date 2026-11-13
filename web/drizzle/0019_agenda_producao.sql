@@ -11,7 +11,6 @@ CREATE TABLE "agenda_pessoa" (
 	"usuario_id" integer PRIMARY KEY NOT NULL,
 	"uf" text,
 	"municipio" text,
-	"jornada_horas" real DEFAULT 8 NOT NULL,
 	"almoco_inicio" text,
 	"almoco_fim" text,
 	"modelo" text DEFAULT 'indefinido' NOT NULL,

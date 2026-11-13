@@ -86,13 +86,13 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
             })}
             {pessoas.length === 0 && <div className="col-span-6 p-6 text-sm text-[var(--muted)]">Nenhuma arquiteta ativa cadastrada.</div>}
             {pessoas.map((p) => {
-              let disp = 0, prog = 0;
+              let disp = 0, prog = 0, horas = 0;
               const cells = dias.map((d) => {
                 const fer = feriados.find((f) => f.data === d && P.feriadoVale(f, p.cfg));
                 const ind = indisp.find((i) => i.usuarioId === p.id && i.inicio <= d && i.fim >= d);
                 disp += P.disponivelNoDia(d, p.cfg, feriados, indisp);
                 const bl = blocos.filter((b) => b.responsavelId === p.id && P.diaDoBloco(b) === d);
-                bl.forEach((b) => { if (b.validacao !== "rascunho" && b.validacao !== "devolvida") prog += P.peso(b, p.cfg.jornadaHoras); });
+                bl.forEach((b) => { if (b.validacao !== "rascunho" && b.validacao !== "devolvida") { prog += P.peso(b); horas += P.horasComHorario(b); } });
                 const cheio = fer || (ind && ind.situacao === "confirmada" && ind.periodo === "dia");
                 return (
                   <div key={d} className={`flex min-h-[118px] flex-col gap-1.5 border-b border-r border-[#f0e8e2] p-1.5 ${fer ? "bg-[repeating-linear-gradient(135deg,#eef5f5_0_8px,#e4eeee_8px_16px)]" : cheio ? "bg-[repeating-linear-gradient(135deg,#fbf1ee_0_8px,#f6e6e1_8px_16px)]" : "bg-white"}`}>
@@ -108,7 +108,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   <b className="text-[0.82rem]">{p.nome}</b>
                   <span className={`self-start rounded-full px-2 text-[0.66rem] font-bold ${p.cfg.modelo === "autonoma" ? "bg-[#e1f0e7] text-[#1f5a3b]" : p.cfg.modelo === "estruturada" ? "bg-[#eae4f4] text-[#4b3470]" : "border border-dashed border-[#b9aea7] bg-[#efebe8] text-[#5f5752]"}`}>{p.cfg.modelo === "indefinido" ? "A definir · como estruturada" : P.MODELOS[p.cfg.modelo].rotulo}</span>
                   <span className="text-[0.68rem] text-[var(--muted)]">{[p.cfg.municipio, p.cfg.uf].filter(Boolean).join("/") || "localidade não informada"}</span>
-                  <span className={`text-[0.68rem] ${prog > disp ? "font-semibold text-[var(--bad)]" : "text-[var(--txt-2)]"}`}>Disponível {P.fmtDias(disp)} · programado {P.fmtDias(prog)}</span>
+                  <span className={`text-[0.68rem] ${prog > disp ? "font-semibold text-[var(--bad)]" : "text-[var(--txt-2)]"}`}>Disponível {P.fmtDias(disp)} · programado {P.fmtProgramado(prog, horas)}</span>
                 </div>,
                 ...cells,
               ];
@@ -122,7 +122,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               <div className="eyebrow">Nova atividade</div>
               <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">{novo.pessoa.nome} · {P.rotuloDia(novo.dia)}</h2>
               <p className="text-xs text-[var(--muted)]">Entra direto na agenda dela como programação confirmada.</p>
-              <FormBloco action={criarBlocoAction} volta={q({})} rotulo="Incluir na agenda" projetos={projetos} jornada={novo.pessoa.cfg.jornadaHoras} travarDia
+              <FormBloco action={criarBlocoAction} volta={q({})} rotulo="Incluir na agenda" projetos={projetos} travarDia
                 valores={{ pessoaId: novo.pessoa.id, dia: novo.dia, projetoCodigo: null, etapa: "", periodo: "dia", hi: "09:00", hf: "11:00", entrega: false, obs: "" }} />
               <p className="text-xs text-[var(--muted)]">Para ligar a uma tarefa do Vobi, use a <Link href={`/agenda/atividade/nova?d=${novo.dia}&pessoa=${novo.pessoa.id}`} className="underline">programação com vínculo ao Vobi</Link>.</p>
               <LinkButton href={q({})} variant="ghost">Cancelar</LinkButton>
@@ -155,7 +155,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   <p className="text-xs text-[var(--muted)]">Para outra data, use “Dia” no formulário de edição.</p>
                 </form>
               ) : (<>
-                <FormBloco action={editarBlocoAction} id={sel.id} volta={q({ ver: sel.id })} rotulo="Salvar alterações" projetos={projetos} jornada={selPessoa?.cfg.jornadaHoras ?? 8}
+                <FormBloco action={editarBlocoAction} id={sel.id} volta={q({ ver: sel.id })} rotulo="Salvar alterações" projetos={projetos}
                   pessoas={pessoas.map((p) => ({ id: p.id, nome: p.nome }))}
                   valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, obs: sel.descricao ?? "" }} />
                 {sel.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, executora, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
@@ -175,7 +175,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
         <span className="inline-flex items-center gap-1"><Entrega /> entrega ao cliente</span>
         <span className="inline-flex flex-wrap items-center gap-1"><SeloValidacao v="aguardando" /><SeloValidacao v="aprovada" /><SeloValidacao v="devolvida" /><SeloValidacao v="rascunho" /> propostas de autônomas; sem selo = confirmada</span>
       </div>
-      <p className="text-xs text-[var(--muted)]">Disponível = dias úteis − feriados da localidade − indisponibilidades confirmadas (meio período = 0,5). Pedido de ausência pendente aparece tracejado e não desconta. Programado = dia inteiro 1, manhã ou tarde 0,5, horário = duração ÷ jornada da pessoa; rascunhos e devolvidas não contam. Atestado aparece só como “Indisponível”. Nada aqui é enviado ao Vobi.</p>
+      <p className="text-xs text-[var(--muted)]">Disponível = dias úteis − feriados da localidade − indisponibilidades confirmadas (meio período = 0,5). Pedido de ausência pendente aparece tracejado e não desconta. Programado = dia inteiro 1, manhã ou tarde 0,5; atividades com horário específico aparecem em horas, à parte; rascunhos e devolvidas não contam. Atestado aparece só como “Indisponível”. Nada aqui é enviado ao Vobi.</p>
     </div>
   );
 }

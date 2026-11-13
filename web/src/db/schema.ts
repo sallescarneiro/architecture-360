@@ -749,7 +749,6 @@ export const agendaPessoas = pgTable("agenda_pessoa", {
   usuarioId: integer("usuario_id").primaryKey().references(() => usuarios.id),
   uf: text("uf"),
   municipio: text("municipio"),
-  jornadaHoras: real("jornada_horas").notNull().default(8),
   almocoInicio: text("almoco_inicio"),                      // HH:MM
   almocoFim: text("almoco_fim"),
   modelo: text("modelo").notNull().default("indefinido"),  // indefinido (= estruturada) | estruturada | autonoma

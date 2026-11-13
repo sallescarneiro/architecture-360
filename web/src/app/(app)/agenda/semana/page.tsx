@@ -30,7 +30,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
   const nomes = new Map((codigos.length ? await db.select({ c: schema.projetos.codigo, n: schema.projetos.nome }).from(schema.projetos).where(inArray(schema.projetos.codigo, codigos)) : []).map((p) => [p.c, p.n]));
   const validadores = new Map((await db.select({ id: schema.usuarios.id, n: schema.usuarios.nome }).from(schema.usuarios)).map((x) => [x.id, x.n]));
   const disp = dias.reduce((a, d) => a + P.disponivelNoDia(d, cfg, feriados, indisp), 0);
-  const conf = blocos.filter((b) => b.validacao === "confirmada" || b.validacao === "aprovada").reduce((a, b) => a + P.peso(b, cfg.jornadaHoras), 0);
+  const confB = blocos.filter((b) => b.validacao === "confirmada" || b.validacao === "aprovada"), conf = confB.reduce((a, b) => a + P.peso(b), 0), confH = confB.reduce((a, b) => a + P.horasComHorario(b), 0);
   const editar = /^\d+$/.test(sp.editar ?? "") ? blocos.find((b) => b.id === Number(sp.editar) && b.criadoPorId === u.id && b.validacao !== "confirmada") ?? null : null;
   const minhasInd = pid === u.id ? await P.listaIndisp(u, somaDias(hoje, -7)) : [];
   const modelo = cfg.modelo === "autonoma" ? "autonoma" : "estruturada";
@@ -53,7 +53,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
         <Link href={base({ s: somaDias(seg, -7) })} className="btn btn-secondary btn-sm" aria-label="Semana anterior">‹</Link>
         <LinkButton href={base({ s: inicioSemana(hoje) })} className="btn-sm">Esta semana</LinkButton>
         <Link href={base({ s: somaDias(seg, 7) })} className="btn btn-secondary btn-sm" aria-label="Próxima semana">›</Link>
-        <span className="ml-1 text-sm text-[var(--txt-2)]">Disponível {P.fmtDias(disp)} · programado e confirmado {P.fmtDias(conf)}{cfg.almocoInicio && cfg.almocoFim ? ` · almoço ${cfg.almocoInicio}–${cfg.almocoFim}` : ""}</span>
+        <span className="ml-1 text-sm text-[var(--txt-2)]">Disponível {P.fmtDias(disp)} · programado e confirmado {P.fmtProgramado(conf, confH)}{cfg.almocoInicio && cfg.almocoFim ? ` · almoço ${cfg.almocoInicio}–${cfg.almocoFim}` : ""}</span>
       </div>
 
       <div className="flex flex-wrap items-start gap-4">
@@ -107,7 +107,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
             <section className="card flex flex-col gap-2 p-4" aria-label="Editar proposta">
               <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Editar proposta</h2>
               {editar.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
-              <FormBloco action={editarBlocoAction} id={editar.id} volta={base()} rotulo="Salvar" projetos={await P.projetosAtivos()} jornada={cfg.jornadaHoras}
+              <FormBloco action={editarBlocoAction} id={editar.id} volta={base()} rotulo="Salvar" projetos={await P.projetosAtivos()}
                 valores={{ pessoaId: pid, dia: P.diaDoBloco(editar), projetoCodigo: editar.projetoCodigo, etapa: editar.etapaRucelle ?? "", periodo: editar.periodo ?? "dia", hi: editar.inicio ? horaInput(editar.inicio) : "09:00", hf: horaInput(editar.fim), entrega: editar.entrega, obs: editar.descricao ?? "" }} />
               <LinkButton href={base()} variant="ghost">Cancelar</LinkButton>
             </section>
@@ -116,7 +116,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
             <section className="card flex flex-col gap-2 p-4" aria-label="Propor atividade">
               <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Propor atividade</h2>
               <p className="text-xs text-[var(--muted)]">Fica como rascunho até você enviar para validação.</p>
-              <FormBloco action={criarBlocoAction} volta={base()} rotulo="Salvar rascunho" projetos={projetos} jornada={cfg.jornadaHoras}
+              <FormBloco action={criarBlocoAction} volta={base()} rotulo="Salvar rascunho" projetos={projetos}
                 valores={{ pessoaId: u.id, dia: dias.find((d) => d >= hoje) ?? dias[0], projetoCodigo: null, etapa: "", periodo: "dia", hi: "09:00", hf: "11:00", entrega: false, obs: "" }} />
             </section>
           )}

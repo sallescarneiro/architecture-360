@@ -1,5 +1,5 @@
 {
-  "id": "2af43485-1e0a-4fde-8db6-0563c155de17",
+  "id": "b0e1dbdc-4872-4db1-8f64-ba8969b076bb",
   "prevId": "80150a2c-1578-4e60-86d9-51cd69583624",
   "version": "7",
   "dialect": "postgresql",
@@ -181,13 +181,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "jornada_horas": {
-          "name": "jornada_horas",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 8
         },
         "almoco_inicio": {
           "name": "almoco_inicio",

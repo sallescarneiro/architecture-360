@@ -5,9 +5,9 @@ import { curto } from "./Producao";
 
 export type ValoresBloco = { pessoaId: number; dia: string; projetoCodigo: number | null; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string };
 
-export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotulo, jornada, travarDia }: {
+export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotulo, travarDia }: {
   action: (fd: FormData) => Promise<void>; id?: number; valores: ValoresBloco; projetos: { codigo: number; nome: string }[];
-  pessoas?: { id: number; nome: string }[]; volta: string; rotulo: string; jornada: number; travarDia?: boolean;
+  pessoas?: { id: number; nome: string }[]; volta: string; rotulo: string; travarDia?: boolean;
 }) {
   return (
     <form action={action} className="flex flex-col gap-2.5">
@@ -42,7 +42,7 @@ export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotul
         <label className="block text-xs font-semibold text-[var(--txt-2)]">Início (se horário)<input type="time" name="hora_inicio" defaultValue={valores.hi} className="input mt-1" /></label>
         <label className="block text-xs font-semibold text-[var(--txt-2)]">Fim (se horário)<input type="time" name="hora_fim" defaultValue={valores.hf} className="input mt-1" /></label>
       </div>
-      <p className="text-[0.72rem] text-[var(--muted)]">Horário específico conta como a duração ÷ jornada diária da pessoa ({String(jornada).replace(".", ",")} h).</p>
+      <p className="text-[0.72rem] text-[var(--muted)]">Horário específico registra início e fim; aparece em horas, sem conversão em fração de dia.</p>
       <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" name="entrega" value="1" defaultChecked={valores.entrega} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Entrega ao cliente neste dia</label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Observação (opcional)<input name="obs" defaultValue={valores.obs} maxLength={500} className="input mt-1" placeholder="não exige nova validação" /></label>
       <Button variant="primary">{rotulo}</Button>
