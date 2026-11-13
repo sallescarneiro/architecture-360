@@ -7,7 +7,7 @@ import { EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, histori
 import { reuniaoPorId, reunioesDoProjeto } from "@/lib/reunioes";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
-import { aprovacaoClienteAction, aprovacaoInternaAction, comentarAction, novaVersaoAction, statusEntregavelAction } from "../actions";
+import { aprovacaoClienteAction, aprovacaoInternaAction, ajustesInternaAction, comentarAction, novaVersaoAction, statusEntregavelAction } from "../actions";
 
 export default async function EntregavelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const u = await exigirUsuario();
@@ -85,7 +85,7 @@ export default async function EntregavelPage({ params, searchParams }: { params:
                 <input type="hidden" name="id" value={e.id} />
                 <div className="text-xs font-semibold text-[var(--txt-2)]">Revisão interna da v{e.versaoAtual}</div>
                 <textarea name="observacao" rows={2} className="input" maxLength={2000} placeholder="observações (obrigatório ao pedir ajustes)" />
-                <div className="flex gap-2"><Button name="decisao" value="aprovado" variant="primary">Aprovar internamente</Button><Button name="decisao" value="ajustes" variant="secondary">Pedir ajustes</Button></div>
+                <div className="flex gap-2"><Button formAction={aprovacaoInternaAction} variant="primary">Aprovar internamente</Button><Button formAction={ajustesInternaAction} variant="secondary">Pedir ajustes</Button></div>
               </form>
             )}
             {!gestao(u) && e.status === "revisao_interna" && <p className="mt-2 text-[0.8rem] text-[var(--muted)]">Aguardando revisão interna da coordenação/gestão.</p>}
