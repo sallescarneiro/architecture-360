@@ -1,11 +1,12 @@
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
 import { Button, LinkButton } from "@/components/ui";
+import { ORIGENS } from "@/lib/reunioes-motivos";
 
-export type ValoresReuniao = { titulo: string; projetoCodigo: number | null; data: string; horaInicio: string; horaFim: string; local: string; participantes: string; pauta: string };
+export type ValoresReuniao = { titulo: string; projetoCodigo: number | null; motivoId?: number | null; origem?: string | null; data: string; horaInicio: string; horaFim: string; local: string; participantes: string; pauta: string };
 
 /** Formulário de reunião (criar/editar). Server component; validação no servidor. */
-export function FormularioReuniao({ action, valores, projetos, pessoas, volta, id, edicao, eventoId, podeAgenda, erro }: {
-  action: (fd: FormData) => Promise<void>; valores: ValoresReuniao; projetos: ProjetoRef[]; pessoas: { email: string; nome: string | null }[];
+export function FormularioReuniao({ action, valores, projetos, motivos, pessoas, volta, id, edicao, eventoId, podeAgenda, erro }: {
+  action: (fd: FormData) => Promise<void>; valores: ValoresReuniao; projetos: ProjetoRef[]; motivos: { id: number; nome: string; ativo: boolean }[]; pessoas: { email: string; nome: string | null }[];
   volta: string; id?: number; edicao?: boolean; eventoId?: number | null; podeAgenda?: boolean; erro?: string;
 }) {
   const v = valores;
@@ -15,13 +16,32 @@ export function FormularioReuniao({ action, valores, projetos, pessoas, volta, i
       <input type="hidden" name="volta" value={volta} />
       {id && <input type="hidden" name="id" value={id} />}
       {eventoId && <input type="hidden" name="evento" value={eventoId} />}
-      <label className="block text-xs font-semibold text-[var(--txt-2)]">Título<input name="titulo" required maxLength={200} defaultValue={v.titulo} className="input mt-1" placeholder="ex.: Reunião de aprovação do anteprojeto" autoFocus /></label>
-      <label className="block text-xs font-semibold text-[var(--txt-2)]">Projeto / cliente (Vobi, só leitura)
-        <select name="projeto" className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
-          <option value="">— sem projeto (reunião interna/geral) —</option>
+      {/* T-227: toda reunião pertence a um projeto; o cliente vem do projeto */}
+      <label className="block text-xs font-semibold text-[var(--txt-2)]">Projeto (Vobi, só leitura) *
+        <select name="projeto" required className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
+          <option value="">— escolha o projeto —</option>
+          {v.projetoCodigo && !projetos.some((p) => p.codigo === v.projetoCodigo) && <option value={v.projetoCodigo}>projeto atual nº {v.projetoCodigo} (encerrado ou fora da lista)</option>}
           {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""} ({p.codigo})</option>)}
         </select>
+        <span className="sub font-normal">O cliente vem do projeto. Projeto fora da lista pode ser trazido em Projetos › Buscar projeto no Vobi.</span>
       </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-xs font-semibold text-[var(--txt-2)]">Motivo da reunião *
+          <select name="motivo" required className="input mt-1" defaultValue={v.motivoId ?? ""}>
+            <option value="">— escolha o motivo —</option>
+            {motivos.map((m) => <option key={m.id} value={m.id}>{m.nome}{m.ativo ? "" : " (desativado)"}</option>)}
+          </select>
+          <span className="sub font-normal">O assunto tratado. A lista é administrada pela gestão.</span>
+        </label>
+        <label className="block text-xs font-semibold text-[var(--txt-2)]">Origem da reunião *
+          <select name="origem" required className="input mt-1" defaultValue={v.origem ?? ""}>
+            <option value="">— quem solicitou —</option>
+            {Object.entries(ORIGENS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+          </select>
+          <span className="sub font-normal">Quem pediu a reunião. Independente do motivo.</span>
+        </label>
+      </div>
+      <label className="block text-xs font-semibold text-[var(--txt-2)]">Título<input name="titulo" required maxLength={200} defaultValue={v.titulo} className="input mt-1" placeholder="ex.: Apresentação do 3D" /></label>
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <label className="block text-xs font-semibold text-[var(--txt-2)]">Data<input type="date" name="data" required defaultValue={v.data} className="input mt-1" /></label>
         <label className="block text-xs font-semibold text-[var(--txt-2)]">Início<input type="time" name="hora_inicio" required step={300} defaultValue={v.horaInicio} className="input mt-1" /></label>

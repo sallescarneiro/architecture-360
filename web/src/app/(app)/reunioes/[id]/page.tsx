@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import { ORIGENS, motivoPorId } from "@/lib/reunioes-motivos";
 import { db, schema } from "@/db";
 import { exigirUsuario } from "@/lib/auth";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { dataHora, hojeLocal } from "@/lib/agenda/datas";
-import { STATUS_REUNIAO, TIPOS_ITEM, fmtPeriodo, historicoDe, itensDe, podeEditar, podeVer, prazoVencido, reuniaoPorId, type ItemReuniao } from "@/lib/reunioes";
+import { FORMAS_AVISO, PLATAFORMAS, STATUS_REUNIAO, TIPOS_ITEM, acessosGravacao, fmtPeriodo, historicoDe, itensDe, podeEditar, podeVer, prazoVencido, reuniaoPorId, type ItemReuniao } from "@/lib/reunioes";
 import { Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
 import { processamentosDe, transcricoesDe } from "@/lib/transcricao/processar";
 import { CONFIANCA, type AtaEstruturada, type Confianca } from "@/lib/transcricao/tipos";
-import { FORMATOS_ACEITOS } from "@/lib/transcricao/extrair";
 import { iaConfigurada } from "@/lib/vobi-cobertura";
-import { adicionarItemAction, confirmarItemAction, enviarTranscricaoAction, mudarStatusAction, processarTranscricaoAction, salvarAtaAction, situacaoItemAction } from "../actions";
+import { adicionarItemAction, confirmarItemAction, mudarStatusAction, processarTranscricaoAction, salvarAtaAction, situacaoItemAction } from "../actions";
 
 const seguro = (s?: string) => (s && s.startsWith("/") && !s.startsWith("//") ? s : "/reunioes");
 const fmtDia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
@@ -24,7 +24,10 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
   const r = await reuniaoPorId(Number(id)); if (!r) notFound();
   if (!(await podeVer(u, r))) redirect("/sem-permissao");
   const editavel = await podeEditar(u, r);
-  const [itens, historico, transcricoes, processamentos] = await Promise.all([itensDe(r.id), historicoDe(r.id), transcricoesDe(r.id), processamentosDe(r.id)]);
+  const [itens, historico, transcricoes, processamentos, acessos, motivo] = await Promise.all([itensDe(r.id), historicoDe(r.id), transcricoesDe(r.id), processamentosDe(r.id), acessosGravacao(r.id), motivoPorId(r.motivoId)]);
+  const ids = [...new Set([...transcricoes.map((t) => t.enviadoPor), r.avisoGravacaoPor].filter((x): x is number => !!x))];
+  const nomes = new Map(ids.length ? (await db.select({ id: schema.usuarios.id, nome: schema.usuarios.nome }).from(schema.usuarios).where(inArray(schema.usuarios.id, ids))).map((x) => [x.id, x.nome]) : []);
+  const avisoPor = r.avisoGravacaoPor ? nomes.get(r.avisoGravacaoPor) ?? null : null;
   const ataIA = (r.ataEstruturada ?? null) as AtaEstruturada | null;
   const pendentes = itens.filter((i) => !i.confirmado).length;
   const projeto = r.projetoCodigo ? (await db.select({ codigo: schema.projetos.codigo, nome: schema.projetos.nome, status: schema.projetos.status }).from(schema.projetos).where(eq(schema.projetos.codigo, r.projetoCodigo)).limit(1))[0] ?? null : null;
@@ -38,15 +41,15 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
   if (sp.ata) avisos.push("Ata salva.");
   if (sp.item) avisos.push("Item registrado.");
   if (sp.status) avisos.push("Status atualizado.");
-  if (sp.transcricao) avisos.push("Transcrição guardada (documento original preservado).");
+  if (sp.gravacao) avisos.push("Gravação e transcrição registradas (só o link e o texto; o arquivo e o vídeo continuam na plataforma de origem).");
   if (sp.processado === "concluido") avisos.push(sp.reaproveitado ? "Esta transcrição já havia sido processada pelo mesmo modelo; resultado reaproveitado sem nova chamada à IA. Use “Reprocessar” para forçar." : "Ata gerada por IA. Decisões, aprovações e encaminhamentos extraídos aguardam sua confirmação.");
   if (sp.processado === "regras") avisos.push("IA não configurada: a ata foi montada por regras simples e todos os itens precisam de confirmação.");
   const porTipo = (t: string) => itens.filter((i) => i.tipo === t);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
-      <PageHeader eyebrow="Architecture 360 · Reuniões" title={r.titulo}
-        subtitle={<>{fmtPeriodo(r.inicio, r.fim)}{r.local ? ` · ${r.local}` : ""} · <Badge tone={st?.tom ?? "neutral"}>{st?.rotulo ?? r.status}</Badge></>}
+      <PageHeader eyebrow="Inteligência de Reuniões · Reunião de projeto" title={r.titulo}
+        subtitle={<>{fmtPeriodo(r.inicio, r.fim)}{r.local ? ` · ${r.local}` : ""} · <Badge tone={st?.tom ?? "neutral"}>{st?.rotulo ?? r.status}</Badge> {motivo ? <Badge tone="info">Motivo: {motivo.nome.replace(/^Reunião de /, "")}</Badge> : <Badge tone="warn">Não classificada</Badge>} {r.origem && <Badge tone="neutral">Origem: {ORIGENS[r.origem]}</Badge>}</>}
         actions={<div className="flex flex-wrap gap-2">
           {editavel && <LinkButton href={`/reunioes/${r.id}/editar?volta=${encodeURIComponent(volta)}`}>Editar dados</LinkButton>}
           {r.status === "planejada" && editavel && <form action={mudarStatusAction}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} /><input type="hidden" name="status" value="realizada" /><Button variant="primary">Marcar como realizada</Button></form>}
@@ -70,31 +73,46 @@ export default async function ReuniaoPage({ params, searchParams }: { params: Pr
         </Card>
       </div>
 
-      <Card title={`Transcrição do Google Meet (${transcricoes.length})`} subtitle="fonte primária da ata · documento original preservado em todas as versões · acesso restrito a quem vê a reunião">
-        <div id="transcricao" className="flex flex-col gap-3 text-sm">
-          {transcricoes.length ? (
-            <ul className="flex flex-col divide-y divide-[var(--line)]">{transcricoes.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
-                <span><b>v{t.versao}</b> {t.atual && <span className="tag">atual</span>} <a className="underline" href={`/api/reunioes/transcricao?id=${t.id}`}>{t.nomeArquivo}</a> <span className="text-xs text-[var(--muted)]">· {t.formato} · {Math.round(t.tamanho / 1024)} KB · {t.texto ? `${t.texto.length.toLocaleString("pt-BR")} caracteres` : "sem texto"}</span></span>
-                <span className="flex items-center gap-2 text-xs text-[var(--muted)]">enviada {dataHora(t.enviadoEm)}{editavel && <form action={processarTranscricaoAction}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} /><input type="hidden" name="transcricao" value={t.id} /><input type="hidden" name="forcar" value="1" /><button className="btn btn-secondary btn-sm" type="submit" title="Nova chamada à IA (consome tokens)">{t.atual ? "Reprocessar" : "Processar esta versão"}</button></form>}</span>
-              </li>))}</ul>
-          ) : <p className="text-[var(--muted)]">Nenhuma transcrição enviada. No Google Meet, a transcrição fica salva no Drive (pasta &ldquo;Meet Recordings&rdquo;) como Documento Google: baixe como .docx ou .txt e envie aqui.</p>}
-          {editavel && (
-            <form action={enviarTranscricaoAction} encType="multipart/form-data" className="flex flex-wrap items-end gap-2 rounded-[10px] border border-dashed border-[var(--line)] p-3">
-              <input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} />
-              <label className="block flex-1 text-xs font-semibold text-[var(--txt-2)]">Arquivo da transcrição <span className="font-normal text-[var(--muted)]">({FORMATOS_ACEITOS.join(", ")} · até 15 MB)</span><input type="file" name="arquivo" required accept={FORMATOS_ACEITOS.join(",")} className="input mt-1" /></label>
-              <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="processar" value="1" defaultChecked /> gerar ata automaticamente</label>
-              <Button variant="primary" className="btn-sm">{transcricoes.length ? "Enviar nova versão" : "Enviar transcrição"}</Button>
-            </form>
-          )}
-          {!iaConfigurada() && <p className="text-xs text-[var(--st-relevante)]">IA não configurada neste ambiente (ANTHROPIC_API_KEY): o processamento usa regras simples e marca tudo como &ldquo;confirmar&rdquo;. Flag de limitação registrada.</p>}
-          {processamentos.length > 0 && (
+      {/* T-227: gravação (só o link) e transcrição (só o texto) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="Gravação" subtitle="fica na plataforma de origem · o A360 guarda só o link">
+          <div id="gravacao" className="flex flex-col gap-2 text-sm">
+            {r.gravacaoUrl ? (<>
+              <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1">
+                <dt className="text-xs font-semibold text-[var(--muted)]">Plataforma</dt><dd>{PLATAFORMAS[r.gravacaoPlataforma ?? ""] ?? "—"}</dd>
+                <dt className="text-xs font-semibold text-[var(--muted)]">Gravada em</dt><dd>{r.gravacaoData ? fmtDia(r.gravacaoData) : "—"}{r.gravacaoDuracaoMin ? ` · ${r.gravacaoDuracaoMin} min` : ""}</dd>
+                <dt className="text-xs font-semibold text-[var(--muted)]">Acessos</dt><dd>{acessos.total ? `${acessos.total} abertura(s) registrada(s) · última por ${acessos.quem ?? "—"}, ${acessos.ultimo ? dataHora(acessos.ultimo) : ""}` : "nenhuma abertura registrada"}</dd>
+              </dl>
+              <div className="flex flex-wrap items-center gap-2"><a className="btn btn-primary" href={`/api/reunioes/gravacao?id=${r.id}`} target="_blank" rel="noreferrer">Abrir gravação</a><span className="text-xs text-[var(--muted)]">Seu acesso fica registrado. Quem pode ver o vídeo depende do compartilhamento na plataforma.</span></div>
+            </>) : <p className="text-[var(--muted)]">Nenhum link de gravação registrado.</p>}
+            {r.avisoGravacaoEm ? <p className="rounded-[10px] bg-[var(--ok-bg)] px-3 py-2 text-xs text-[var(--ok)]"><b>Participantes informados sobre a gravação</b> · {FORMAS_AVISO[r.avisoGravacaoForma ?? ""]?.toLowerCase() ?? "—"} · registrado por {avisoPor ?? "—"} em {dataHora(r.avisoGravacaoEm)}</p>
+              : <p className="text-xs text-[var(--muted)]">Aviso de gravação ainda não registrado (obrigatório para salvar link ou transcrição).</p>}
+            {editavel && <div><LinkButton href={`/reunioes/${r.id}/gravacao?volta=${encodeURIComponent(volta)}`} className="btn-sm">{r.gravacaoUrl || transcricoes.length ? "Alterar gravação ou enviar nova transcrição" : "Registrar gravação e transcrição"}</LinkButton></div>}
+          </div>
+        </Card>
+        <Card title={`Transcrição (${transcricoes.length})`} subtitle="texto integral guardado no A360 · o arquivo original fica no Drive · versões anteriores preservadas">
+          <div id="transcricao" className="flex flex-col gap-2 text-sm">
+            {transcricoes.length ? (
+              <ul className="flex flex-col divide-y divide-[var(--line)]">{transcricoes.map((t) => (
+                <li key={t.id} className="flex flex-col gap-1 py-2">
+                  <span><b>v{t.versao}</b> {t.atual && <span className="tag">atual</span>} {t.entrada === "colado" ? "texto colado" : t.nomeArquivo} <span className="text-xs text-[var(--muted)]">· {t.formato} · texto {t.texto ? `${Math.max(1, Math.round(Buffer.byteLength(t.texto) / 1024))} KB` : "—"}{t.entrada ? "" : " · arquivo antigo guardado"}</span></span>
+                  <span className="text-xs text-[var(--muted)]">enviada por {nomes.get(t.enviadoPor) ?? "—"} em {dataHora(t.enviadoEm)}{t.hash ? <> · sha-256 <span className="font-mono">{t.hash.slice(0, 4)}…{t.hash.slice(-4)}</span></> : ""}{t.linkOriginal ? <> · <a className="underline" href={t.linkOriginal} target="_blank" rel="noreferrer">original no Drive</a></> : ""}</span>
+                  <span className="flex flex-wrap items-center gap-2 text-xs">
+                    <Link className="btn btn-secondary btn-sm" href={`/reunioes/${r.id}/transcricao/${t.id}?volta=${encodeURIComponent(volta)}`}>Abrir leitor</Link>
+                    <a className="underline" href={`/api/reunioes/transcricao?id=${t.id}`}>baixar texto</a>
+                    {editavel && <form action={processarTranscricaoAction}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} /><input type="hidden" name="transcricao" value={t.id} /><button className="underline">processar com IA</button></form>}
+                  </span>
+                </li>))}</ul>
+            ) : <p className="text-[var(--muted)]">Nenhuma transcrição. No Google Meet ela fica no Drive como Documento Google: baixe como .docx ou .txt, ou copie o texto, e registre aqui.</p>}
+            {!iaConfigurada() && <p className="text-xs text-[var(--st-relevante)]">IA não configurada neste ambiente (ANTHROPIC_API_KEY): o processamento usa regras simples e marca tudo como &ldquo;confirmar&rdquo;.</p>}
+            {processamentos.length > 0 && (
             <details className="fold"><summary>Histórico de processamento<small>{processamentos.length} execução(ões)</small></summary>
               <div className="fold-body"><ul className="flex flex-col divide-y divide-[var(--line)] text-xs">{processamentos.map((p) => <li key={p.id} className="flex flex-wrap justify-between gap-2 py-1"><span>#{p.id} · transcrição #{p.transcricaoId} · <b>{p.estado}</b>{p.provedor ? ` · ${p.provedor}${p.modelo ? ` (${p.modelo})` : ""}` : ""}{p.itensCriados ? ` · ${p.itensCriados} itens` : ""}{p.erro ? ` · ${p.erro}` : ""}</span><span className="text-[var(--muted)]">{dataHora(p.iniciadoEm)}{p.concluidoEm ? ` → ${dataHora(p.concluidoEm)}` : ""}</span></li>)}</ul></div>
             </details>
           )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      </div>
 
       <Card title="Pauta">{r.pauta ? <p className="whitespace-pre-wrap text-sm">{r.pauta}</p> : <p className="text-sm text-[var(--muted)]">Sem pauta registrada{editavel ? " — use “Editar dados”." : "."}</p>}</Card>
 

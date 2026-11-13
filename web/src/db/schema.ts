@@ -326,6 +326,18 @@ export const reunioes = pgTable("reuniao", {
   status: text("status").notNull().default("planejada"),    // planejada | realizada | cancelada
   eventoGoogleId: text("evento_google_id"),                 // id do evento no Google Calendar (quando ligada à Agenda)
   eventoUsuarioId: integer("evento_usuario_id"),            // dono da conexão em que o evento vive
+  // T-227 (Inteligência de Reuniões, Etapa 1): motivo (assunto) e origem (quem solicitou), independentes; antigas ficam nulas
+  motivoId: integer("motivo_id"),
+  origem: text("origem"),                                    // cliente | rucelle | coordenacao | gestao | equipe_tecnica
+  // gravação: só o link e metadados (o vídeo fica na plataforma externa)
+  gravacaoUrl: text("gravacao_url"),
+  gravacaoPlataforma: text("gravacao_plataforma"),
+  gravacaoData: text("gravacao_data"),                       // AAAA-MM-DD
+  gravacaoDuracaoMin: integer("gravacao_duracao_min"),
+  // aviso obrigatório de que os participantes foram informados da gravação
+  avisoGravacaoForma: text("aviso_gravacao_forma"),
+  avisoGravacaoPor: integer("aviso_gravacao_por"),
+  avisoGravacaoEm: timestamp("aviso_gravacao_em", { withTimezone: true }),
   criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
@@ -374,7 +386,11 @@ export const transcricoes = pgTable("reuniao_transcricao", {
   nomeArquivo: text("nome_arquivo").notNull(),
   tipoMime: text("tipo_mime").notNull(),
   tamanho: integer("tamanho").notNull(),
-  conteudo: customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" })("conteudo").notNull(),
+  // T-227: novas transcrições guardam só o texto (conteudo nulo); as antigas mantêm o arquivo original
+  conteudo: customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" })("conteudo"),
+  hash: text("hash"),                                       // sha-256 do arquivo enviado (ou do texto colado)
+  linkOriginal: text("link_original"),                      // link do arquivo original no Drive
+  entrada: text("entrada"),                                 // arquivo | colado (null = antiga, arquivo)
   texto: text("texto"),                                     // texto extraído (preservado tal qual, sem edição)
   formato: text("formato"),                                 // txt | docx | pdf | vtt | srt | md | desconhecido
   enviadoPor: integer("enviado_por").notNull().references(() => usuarios.id),
@@ -690,3 +706,24 @@ export const projetosSobDemanda = pgTable("projeto_sob_demanda", {
   situacao: text("situacao").notNull(), // integrado | ja_existia | falhou
   detalhe: jsonb("detalhe").$type<Record<string, unknown>>().notNull().default({}),
 }, (t) => [index("projeto_sob_demanda_codigo_idx").on(t.codigo)]);
+
+// ---------------------------------------------------------------------------
+// T-227 — Motivos da reunião (lista administrada pela gestão; nada é apagado) e histórico de alterações.
+// ---------------------------------------------------------------------------
+export const motivosReuniao = pgTable("reuniao_motivo", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  chave: text("chave").notNull(),                           // nome normalizado (minúsculas, espaços únicos) — impede duplicidade
+  ordem: integer("ordem").notNull(),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("reuniao_motivo_chave_uq").on(t.chave)]);
+
+export const historicoMotivos = pgTable("reuniao_motivo_historico", {
+  id: serial("id").primaryKey(),
+  motivoId: integer("motivo_id").references(() => motivosReuniao.id),
+  acao: text("acao").notNull(),                             // lista_inicial | incluido | desativado | reativado
+  motivoNome: text("motivo_nome").notNull(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id), // null = carga inicial da migração
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -47,9 +47,9 @@ export async function validarIntegracaoIA(u: Usuario): Promise<RelatorioValidaca
   catch (e) { const msg = e instanceof ErroIA ? `${e.codigo}: ${e.message}` : "erro"; rel.modelos = { erro: msg }; rel.erros.push(`Falha ao listar modelos: ${msg}`); await registrarUso("teste_conexao", "models", null, "erro", msg, u.id); return finalizar(u, rel); }
   // 3–7. reunião de teste (reutilizada se já existir), transcrição fictícia, processamento real
   let r = (await db.select().from(schema.reunioes).where(eq(schema.reunioes.titulo, TITULO_TESTE)).orderBy(desc(schema.reunioes.id)).limit(1))[0] ?? null;
-  if (!r) { const hoje = new Date().toISOString().slice(0, 10); const id = await criarReuniao(u, { titulo: TITULO_TESTE, projetoCodigo: null, data: hoje, horaInicio: "09:00", horaFim: "09:30", local: "teste automatizado", participantes: [{ email: null, nome: "Coordenadora Teste", externo: false }, { email: null, nome: "Arquiteta Teste", externo: false }, { email: null, nome: "Cliente Fictício", externo: true }], pauta: "Validação da integração com a IA — dados fictícios." }); r = (await reuniaoPorId(id))!; }
+  if (!r) { const hoje = new Date().toISOString().slice(0, 10); const id = await criarReuniao(u, { titulo: TITULO_TESTE, projetoCodigo: null, motivoId: null, origem: null, data: hoje, horaInicio: "09:00", horaFim: "09:30", local: "teste automatizado", participantes: [{ email: null, nome: "Coordenadora Teste", externo: false }, { email: null, nome: "Arquiteta Teste", externo: false }, { email: null, nome: "Cliente Fictício", externo: true }], pauta: "Validação da integração com a IA — dados fictícios." }); r = (await reuniaoPorId(id))!; }
   rel.reuniaoId = r.id;
-  const env = await enviarTranscricao(u, r, new File([TRANSCRICAO_TESTE], "teste-a360-validacao-ia.txt", { type: "text/plain" }));
+  const env = await enviarTranscricao(u, r, { arquivo: new File([TRANSCRICAO_TESTE], "teste-a360-validacao-ia.txt", { type: "text/plain" }) }, null);
   if (!env.ok) { rel.erros.push(`Upload de teste falhou: ${env.erro}`); return finalizar(u, rel); }
   rel.transcricaoId = env.id;
   const proc = await processarTranscricao(u, r, env.id, true);

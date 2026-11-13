@@ -42,13 +42,16 @@ function isOn(path: string, href: string) {
 /** Navegação principal agrupada; destaca a seção ativa pela rota. */
 export function NavLinks({ groups }: { groups: NavGroup[] }) {
   const path = usePathname();
+  // vale o item mais específico: em /reunioes/clientes acende "Histórico por cliente", não também "Reuniões"
+  const todos = groups.flatMap((g) => g.items.map((i) => i.href)).filter((h) => isOn(path, h));
+  const ativo = todos.sort((a, b) => b.length - a.length)[0];
   return (
     <nav aria-label="Navegação principal" className="space-y-0.5">
       {groups.map((g) => (
         <div key={g.label}>
           <div className="group">{g.label}</div>
           {g.items.map((n) => (
-            <Link key={n.href} href={n.href} className="nav" aria-current={isOn(path, n.href) ? "page" : undefined}>
+            <Link key={n.href} href={n.href} className="nav" aria-current={n.href === ativo ? "page" : undefined}>
               <Icon name={n.icon} />
               <span>{n.label}</span>
               {!!n.count && <span className="count" aria-label={`${n.count} não lidas`}>{n.count}</span>}

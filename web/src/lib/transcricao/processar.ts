@@ -17,7 +17,7 @@ export type Transcricao = Omit<typeof schema.transcricoes.$inferSelect, "conteud
 export type Processamento = typeof schema.processamentos.$inferSelect;
 
 export async function transcricoesDe(reuniaoId: number): Promise<Transcricao[]> {
-  return db.select({ id: schema.transcricoes.id, reuniaoId: schema.transcricoes.reuniaoId, versao: schema.transcricoes.versao, atual: schema.transcricoes.atual, nomeArquivo: schema.transcricoes.nomeArquivo, tipoMime: schema.transcricoes.tipoMime, tamanho: schema.transcricoes.tamanho, texto: schema.transcricoes.texto, formato: schema.transcricoes.formato, enviadoPor: schema.transcricoes.enviadoPor, enviadoEm: schema.transcricoes.enviadoEm })
+  return db.select({ id: schema.transcricoes.id, reuniaoId: schema.transcricoes.reuniaoId, versao: schema.transcricoes.versao, atual: schema.transcricoes.atual, nomeArquivo: schema.transcricoes.nomeArquivo, tipoMime: schema.transcricoes.tipoMime, tamanho: schema.transcricoes.tamanho, texto: schema.transcricoes.texto, formato: schema.transcricoes.formato, hash: schema.transcricoes.hash, linkOriginal: schema.transcricoes.linkOriginal, entrada: schema.transcricoes.entrada, enviadoPor: schema.transcricoes.enviadoPor, enviadoEm: schema.transcricoes.enviadoEm })
     .from(schema.transcricoes).where(eq(schema.transcricoes.reuniaoId, reuniaoId)).orderBy(desc(schema.transcricoes.versao));
 }
 export async function processamentosDe(reuniaoId: number): Promise<Processamento[]> {
@@ -31,22 +31,46 @@ async function registrar(reuniaoId: number, usuarioId: number, acao: string, res
   await db.insert(schema.historicoReuniao).values({ reuniaoId, usuarioId, acao, resumo: resumo.slice(0, 300), depois: depois ?? null });
 }
 
-/** Guarda uma nova versão da transcrição (a anterior deixa de ser "atual", mas permanece). */
-export async function enviarTranscricao(u: Usuario, r: Reuniao, arquivo: File): Promise<{ ok: true; id: number } | { ok: false; erro: string }> {
-  if (arquivo.size === 0) return { ok: false, erro: "Arquivo vazio." };
-  if (arquivo.size > TAMANHO_MAX) return { ok: false, erro: `Arquivo acima de ${TAMANHO_MAX / 1024 / 1024} MB.` };
-  const formato = formatoDe(arquivo.name, arquivo.type);
-  if (formato === "desconhecido") return { ok: false, erro: `Formato não suportado. Aceitos: ${FORMATOS_ACEITOS.join(", ")} (a transcrição do Google Meet fica no Drive como Documento Google — baixe como .docx ou .txt).` };
-  const buf = Buffer.from(await arquivo.arrayBuffer());
-  let texto: string;
-  try { texto = (await extrairTexto(buf, formato)).replace(/\u0000/g, "").trim(); } catch (e) { return { ok: false, erro: `Não foi possível ler o arquivo (${e instanceof Error ? e.message : "erro"}). O arquivo não foi guardado.` }; }
-  if (texto.length < 20) return { ok: false, erro: "O arquivo não contém texto legível (se for PDF escaneado, exporte a transcrição como .docx ou .txt)." };
+/** Link do arquivo original no Drive (opcional): só https. */
+export function lerLinkOriginal(v: unknown): { link: string | null } | { erro: string } {
+  const link = String(v ?? "").trim();
+  if (!link) return { link: null };
+  try { if (new URL(link).protocol !== "https:" || link.length > 1000) throw new Error(); } catch { return { erro: "Link do arquivo original inválido: use um endereço que comece com https://." }; }
+  return { link };
+}
+
+/**
+ * T-227: guarda uma nova versão da transcrição SÓ COMO TEXTO (o arquivo continua no Drive): texto integral, hash sha-256,
+ * nome, tamanho, formato e link do original. A versão anterior deixa de ser "atual", mas permanece.
+ * Entrada por arquivo (TXT, DOCX, PDF, VTT, SRT) ou texto colado.
+ */
+export async function enviarTranscricao(u: Usuario, r: Reuniao, entrada: { arquivo: File } | { colado: string }, linkOriginal: string | null): Promise<{ ok: true; id: number } | { ok: false; erro: string }> {
+  let texto: string, buf: Buffer, nome: string, mime: string, formato: string;
+  if ("arquivo" in entrada) {
+    const arquivo = entrada.arquivo;
+    if (arquivo.size === 0) return { ok: false, erro: "Arquivo vazio." };
+    if (arquivo.size > TAMANHO_MAX) return { ok: false, erro: `Arquivo acima de ${TAMANHO_MAX / 1024 / 1024} MB.` };
+    const f = formatoDe(arquivo.name, arquivo.type);
+    if (f === "desconhecido") return { ok: false, erro: `Formato não suportado. Aceitos: ${FORMATOS_ACEITOS.join(", ")}. Áudio e vídeo não são enviados ao A360.` };
+    formato = f;
+    buf = Buffer.from(await arquivo.arrayBuffer());
+    try { texto = (await extrairTexto(buf, f)).replace(/\u0000/g, "").trim(); } catch (e) { return { ok: false, erro: `Não foi possível ler o arquivo (${e instanceof Error ? e.message : "erro"}). Nada foi guardado.` }; }
+    if (texto.length < 20) return { ok: false, erro: "O arquivo não tem texto legível (se for PDF escaneado, exporte a transcrição como .docx ou .txt, ou cole o texto). Nada foi guardado." };
+    nome = arquivo.name.slice(0, 200); mime = arquivo.type || "application/octet-stream";
+  } else {
+    texto = entrada.colado.replace(/\u0000/g, "").trim();
+    if (texto.length < 20) return { ok: false, erro: "Cole o texto completo da transcrição." };
+    if (texto.length > 2_000_000) return { ok: false, erro: "Texto muito longo (acima de 2 milhões de caracteres)." };
+    buf = Buffer.from(texto, "utf8"); nome = "Transcrição colada"; mime = "text/plain"; formato = "txt";
+  }
+  const hash = createHash("sha256").update(buf).digest("hex");
   const anteriores = await transcricoesDe(r.id);
   const versao = (anteriores[0]?.versao ?? 0) + 1;
+  const tipoEntrada = "arquivo" in entrada ? "arquivo" : "colado";
   const id = await db.transaction(async (tx) => {
     await tx.update(schema.transcricoes).set({ atual: false }).where(eq(schema.transcricoes.reuniaoId, r.id));
-    const [t] = await tx.insert(schema.transcricoes).values({ reuniaoId: r.id, versao, atual: true, nomeArquivo: arquivo.name.slice(0, 200), tipoMime: arquivo.type || "application/octet-stream", tamanho: arquivo.size, conteudo: buf, texto, formato, enviadoPor: u.id }).returning({ id: schema.transcricoes.id });
-    await tx.insert(schema.historicoReuniao).values({ reuniaoId: r.id, usuarioId: u.id, acao: "transcricao", resumo: `Transcrição enviada (versão ${versao}, ${formato}, ${Math.round(arquivo.size / 1024)} KB)`, depois: { transcricaoId: t.id, versao, formato, nome: arquivo.name } });
+    const [t] = await tx.insert(schema.transcricoes).values({ reuniaoId: r.id, versao, atual: true, nomeArquivo: nome, tipoMime: mime, tamanho: buf.length, conteudo: null, hash, linkOriginal, entrada: tipoEntrada, texto, formato, enviadoPor: u.id }).returning({ id: schema.transcricoes.id });
+    await tx.insert(schema.historicoReuniao).values({ reuniaoId: r.id, usuarioId: u.id, acao: "transcricao", resumo: `Transcrição ${tipoEntrada === "colado" ? "colada" : "enviada"} (versão ${versao}, ${formato}, texto de ${Math.max(1, Math.round(Buffer.byteLength(texto) / 1024))} KB)`, depois: { transcricaoId: t.id, versao, formato, nome, hash, linkOriginal } });
     return t.id;
   });
   return { ok: true, id };

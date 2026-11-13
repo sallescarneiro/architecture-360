@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
 import { criar as criarNoGoogle } from "@/lib/agenda/operacoes";
 import { eventoDe } from "@/lib/agenda/sync";
+import { motivoPorId } from "@/lib/reunioes-motivos";
 import { adicionarItem, atualizarReuniao, criarReuniao, lerDados, ligarEvento, mudarSituacaoItem, mudarStatus, podeEditar, reuniaoPorId, salvarAta } from "@/lib/reunioes";
 
 const seguro = (s: unknown) => (typeof s === "string" && s.startsWith("/") && !s.startsWith("//") ? s : "/reunioes");
@@ -14,6 +15,9 @@ export async function criarReuniaoAction(fd: FormData) {
   const volta = seguro(fd.get("volta"));
   const f = lerDados(fd);
   if ("erro" in f) redirect(`/reunioes/nova?erro=${encodeURIComponent(f.erro)}&volta=${encodeURIComponent(volta)}${fd.get("projeto") ? `&projeto=${fd.get("projeto")}` : ""}`);
+  // T-227: reunião nova só com motivo ativo
+  const mot = await motivoPorId(f.dados.motivoId);
+  if (!mot || !mot.ativo) redirect(`/reunioes/nova?erro=${encodeURIComponent("Escolha um motivo ativo da lista.")}&volta=${encodeURIComponent(volta)}`);
   // Ligação com um compromisso já existente da Agenda (vindo do detalhe do evento)
   let evento: { googleId: string; usuarioId: number } | null = null;
   const evId = Number(fd.get("evento"));
@@ -45,6 +49,9 @@ export async function editarReuniaoAction(fd: FormData) {
   const { u, r, volta } = await carregar(fd);
   const f = lerDados(fd);
   if ("erro" in f) redirect(`/reunioes/${r.id}/editar?erro=${encodeURIComponent(f.erro)}&volta=${encodeURIComponent(volta)}`);
+  // T-227: na edição vale motivo ativo ou o motivo atual da reunião (mesmo desativado depois)
+  const mot = await motivoPorId(f.dados.motivoId);
+  if (!mot || (!mot.ativo && mot.id !== r.motivoId)) redirect(`/reunioes/${r.id}/editar?erro=${encodeURIComponent("Escolha um motivo ativo da lista.")}&volta=${encodeURIComponent(volta)}`);
   await atualizarReuniao(u, r, f.dados);
   revalidatePath("/reunioes");
   redirect(`/reunioes/${r.id}?editada=1&volta=${encodeURIComponent(volta)}`);
@@ -89,16 +96,41 @@ export async function situacaoItemAction(fd: FormData) {
 // ---------------------------------------------------------------------------
 // Evolução T-188: transcrição, processamento, confirmação de itens, análise do projeto
 // ---------------------------------------------------------------------------
-export async function enviarTranscricaoAction(fd: FormData) {
+/**
+ * T-227 — registra gravação (só o link) e/ou transcrição (só o texto). Aviso de gravação obrigatório: sem ele, nada é salvo.
+ */
+export async function registrarGravacaoAction(fd: FormData) {
   const { u, r, volta } = await carregar(fd);
-  const { enviarTranscricao, processarTranscricao } = await import("@/lib/transcricao/processar");
-  const arquivo = fd.get("arquivo");
-  if (!(arquivo instanceof File)) redirect(`/reunioes/${r.id}?erro=${encodeURIComponent("Selecione o arquivo da transcrição.")}&volta=${encodeURIComponent(volta)}#transcricao`);
-  const res = await enviarTranscricao(u, r, arquivo);
-  if (!res.ok) redirect(`/reunioes/${r.id}?erro=${encodeURIComponent(res.erro)}&volta=${encodeURIComponent(volta)}#transcricao`);
-  const proc = fd.get("processar") === "1" ? await processarTranscricao(u, r, res.id) : null;
+  const { enviarTranscricao, lerLinkOriginal, processarTranscricao } = await import("@/lib/transcricao/processar");
+  const { lerGravacao, registrarAviso, salvarGravacao } = await import("@/lib/reunioes");
+  const pagina = `/reunioes/${r.id}/gravacao?volta=${encodeURIComponent(volta)}`;
+  const erro = (m: string) => redirect(`${pagina}&erro=${encodeURIComponent(m)}`);
+  // 1. aviso de gravação (obrigatório, uma vez por reunião)
+  if (!r.avisoGravacaoEm) {
+    if (fd.get("aviso") !== "1") erro("Marque que os participantes foram informados da gravação e diga como. Nada foi salvo.");
+    const e = await registrarAviso(u, r, String(fd.get("aviso_forma") ?? ""));
+    if (e) erro(e);
+  }
+  // 2. gravação (link)
+  const g = lerGravacao(fd);
+  if ("erro" in g) erro(g.erro);
+  // 3. transcrição (arquivo ou texto colado)
+  const lk = lerLinkOriginal(fd.get("link_original"));
+  if ("erro" in lk) erro(lk.erro);
+  const arquivo = fd.get("arquivo"), colado = String(fd.get("colado") ?? "");
+  const temArquivo = arquivo instanceof File && arquivo.size > 0, temColado = colado.trim().length > 0;
+  const dadosG = "dados" in g ? g.dados : null;
+  if (!dadosG && !temArquivo && !temColado) erro("Informe o link da gravação ou a transcrição.");
+  if (dadosG) await salvarGravacao(u, r, dadosG);
+  let tid: number | null = null;
+  if (temArquivo || temColado) {
+    const res = await enviarTranscricao(u, r, temArquivo ? { arquivo: arquivo as File } : { colado }, "link" in lk ? lk.link : null);
+    if (!res.ok) erro(`${dadosG ? "Link da gravação salvo, mas a transcrição não: " : ""}${res.erro}`);
+    else tid = res.id;
+  }
+  const proc = tid && fd.get("processar") === "1" ? await processarTranscricao(u, r, tid) : null;
   revalidatePath("/reunioes");
-  redirect(`/reunioes/${r.id}?transcricao=1${proc ? (proc.ok ? `&processado=${proc.estado}` : `&erro=${encodeURIComponent(proc.erro)}`) : ""}&volta=${encodeURIComponent(volta)}#transcricao`);
+  redirect(`/reunioes/${r.id}?gravacao=1${proc ? (proc.ok ? `&processado=${proc.estado}` : `&erro=${encodeURIComponent(proc.erro)}`) : ""}&volta=${encodeURIComponent(volta)}`);
 }
 
 export async function processarTranscricaoAction(fd: FormData) {
