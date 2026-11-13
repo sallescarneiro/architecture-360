@@ -467,3 +467,35 @@ export async function historicoAgenda(entidade: string, limite = 40) {
 export async function projetosAtivos() {
   return (await db.execute(sql`select p.codigo, p.nome from projeto p where p.nao_encontrado_desde is null and p.status_classe <> 'encerrado' and p.codigo in ${SQL_ELEGIVEIS} order by p.nome`)).rows as { codigo: number; nome: string }[];
 }
+
+/** A gerência (gestão/administração) define o modelo de programação direto no quadro. Fica no histórico. */
+export async function definirModelo(u: Usuario, usuarioId: number, modelo: string): Promise<R> {
+  if (!administraConfig(u)) return { ok: false, mensagem: "Só a gerência define o modelo de programação." };
+  if (!MODELOS[modelo]) return { ok: false, mensagem: "Modelo inválido." };
+  const atual = await configDe(usuarioId);
+  if (atual.modelo === modelo) return { ok: true };
+  await db.insert(schema.agendaPessoas).values({ ...atual, modelo, atualizadoPorId: u.id, atualizadoEm: new Date() })
+    .onConflictDoUpdate({ target: schema.agendaPessoas.usuarioId, set: { modelo, atualizadoPorId: u.id, atualizadoEm: new Date() } });
+  await histAgenda("pessoa", usuarioId, `${u.nome} alterou ${await nomeUsuario(usuarioId)}: ${MODELOS[atual.modelo].rotulo} → ${MODELOS[modelo].rotulo}`, u.id);
+  return { ok: true };
+}
+
+/** Registro opcional do que a arquiteta fez no dia numa atividade. Não muda prazo, dia, período nem validação. */
+export async function registrarDia(u: Usuario, id: number, texto: string): Promise<R> {
+  const a = (await db.select().from(schema.atividades).where(eq(schema.atividades.id, id)))[0];
+  if (!a || a.status === 5) return { ok: false, mensagem: "Atividade não encontrada." };
+  if (a.responsavelId !== u.id && !gestor(u)) return { ok: false, mensagem: "Você só registra nas suas atividades." };
+  const t = texto.trim().slice(0, 500);
+  if (!t) return { ok: false, mensagem: "Escreva o que foi feito." };
+  await histAtv(id, u.id, `Feito em ${dataCurta(hojeLocal())}: ${t}`);
+  return { ok: true };
+}
+/** Últimos registros do dia por atividade (para mostrar sob o bloco). */
+export async function registrosDoDia(ids: number[]): Promise<Map<number, { texto: string; quando: Date }[]>> {
+  const out = new Map<number, { texto: string; quando: Date }[]>();
+  if (!ids.length) return out;
+  const rows = await db.select({ a: schema.atividadeHistorico.atividadeId, r: schema.atividadeHistorico.resumo, q: schema.atividadeHistorico.quando }).from(schema.atividadeHistorico)
+    .where(and(inArray(schema.atividadeHistorico.atividadeId, ids), sql`${schema.atividadeHistorico.resumo} like 'Feito em %'`)).orderBy(sql`${schema.atividadeHistorico.quando} desc`);
+  for (const x of rows) { const l = out.get(x.a) ?? []; if (l.length < 3) l.push({ texto: x.r, quando: x.q }); out.set(x.a, l); }
+  return out;
+}

@@ -8,7 +8,7 @@ import { dataHora, diaValido, hojeLocal, horaInput, inicioSemana, somaDias } fro
 import { LinkButton, PageHeader } from "@/components/ui";
 import { Bloco, ChipEtapa, curto, Entrega, SeloValidacao } from "@/components/agenda/Producao";
 import { FormBloco } from "@/components/agenda/FormBloco";
-import { criarBlocoAction, editarBlocoAction, reprogramarAction } from "./actions";
+import { criarBlocoAction, editarBlocoAction, modeloAction, reprogramarAction } from "./actions";
 
 const FILTROS: [string, string][] = [["todas", "Tudo"], ["pend", "Aguardando validação"], ["dev", "Devolvidas"], ["ent", "Entregas"]];
 
@@ -106,7 +106,15 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               return [
                 <div key={`p${p.id}`} className="sticky left-0 z-10 flex flex-col gap-1 border-b border-r border-[#f0e8e2] bg-white p-2.5">
                   <b className="text-[0.82rem]">{p.nome}</b>
-                  <span className={`self-start rounded-full px-2 text-[0.66rem] font-bold ${p.cfg.modelo === "autonoma" ? "bg-[#e1f0e7] text-[#1f5a3b]" : p.cfg.modelo === "estruturada" ? "bg-[#eae4f4] text-[#4b3470]" : "border border-dashed border-[#b9aea7] bg-[#efebe8] text-[#5f5752]"}`}>{p.cfg.modelo === "indefinido" ? "A definir · como estruturada" : P.MODELOS[p.cfg.modelo].rotulo}</span>
+                  {P.administraConfig(u) ? (
+                    <div className="flex flex-wrap gap-1" role="group" aria-label={`Modelo de programação de ${p.nome}`}>
+                      {([["estruturada", "Estruturada"], ["autonoma", "Autônoma"]] as const).map(([k, t]) => (
+                        <form key={k} action={modeloAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="modelo" value={k} /><input type="hidden" name="volta" value={q({})} />
+                          <button aria-pressed={p.cfg.modelo === k} title={P.MODELOS[k].descricao} className={`rounded-full border px-2 py-0.5 text-[0.64rem] font-bold ${p.cfg.modelo === k ? (k === "autonoma" ? "border-[#1f5a3b] bg-[#e1f0e7] text-[#1f5a3b]" : "border-[#4b3470] bg-[#eae4f4] text-[#4b3470]") : "border-[var(--line)] bg-white text-[var(--muted)] hover:border-[var(--vinho)]"}`}>{t}</button></form>
+                      ))}
+                      {p.cfg.modelo === "indefinido" && <span className="text-[0.62rem] text-[var(--muted)]">a definir</span>}
+                    </div>
+                  ) : <span className={`self-start rounded-full px-2 text-[0.66rem] font-bold ${p.cfg.modelo === "autonoma" ? "bg-[#e1f0e7] text-[#1f5a3b]" : p.cfg.modelo === "estruturada" ? "bg-[#eae4f4] text-[#4b3470]" : "border border-dashed border-[#b9aea7] bg-[#efebe8] text-[#5f5752]"}`}>{p.cfg.modelo === "indefinido" ? "A definir · como estruturada" : P.MODELOS[p.cfg.modelo].rotulo}</span>}
                   <span className="text-[0.68rem] text-[var(--muted)]">{[p.cfg.municipio, p.cfg.uf].filter(Boolean).join("/") || "localidade não informada"}</span>
                   <span className={`text-[0.68rem] ${prog > disp ? "font-semibold text-[var(--bad)]" : "text-[var(--txt-2)]"}`}>Disponível {P.fmtDias(disp)} · programado {P.fmtProgramado(prog, horas)}</span>
                 </div>,

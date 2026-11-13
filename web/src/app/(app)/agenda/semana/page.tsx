@@ -7,7 +7,7 @@ import { diaValido, hojeLocal, horaInput, inicioSemana, somaDias } from "@/lib/a
 import { Button, LinkButton, PageHeader } from "@/components/ui";
 import { ChipEtapa, curto, Entrega, SeloValidacao } from "@/components/agenda/Producao";
 import { FormBloco } from "@/components/agenda/FormBloco";
-import { andamentoAction, descartarAction, editarBlocoAction, enviarAction, criarBlocoAction, indispAction } from "../quadro/actions";
+import { andamentoAction, descartarAction, editarBlocoAction, enviarAction, criarBlocoAction, indispAction, registrarDiaAction } from "../quadro/actions";
 
 const STATUS: Record<number, string> = { 1: "Planejada", 2: "Em andamento", 4: "Concluída" };
 
@@ -34,6 +34,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
   const editar = /^\d+$/.test(sp.editar ?? "") ? blocos.find((b) => b.id === Number(sp.editar) && b.criadoPorId === u.id && b.validacao !== "confirmada") ?? null : null;
   const minhasInd = pid === u.id ? await P.listaIndisp(u, somaDias(hoje, -7)) : [];
   const modelo = cfg.modelo === "autonoma" ? "autonoma" : "estruturada";
+  const registros = await P.registrosDoDia(blocos.map((b) => b.id));
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,7 +47,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
       <div className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm ${modelo === "autonoma" ? "bg-[#e8f4ec] text-[#1f4f35]" : "bg-[#f1edf8] text-[#3f2b60]"}`}>
         <div><b className="block">{modelo === "autonoma" ? "Programação autônoma" : "Programação estruturada"}{cfg.modelo === "indefinido" ? " (modelo ainda “A definir”)" : ""}</b>
           {modelo === "autonoma" ? "Você propõe suas atividades. Cada uma vai para validação (Ana Paula ou Thaís) e só entra na programação confirmada depois de aprovada. O que a coordenação programar para você já entra confirmado."
-            : "A coordenação programa a sua semana. Aqui você acompanha e atualiza o andamento: iniciar, concluir ou avisar um impedimento."}</div>
+            : "A coordenação programa a sua semana. Aqui você acompanha e, se quiser, registra o que fez no dia, inicia, conclui ou avisa um impedimento. Nada disso muda prazo ou dia."}</div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -82,6 +83,11 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
                       {b.validacao === "devolvida" && b.validacaoComentario && <div className="rounded-lg bg-[#fbe2dd] px-2.5 py-1.5 text-xs text-[#7d2416]"><b>Devolvida por {validadores.get(b.validadoPorId ?? 0) ?? "validação"}:</b> {b.validacaoComentario}</div>}
                       {b.validacao === "aprovada" && b.validacaoComentario && <span className="text-xs text-[#21613a]">Aprovada por {validadores.get(b.validadoPorId ?? 0)}: “{b.validacaoComentario}”</span>}
                       {b.impedimento && <span className="text-xs text-[#7a4b00]">Impedimento: {b.impedimento}</span>}
+                      {(registros.get(b.id) ?? []).map((r, k) => <span key={k} className="text-xs text-[#2c4373]">{r.texto}</span>)}
+                      {pid === u.id && confirmada && (
+                        <form action={registrarDiaAction} className="flex flex-wrap gap-1.5"><input type="hidden" name="id" value={b.id} /><input type="hidden" name="volta" value={base()} />
+                          <input name="texto" required maxLength={500} placeholder="o que fiz hoje (opcional)" aria-label="O que fiz hoje" className="input min-h-[34px] min-w-0 flex-1 py-1 text-xs" /><Button variant="secondary" className="btn-sm">Registrar</Button></form>
+                      )}
                       <div className="flex flex-wrap gap-1.5">
                         {pid === u.id && b.vinculo === "independente" && confirmada && b.status === 1 && <form action={andamentoAction}><input type="hidden" name="id" value={b.id} /><input type="hidden" name="volta" value={base()} /><input type="hidden" name="acao" value="iniciar" /><Button variant="secondary" className="btn-sm">Iniciar</Button></form>}
                         {pid === u.id && b.vinculo === "independente" && confirmada && b.status === 2 && <form action={andamentoAction}><input type="hidden" name="id" value={b.id} /><input type="hidden" name="volta" value={base()} /><input type="hidden" name="acao" value="concluir" /><Button variant="secondary" className="btn-sm">Concluir</Button></form>}

@@ -92,3 +92,12 @@ export async function substitutaAction(fd: FormData) {
   const u = await exigirUsuario();
   fim(volta(fd, "/agenda/pessoas"), await P.designarSubstituta(u, id(fd), String(fd.get("ate") ?? "")), String(fd.get("ate") ?? "") ? "Substituta designada." : "Substituição encerrada.");
 }
+
+export async function modeloAction(fd: FormData) {
+  const u = await exigirUsuario();
+  fim(volta(fd, "/agenda/quadro"), await P.definirModelo(u, id(fd), String(fd.get("modelo") ?? "")), "Modelo de programação atualizado.");
+}
+export async function registrarDiaAction(fd: FormData) {
+  const u = await exigirUsuario();
+  fim(volta(fd, "/agenda/semana"), await P.registrarDia(u, id(fd), String(fd.get("texto") ?? "")), "Registro do dia salvo.");
+}
