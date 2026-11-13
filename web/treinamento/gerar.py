@@ -109,8 +109,8 @@ PRIMEIRO_ACESSO = """
 
 
 # -------------------------------------------------------------------- AGENDA GERENCIAL (T-219) — gestão: Rodrigo, Flavia, Thais, Ana Paula
-AGENDA_GESTAO = ("agenda", "Agenda gerencial", "Distribuir e acompanhar as atividades das arquitetas", """
-<p>A Agenda é onde a gestão programa o trabalho das arquitetas. Uma tela só reúne as <b>atividades</b> programadas no A360, os compromissos do <b>Google</b> e, se você marcar, os <b>prazos das tarefas do Vobi</b>. Rodrigo, Flavia, Thais e Ana Paula veem a equipe toda; cada arquiteta vê só a própria agenda.</p>
+AGENDA_GESTAO = ("agenda", "Agenda (calendário)", "Atividades ligadas ao Vobi, compromissos do Google e prazos", """
+<p>A Agenda é onde a gestão programa o trabalho das arquitetas. Uma tela só reúne as <b>atividades</b> programadas no A360, os compromissos do <b>Google</b> e, se você marcar, os <b>prazos das tarefas do Vobi</b>. Rodrigo, Flavia, Thais e Ana Paula veem a equipe toda; cada arquiteta vê só a própria agenda. A programação diária da produção fica na <b>Agenda de Produção</b>.</p>
 """ + fig("ger-agenda-equipe", "Agenda da equipe (visão consolidada): as iniciais mostram de quem é cada atividade. Vinho = tarefa do Vobi; verde = atividade independente.", alta=True) + """
 <div class="grid"><div class="card"><h3>Ver</h3>""" + lista([
  '<b>Pessoa</b>: "Toda a equipe" mostra a visão consolidada; escolha um nome para ver a agenda de uma pessoa.',
@@ -143,10 +143,101 @@ AGENDA_GESTAO = ("agenda", "Agenda gerencial", "Distribuir e acompanhar as ativi
  'Para trazer um projeto que ficou de fora (anterior a 2026, sem data de início prevista ou arquivado): em <b>Projetos</b>, clique em <b>Buscar projeto no Vobi</b>, procure pelo nome ou pelo número, confira os dados e clique em <b>Confirmar incorporação ao A360</b>. As tarefas e etapas entram na Agenda com os números do Vobi. Se o projeto já faz parte, o A360 avisa e abre o projeto; nada é duplicado.',
  'Cada incorporação fica registrada com quem pediu, quando e a situação. Nada é gravado no Vobi.']) + regra("A Agenda é programação e acompanhamento, não cobrança: o A360 não envia notificação nem cobrança automática para as arquitetas.", nao=False, rot="princípio") + regra("Arquiteta não vê a agenda das colegas nem a visão da equipe, e não cria atividade. A regra vale no servidor, inclusive se alguém tentar abrir o endereço direto."))
 
+
+# -------------------------------------------------------------------- AGENDA DE PRODUÇÃO (Etapa A, 13/11/2026)
+DIF_AGENDAS = regra("<b>Agenda</b> é o calendário: compromissos do Google, atividades ligadas ao Vobi e prazos das tarefas. <b>Agenda de Produção</b> é a programação diária da produção, em dias e meios períodos: o que cada arquiteta produz em cada dia útil. Nada da Agenda de Produção é enviado ao Vobi.", rot="duas telas")
+REGRAS_PROD = lista([
+ '<b>Período</b>: dia inteiro conta 1 dia; manhã ou tarde contam 0,5. <b>Horário específico</b> registra início e fim e aparece em horas, à parte, sem virar fração de dia.',
+ '<b>Disponível</b> = dias úteis − feriados da localidade − ausências confirmadas. Pedido de ausência ainda pendente aparece tracejado e não desconta.',
+ '<b>Feriados</b>: os nacionais valem para todas. Estaduais e municipais só para quem tem estado e município preenchidos em Pessoas da agenda.',
+ '<b>Atestado</b> aparece para a equipe só como "Indisponível". O tipo e a observação são vistos só pela própria pessoa e pela coordenação e gestão.',
+ 'Etapas de produção da rucelle (LEV, PN, LAY, 3D, REF, INT, EXE, LEG, CF) são próprias do A360 e não dependem das etapas do Vobi.'])
+
+PROD_ARQ = ("minha-semana", "Minha semana (Agenda de Produção)", "Sua programação de produção, dia a dia", """
+<p>Em <b>Agenda de Produção › Minha semana</b> você vê o que está programado para você em cada dia útil: projeto, etapa, período (dia inteiro, manhã, tarde ou horário) e se o dia tem <b>entrega</b> ao cliente. No topo aparece o seu <b>modelo de programação</b>, que é definido pela gerência.</p>
+""" + DIF_AGENDAS + """
+<div class="grid"><div class="card"><h3>Programação estruturada (ou "a definir")</h3>""" + lista([
+ 'A coordenação e a gerência programam a sua semana. Você não inclui nem move atividades.',
+ 'Em cada atividade você pode, se quiser, escrever <b>o que fiz hoje</b> e clicar em <b>Registrar</b>. Fica gravado com a data, aparece embaixo da atividade e no histórico.',
+ '<b>Iniciar</b>, <b>Concluir</b> e <b>Avisar impedimento</b> (ex.: aguardando planta) mostram à coordenação como está o trabalho.',
+ 'Nada disso muda prazo, dia ou programação. Se o dia não couber, fale com a coordenação: ela reprograma, sempre com motivo.']) + """</div>
+<div class="card"><h3>Programação autônoma</h3>""" + passos([
+ 'Em <b>Propor atividade</b>, escolha dia, projeto, etapa e período e clique em <b>Salvar rascunho</b>.',
+ 'Revise e clique em <b>Enviar para validação</b>. Ana Paula ou Thaís decidem cada atividade separadamente.',
+ '<b>Aprovada</b>: entra na programação confirmada e conta no programado.',
+ '<b>Devolvida</b>: aparece a justificativa de quem devolveu. Clique em <b>Editar</b>, ajuste e <b>Reenviar para validação</b>.',
+ 'Mudar projeto, etapa, dia, período ou entrega de uma atividade aprovada faz ela voltar para a validação. Mudar só a observação ou registrar andamento não.',
+ 'O que a coordenação programar para você já entra confirmado, sem validação.']) + """</div></div>
+""" + fig("arq-semana-estruturada", "Minha semana no modelo estruturado: a programação feita pela coordenação, o campo opcional “o que fiz hoje”, iniciar, concluir, avisar impedimento e o pedido de ausência.", alta=True) + fig("arq-semana-autonoma", "Minha semana no modelo autônomo: uma proposta aprovada, uma devolvida com a justificativa e uma aguardando validação; ao lado, o formulário para propor.", alta=True) + """
+<h3>Pedir ausência</h3>""" + passos([
+ 'Em <b>Pedir ausência</b>: tipo (folga, férias, ausência pessoal, atestado, ausência parcial, problema de equipamento…), datas e duração no dia.',
+ 'Clique em <b>Enviar pedido à coordenação</b>. Até a coordenação confirmar, o pedido aparece como pendente e não conta como ausência.',
+ 'Não escreva diagnóstico na observação. Atestado aparece para a equipe só como "Indisponível".']) + regra("Você vê só a sua semana. Não vê o quadro da equipe nem a programação das colegas.") + regra("Atividade ligada ao Vobi continua com o andamento registrado no Vobi; o “o que fiz hoje” pode ser usado nela também.", rot="vobi"))
+
+PROD_COORD = ("producao", "Agenda de Produção", "Quadro da equipe, validação e ausências", """
+<p>A <b>Agenda de Produção</b> é a programação diária da equipe: uma linha por arquiteta e uma coluna por dia útil. Você programa, reprograma, valida as propostas das arquitetas autônomas e confirma ausências.</p>
+""" + DIF_AGENDAS + fig("coord-quadro", "Quadro da equipe visto pela coordenação: o modelo de cada arquiteta aparece ao lado do nome (só a gerência altera), disponível × programado, feriado, pedido de ausência pendente e os selos de validação.", alta=True) + """
+<div class="grid"><div class="card"><h3>Programar e reprogramar</h3>""" + passos([
+ 'No <b>Quadro da equipe</b>, clique em <b>+ Incluir</b> no dia da arquiteta: projeto, etapa de produção, período e, se for o caso, <b>Entrega ao cliente neste dia</b>. O que você inclui entra <b>confirmado</b>.',
+ 'O A360 avisa (sem bloquear) quando o dia já está cheio, é feriado ou há ausência.',
+ 'Clique numa atividade para ver os dados e o histórico, <b>Editar</b> ou <b>Reprogramar</b>.',
+ 'Reprogramar exige <b>motivo</b> (cliente pediu outra data, aguardando informação do cliente, mudança de prioridade, ausência da arquiteta, retrabalho, outro). Sem motivo, não salva. O número de reprogramações fica registrado.',
+ 'Filtros no topo: Aguardando validação, Devolvidas, Entregas.']) + """</div>
+<div class="card"><h3>Modelo de cada arquiteta</h3>""" + lista([
+ '<b>Estruturada</b> ou <b>a definir</b>: você programa a semana dela.',
+ '<b>Autônoma</b>: ela propõe; cada proposta passa pela validação.',
+ 'A marcação aparece ao lado do nome no quadro. Quem define e altera é a gerência; você vê.']) + """</div></div>
+<h3>Validação</h3>""" + fig("coord-validacao", "Fila de validação: a proposta, o dia da arquiteta (o que já há programado e a disponibilidade da semana) e os botões Aprovar e Devolver para ajuste.", alta=True) + passos([
+ 'Abra <b>Validação</b> (o quadro mostra quantas estão aguardando).',
+ 'Clique numa proposta e confira o dia dela.',
+ '<b>Aprovar</b> (observação opcional) ou <b>Devolver para ajuste</b> (justificativa obrigatória; a arquiteta lê o texto).',
+ 'Decidem Ana Paula e Thaís, ou uma substituta designada pela gerência. Quem decide e quando fica no histórico.']) + """
+<h3>Indisponibilidades</h3>""" + fig("coord-indisponibilidades", "Indisponibilidades: registrar ausência de qualquer arquiteta (entra confirmada) e confirmar ou recusar os pedidos.", alta=True) + lista([
+ 'Pedido feito pela arquiteta fica <b>pendente</b> até você <b>Confirmar</b> ou <b>Recusar</b>. Só depois de confirmado desconta da disponibilidade.',
+ 'Ausência registrada por você já entra confirmada. Também é possível cancelar.']) + """
+<h3>Regras de cálculo</h3>""" + REGRAS_PROD + regra("Feriados e Pessoas da agenda (localidade, almoço, modelo, validadoras, substituta) você consulta; quem altera é a gerência.") + regra("Disponível e programado são referência para distribuir o trabalho, não medida de desempenho.", rot="princípio"))
+
+PROD_GER = ("producao", "Agenda de Produção", "Programação diária, modelo de cada arquiteta e configuração", """
+<p>A <b>Agenda de Produção</b> é a programação diária da equipe: uma linha por arquiteta e uma coluna por dia útil. A gerência faz tudo o que a coordenação faz (programar, reprogramar com motivo, validar, confirmar ausências) e, além disso, define o <b>modelo de programação</b> de cada arquiteta e mantém a configuração.</p>
+""" + DIF_AGENDAS + fig("ger-quadro", "Quadro da equipe visto pela gerência: ao lado de cada nome, a marcação Estruturada / Autônoma que só a gerência altera. Disponível × programado, feriado, ausência pendente e selos de validação.", alta=True) + """
+<div class="grid"><div class="card"><h3>Definir o modelo de cada arquiteta</h3>""" + passos([
+ 'No Quadro da equipe, clique em <b>Estruturada</b> ou <b>Autônoma</b> ao lado do nome. A mudança vale na hora e fica no histórico ("de … para …", quem e quando).',
+ '<b>Estruturada</b>: a coordenação e a gerência programam; ela vê, registra o que fez no dia, inicia, conclui e avisa impedimento.',
+ '<b>Autônoma</b>: ela propõe as próprias atividades; cada uma passa pela validação.',
+ 'Quem ainda não foi definida aparece "a definir" e funciona como estruturada.']) + """</div>
+<div class="card"><h3>Programar e reprogramar</h3>""" + lista([
+ '<b>+ Incluir</b> no dia da arquiteta: projeto, etapa, período e entrega. O que a gerência ou a coordenação inclui entra <b>confirmado</b>.',
+ 'Reprogramar exige <b>motivo</b>; o número de reprogramações fica registrado.',
+ 'Mudar projeto, executora, etapa, dia, período ou entrega de uma atividade <b>aprovada</b> devolve ela para a validação; observação e andamento não.']) + """</div></div>
+""" + fig("ger-quadro-novo", "Incluir no dia: projeto, etapa de produção, período (dia, manhã, tarde ou horário específico) e entrega ao cliente.", alta=True) + fig("ger-quadro-bloco", "Atividade aberta no quadro: dados, histórico, Editar e Reprogramar (com motivo obrigatório).", alta=True) + """
+<h3>Validação e ausências</h3>""" + lista([
+ '<b>Validação</b>: Thaís e Ana Paula decidem atividade por atividade. Devolver exige justificativa. Se uma delas estiver ausente, designe uma <b>substituta</b> com data final em Pessoas da agenda; fica no histórico.',
+ '<b>Indisponibilidades</b>: o que a gerência registra já entra confirmado; pedidos das arquitetas ficam pendentes até a coordenação ou a gerência confirmar.']) + """
+<h3>Configuração (só a gerência altera)</h3>""" + fig("ger-pessoas-agenda", "Pessoas da agenda: estado e município (para feriados), almoço, modelo de programação, validadoras e substituta.", alta=True) + fig("ger-feriados", "Feriados: nacionais já cadastrados; estaduais, municipais e recesso da empresa são incluídos pela gerência.", alta=True) + passos([
+ 'Em <b>Pessoas da agenda</b>, preencha <b>estado e município</b> de cada arquiteta. Sem isso, só os feriados nacionais valem para ela.',
+ 'Confira quem é <b>validadora</b> (Thaís e Ana Paula) e, quando preciso, designe uma <b>substituta</b> até uma data.',
+ 'Em <b>Feriados</b>, inclua os estaduais, municipais e o recesso da empresa. O A360 não deixa cadastrar o mesmo feriado duas vezes; desativar mantém o histórico.']) + """
+<h3>Regras de cálculo</h3>""" + REGRAS_PROD + regra("Não há jornada nem percentual de ocupação: as arquitetas são PJ. O A360 conta dias e meios períodos programados e mostra horário específico em horas.", rot="princípio") + regra("Nada da Agenda de Produção é gravado no Vobi. O envio ao Vobi (Etapa D) só será feito depois que a equipe toda estiver usando a ferramenta.", rot="vobi"))
+
+QUIZ_ARQ_PROD = [
+ ("Seu modelo é estruturado. Você terminou antes e quer registrar o que fez. O que acontece com o prazo?", ["Muda para o dia em que você registrou", "Nada: “o que fiz hoje” só registra o andamento, sem mudar prazo nem dia", "A atividade volta para validação"], 1, "O registro do dia é opcional e não altera prazo, dia nem validação."),
+ ("Sua proposta foi devolvida. O que fazer?", ["Criar outra atividade igual", "Ler a justificativa, Editar e Reenviar para validação", "Esperar a coordenação corrigir"], 1, "A devolvida mostra quem devolveu e por quê; você ajusta e reenvia."),
+ ("Você pediu folga para sexta. Ela já desconta da sua disponibilidade?", ["Sim, assim que você envia", "Não: fica pendente até a coordenação confirmar", "Só se for atestado"], 1, "Pedido pendente aparece tracejado e não conta como ausência até ser confirmado."),
+]
+QUIZ_COORD_PROD = [
+ ("Você precisa mudar uma atividade de quarta para sexta. O que o A360 exige?", ["Nada", "O motivo da reprogramação", "Aprovação da gerência"], 1, "Reprogramação sem motivo não é salva; o motivo e a contagem ficam no histórico."),
+ ("Uma arquiteta deveria ser autônoma, mas aparece como estruturada. Quem muda?", ["A coordenação, no quadro", "A gerência, na marcação ao lado do nome no quadro", "A própria arquiteta"], 1, "O modelo de programação é decisão da gerência; a coordenação vê a marcação."),
+]
+QUIZ_GER_PROD = [
+ ("Uma arquiteta do Rio de Janeiro não aparece com o feriado estadual. Por quê?", ["O A360 só conhece feriados nacionais", "Falta estado/município dela em Pessoas da agenda ou o feriado estadual não foi cadastrado", "Feriado estadual não conta"], 1, "Feriado estadual e municipal só vale para quem tem a localidade preenchida."),
+ ("Ana Paula vai tirar férias. Como garantir que a validação continue?", ["Não precisa: Thaís também valida; e, se quiser, designe uma substituta com data final em Pessoas da agenda", "Desligar a validação", "Passar todas as arquitetas para estruturada"], 0, "Qualquer validadora decide; a substituta fica registrada no histórico com a data final."),
+]
+ARQ_PERM_VE_PROD = 'Sua semana na Agenda de Produção e o seu modelo de programação (estruturada ou autônoma).'
+
 # -------------------------------------------------------------------- ARQUITETA
 ARQ = dict(
  perfil="arquiteta", titulo="Treinamento A360 — Arquitetas", cab="Para as arquitetas",
- intro="Esta página é para quem executa os projetos. Você vai usar o A360 todos os dias para ver suas prioridades, registrar reuniões e entregáveis e manter sua agenda; o Vobi continua sendo onde a tarefa é editada.",
+ intro="Esta página é para quem executa os projetos. Você vai usar o A360 todos os dias para ver suas prioridades, acompanhar a sua semana de produção, registrar reuniões e entregáveis e manter sua agenda; o Vobi continua sendo onde a tarefa é editada.",
  secoes=[
   ("meu-dia", "Meu Dia", "Sua tela inicial", """
 <p>Abre toda vez que você entra. Mostra só o que é seu: tarefas em que você é responsável no Vobi e projetos em que você está como colaboradora.</p>
@@ -189,7 +280,7 @@ ARQ = dict(
  'Seus compromissos aparecem junto das atividades. Você pode criar, editar ou excluir compromissos no botão <b>+ Compromisso no Google</b>.',
  'Compromisso particular aparece só como "ocupado".',
  'Reunião com cliente? No compromisso, clique em <b>Registrar reunião</b>.']) + """</div></div>
-""" + fig("arq-atividade", "Uma atividade programada para você: prazo, projeto, etapa, tarefa do Vobi e histórico.", alta=True) + regra("Atividades são programadas pela gestão. Se um prazo não couber, fale com a coordenação; a Agenda não envia cobrança automática.")),
+""" + fig("arq-atividade", "Uma atividade programada para você: prazo, projeto, etapa, tarefa do Vobi e histórico.", alta=True) + regra("Atividades da Agenda são programadas pela gestão. Se um prazo não couber, fale com a coordenação; a Agenda não envia cobrança automática.") + DIF_AGENDAS),
   ("reunioes", "Reuniões", "Pauta, ata, decisões e encaminhamentos", """
 <p>Toda reunião com cliente (ou interna relevante) é registrada aqui, ligada ao projeto. A ata pode ser escrita à mão ou gerada automaticamente a partir da transcrição do Google Meet.</p>
 """ + fig("arq-reunioes", "Lista de reuniões: próximas e anteriores, com decisões e encaminhamentos abertos.") + fig("arq-reuniao-nova", "Nova reunião: título, projeto, data, participantes e pauta. Pode criar também o compromisso no Google com Meet.", alta=True) + fig("coord-reuniao", "Reunião registrada: ata estruturada, decisões, aprovações e encaminhamentos com responsável e prazo; cada item traz o trecho da transcrição que o originou.", alta=True) + passos([
@@ -210,8 +301,8 @@ ARQ = dict(
  'Quando o cliente responder, registre a resposta com a evidência: cole o e-mail/mensagem, anexe o print ou aponte o item de aprovação da reunião.',
  'Nova versão depois de uma aprovação volta automaticamente para revisão interna.']) + regra("Aprovação do cliente sem evidência não é registrada — o sistema recusa. Isso protege você: fica provado o que foi aprovado, quando e por quem.") + regra("Nunca registre uma aprovação que ainda não aconteceu, nem marque 'enviado ao cliente' antes de enviar.", nao=True)),
   ("permissoes", "O que você vê e o que não vê", "Permissões do perfil arquiteta", """
-<div class="grid"><div class="card"><h3>Você vê</h3>""" + lista(['Suas tarefas e seus projetos (colaboradora ou responsável no Vobi).','Sua Agenda: atividades programadas para você, seus compromissos do Google e seus prazos do Vobi.','Reuniões que você criou, de que participa ou dos seus projetos.','Entregáveis dos seus projetos.','Alertas dos seus projetos (só leitura).','Qualidade dos dados, Clientes e Importação (consulta).']) + """</div>
-<div class="card"><h3>Você não vê</h3>""" + lista(['Painel de Gestão, Capacidade e fluxo, Pessoas, Usuários.','Projetos e tarefas de outras pessoas.','A agenda das colegas e a visão da equipe; criar atividades é da gestão.','Tratamento de alertas e aprovação interna de entregáveis (coordenação/gestão).']) + """</div></div>
+<div class="grid"><div class="card"><h3>Você vê</h3>""" + lista(['Suas tarefas e seus projetos (colaboradora ou responsável no Vobi).','Sua Agenda: atividades programadas para você, seus compromissos do Google e seus prazos do Vobi.', ARQ_PERM_VE_PROD,'Reuniões que você criou, de que participa ou dos seus projetos.','Entregáveis dos seus projetos.','Alertas dos seus projetos (só leitura).','Qualidade dos dados, Clientes e Importação (consulta).']) + """</div>
+<div class="card"><h3>Você não vê</h3>""" + lista(['Painel de Gestão, Capacidade e fluxo, Pessoas, Usuários.','Projetos e tarefas de outras pessoas.','A agenda das colegas, o Quadro da equipe e a fila de validação.','Mudar o seu modelo de programação: é decisão da gerência.','Tratamento de alertas e aprovação interna de entregáveis (coordenação/gestão).']) + """</div></div>
 """ + fig("sem-permissao", "Tentou abrir uma tela de gestão? Aparece esta mensagem. Não é erro: é o perfil.")),
  ],
  quiz=[
@@ -226,7 +317,7 @@ ARQ = dict(
 # -------------------------------------------------------------------- COORDENAÇÃO
 COORD = dict(
  perfil="coordenacao", titulo="Treinamento A360 — Coordenação", cab="Para a coordenação",
- intro="Esta página é para quem distribui o trabalho e acompanha a equipe. Além de tudo que a arquiteta usa, você tem o Painel operacional, Capacidade e fluxo, Alertas (com tratamento), Pessoas e a revisão interna dos entregáveis.",
+ intro="Esta página é para quem distribui o trabalho e acompanha a equipe. Além de tudo que a arquiteta usa, você tem o Painel operacional, a Agenda de Produção (quadro da equipe, validação e ausências), Capacidade e fluxo, Alertas (com tratamento), Pessoas e a revisão interna dos entregáveis.",
  secoes=[
   ("painel", "Painel de Gestão (operacional)", "Carteira, prazos e gargalos da equipe", """
 <p>Abre ao entrar. É a visão da equipe: tarefas por situação de prazo, volume por pessoa (informação de carga, não comparação), gargalos por etapa com o nome original do Vobi, projetos críticos, divergências e entregáveis.</p>
@@ -286,7 +377,7 @@ COORD = dict(
 # -------------------------------------------------------------------- GERÊNCIA
 GER = dict(
  perfil="gerencia", titulo="Treinamento A360 — Gerência", cab="Para a gerência",
- intro="Esta página é para quem responde pela operação de arquitetura. Além de tudo da coordenação, você tem o Painel executivo, a importação do Vobi, a qualidade dos dados, os clientes e a cobertura da integração — e acompanha a sincronização diária com o Vobi.",
+ intro="Esta página é para quem responde pela operação de arquitetura. Além de tudo da coordenação, você define o modelo de programação de cada arquiteta e a configuração da Agenda de Produção, e tem o Painel executivo, a importação do Vobi, a qualidade dos dados, os clientes e a cobertura da integração — e acompanha a sincronização diária com o Vobi.",
  secoes=[
   ("painel", "Painel executivo", "Carteira, riscos, gargalos e decisões", """
 <p>Visão da carteira inteira: projetos ativos, atrasos, concentração por pessoa, gargalos por etapa (nomes originais do Vobi), refação, projetos críticos, divergências, limitações e entregáveis. Tudo clicável até a tarefa.</p>
@@ -354,6 +445,10 @@ QUIZ_AGENDA = ("Você mudou no A360 o prazo de uma atividade ligada ao Vobi e, n
 for _c in (COORD, GER):
     _c["secoes"].insert(1, AGENDA_GESTAO)
     _c["quiz"].append(QUIZ_AGENDA)
+# Agenda de Produção (Etapa A): cada trilha com o que o perfil faz
+ARQ["secoes"].insert(1, PROD_ARQ); ARQ["quiz"] += QUIZ_ARQ_PROD
+COORD["secoes"].insert(1, PROD_COORD); COORD["quiz"] += QUIZ_COORD_PROD
+GER["secoes"].insert(1, PROD_GER); GER["quiz"] += QUIZ_GER_PROD
 
 def gerar(cfg):
     nav = ['<div class="grupo">Comece aqui</div><a href="#intro">O que é o A360</a><a href="#acesso">Primeiro acesso</a><div class="grupo">Módulos</div>']
@@ -380,7 +475,7 @@ def gerar(cfg):
 <div><div class="eyebrow">rucelle · Architecture 360 · material de treinamento · {cfg['cab'].lower()}</div><h1>{cfg['titulo'].replace('Treinamento A360 — ','A360 para ')}</h1><p class="lead">{cfg['intro']}</p>
 <p style="margin-top:.5rem"><span class="pill">endereço: {URL.replace('https://','')}</span><span class="pill">{"dados do Vobi: sincronizados pela API todos os dias de manhã" if API else "dados do Vobi: todos os dias de manhã"}</span><span class="pill">Vobi somente leitura</span><span class="pill">clique nas imagens para ampliar</span></p></div>
 {''.join(secs)}
-<div class="rodape">As telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
+<div class="rodape">As telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Nas telas da Agenda de Produção (capturadas em 13/11/2026), Beatriz Teste e Carla Teste são arquitetas fictícias e a programação é de exemplo. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
 </main></div></div>
 <div class="lightbox" role="dialog" aria-label="Imagem ampliada"><img alt=""></div>
 <script>{JS}</script>
