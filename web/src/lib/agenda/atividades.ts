@@ -17,7 +17,7 @@ export const podeGerirAgenda = (p: Perfil) => p === "admin" || p === "gestao" ||
 export const STATUS_VOBI: Record<number, string> = { 1: "Planejado", 2: "Em andamento", 4: "Concluído", 5: "Cancelado" };
 export const PRIORIDADE_VOBI: Record<number, string> = { 1: "Baixa", 2: "Média", 3: "Alta" };
 export const TIPOS_INDEPENDENTE: Record<string, string> = {
-  reuniao_interna: "Reunião interna", treinamento: "Treinamento", estudo: "Estudo", alinhamento: "Alinhamento", administrativa: "Atividade administrativa", outra: "Outra demanda gerencial",
+  producao: "Produção (quadro da equipe)", reuniao_interna: "Reunião interna", treinamento: "Treinamento", estudo: "Estudo", alinhamento: "Alinhamento", administrativa: "Atividade administrativa", outra: "Outra demanda gerencial",
 };
 export const ESTADO_VOBI: Record<string, { rotulo: string; tom: "neutral" | "info" | "ok" | "warn" | "bad" }> = {
   local: { rotulo: "Só no A360", tom: "neutral" },

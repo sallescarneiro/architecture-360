@@ -132,6 +132,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           {c ? <> · Google de <b>{c.emailGoogle}</b>{c.ultimaSincOkEm ? <> sincronizado {dataHora(c.ultimaSincOkEm)}</> : ""} · <Link className="underline" href="/agenda/conexao">conexão</Link>{c.estado !== "revogada" && <> · <form action={atualizarAgendaAction} className="inline"><input type="hidden" name="volta" value={atual} /><button className="underline" type="submit">atualizar agora</button></form></>}</>
             : configurada ? <> · <Link className="underline" href="/api/agenda/conectar">conectar minha Google Agenda</Link></> : null}</>}
         actions={<div className="flex flex-wrap items-center gap-2">
+          {gestao ? <LinkButton href="/agenda/quadro">Quadro da equipe</LinkButton> : <LinkButton href="/agenda/semana">Minha semana de produção</LinkButton>}
           {gestao && <LinkButton href={novo!(v === "dia" ? d : hoje)} variant="primary">+ Nova atividade</LinkButton>}
           {c && c.estado !== "revogada" && escritaGoogle && <LinkButton href={`/agenda/novo?d=${v === "dia" ? d : hoje}&volta=${encodeURIComponent(atual)}`} variant="secondary">+ Compromisso no Google</LinkButton>}
           {gestao && <LinkButton href="/agenda/qualidade" variant="secondary">Qualidade dos dados</LinkButton>}

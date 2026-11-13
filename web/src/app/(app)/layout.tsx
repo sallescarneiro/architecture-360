@@ -5,6 +5,7 @@ import { sairAction } from "@/app/login/actions";
 import { NavLinks, type NavGroup } from "@/components/nav-links";
 import { Avatar } from "@/components/ui";
 import { trilhaDoPerfil } from "@/lib/treinamento";
+import { gestor as gestorAgenda, podeValidar } from "@/lib/agenda/producao";
 
 const PERFIL: Record<string, string> = { admin: "Administração", gestao: "Gestão", coordenacao: "Coordenação", arquiteta: "Arquiteta" };
 
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const u = await exigirUsuario();
   if (u.trocarSenha) redirect("/conta/senha"); // T-205: senha provisória → troca obrigatória antes de qualquer tela
   const gestao = veIndicadoresIndividuais(u.perfil);
+  const gAgenda = gestorAgenda(u), valida = await podeValidar(u);
   const groups: NavGroup[] = [
     { label: "Central de Trabalho", items: [
       { href: "/meu-dia", label: "Meu dia", icon: "home" },
@@ -27,6 +29,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...(gestao ? [{ href: "/alertas", label: "Alertas", icon: "bell" as const }] : []), // T-188: divergências e correção de rota
       ...(gestao ? [{ href: "/capacidade", label: "Capacidade e fluxo", icon: "tasks" as const }] : []), // T-189: distribuição, carga por semana, entregas, etapas
       { href: "/qualidade", label: "Qualidade dos dados", icon: "check" },
+    ] },
+    // Etapa A da Agenda de Produção (13/11/2026): quadro da equipe, semana da arquiteta, validação e disponibilidade
+    { label: "Agenda de Produção", items: [
+      ...(gAgenda ? [{ href: "/agenda/quadro", label: "Quadro da equipe", icon: "calendar" as const }] : []),
+      { href: "/agenda/semana", label: "Minha semana", icon: "tasks" as const },
+      ...(gAgenda || valida ? [{ href: "/agenda/validacao", label: "Validação", icon: "check" as const }] : []),
+      ...(gAgenda ? [{ href: "/agenda/indisponibilidades", label: "Indisponibilidades", icon: "bell" as const },
+        { href: "/agenda/feriados", label: "Feriados", icon: "calendar" as const },
+        { href: "/agenda/pessoas", label: "Pessoas da agenda", icon: "users" as const }] : []),
     ] },
     // T-227: Inteligência de Reuniões (reuniões técnicas dos projetos)
     { label: "Inteligência de Reuniões", items: [

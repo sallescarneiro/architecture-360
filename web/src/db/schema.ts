@@ -659,6 +659,16 @@ export const atividades = pgTable("atividade", {
   atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  // Etapa A da Agenda de Produção (13/11/2026): blocos de produção no quadro da equipe
+  etapaRucelle: text("etapa_rucelle"),                       // etapa de produção Rucelle (independente do Vobi; etapa_vobi_id guarda a correspondência quando houver)
+  periodo: text("periodo"),                                  // dia | manha | tarde | hora (null = atividade antiga, pelo horário)
+  entrega: boolean("entrega").notNull().default(false),      // entrega ao cliente neste dia
+  validacao: text("validacao").notNull().default("confirmada"), // confirmada | rascunho | aguardando | aprovada | devolvida
+  validacaoComentario: text("validacao_comentario"),
+  validadoPorId: integer("validado_por_id").references(() => usuarios.id),
+  validadoEm: timestamp("validado_em", { withTimezone: true }),
+  reprogramacoes: integer("reprogramacoes").notNull().default(0),
+  impedimento: text("impedimento"),                          // impedimento avisado pela arquiteta (texto); null = sem impedimento
 }, (t) => [index("atividade_resp_idx").on(t.responsavelId, t.inicio), index("atividade_proj_idx").on(t.projetoCodigo)]);
 
 export const atividadeHistorico = pgTable("atividade_historico", {
@@ -731,3 +741,57 @@ export const historicoMotivos = pgTable("reuniao_motivo_historico", {
   usuarioId: integer("usuario_id").references(() => usuarios.id), // null = carga inicial da migração
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Etapa A da Agenda de Produção (13/11/2026): configuração por pessoa, indisponibilidades, feriados e histórico.
+// ---------------------------------------------------------------------------
+export const agendaPessoas = pgTable("agenda_pessoa", {
+  usuarioId: integer("usuario_id").primaryKey().references(() => usuarios.id),
+  uf: text("uf"),
+  municipio: text("municipio"),
+  jornadaHoras: real("jornada_horas").notNull().default(8),
+  almocoInicio: text("almoco_inicio"),                      // HH:MM
+  almocoFim: text("almoco_fim"),
+  modelo: text("modelo").notNull().default("indefinido"),  // indefinido (= estruturada) | estruturada | autonoma
+  validadora: boolean("validadora").notNull().default(false),
+  substitutaAte: text("substituta_ate"),                    // AAAA-MM-DD: valida como substituta até esta data
+  atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const indisponibilidades = pgTable("agenda_indisponibilidade", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  tipo: text("tipo").notNull(),                             // ferias | atestado | pessoal | folga | parcial | equipamento | outro
+  inicio: text("inicio").notNull(),                         // AAAA-MM-DD
+  fim: text("fim").notNull(),
+  periodo: text("periodo").notNull().default("dia"),        // dia | manha | tarde | hora
+  aPartirDe: text("a_partir_de"),                           // HH:MM quando periodo = hora
+  observacao: text("observacao"),
+  situacao: text("situacao").notNull(),                     // confirmada | pendente | recusada | cancelada
+  registradoPorId: integer("registrado_por_id").notNull().references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  decididoPorId: integer("decidido_por_id").references(() => usuarios.id),
+  decididoEm: timestamp("decidido_em", { withTimezone: true }),
+}, (t) => [index("agenda_indisp_usuario_idx").on(t.usuarioId, t.inicio)]);
+
+export const feriados = pgTable("agenda_feriado", {
+  id: serial("id").primaryKey(),
+  data: text("data").notNull(),                             // AAAA-MM-DD
+  nome: text("nome").notNull(),
+  abrangencia: text("abrangencia").notNull(),               // nacional | estadual | municipal | recesso
+  uf: text("uf"),
+  municipio: text("municipio"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoPorId: integer("criado_por_id").references(() => usuarios.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("agenda_feriado_data_idx").on(t.data)]);
+
+export const agendaHistorico = pgTable("agenda_historico", {
+  id: serial("id").primaryKey(),
+  entidade: text("entidade").notNull(),                     // pessoa | indisponibilidade | feriado
+  entidadeId: integer("entidade_id"),
+  resumo: text("resumo").notNull(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("agenda_historico_idx").on(t.entidade, t.entidadeId)]);
