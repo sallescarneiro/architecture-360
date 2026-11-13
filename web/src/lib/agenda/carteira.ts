@@ -187,6 +187,26 @@ async function podeRegistrar(u: Usuario, codigo: number) {
   const a = await acompanhamento(codigo);
   return !!a && (a.responsavelId === u.id || a.acaoQuemId === u.id);
 }
+/** Etapas dadas à pessoa no quadro (e atividades ligadas ao Vobi), dos últimos 30 dias em diante, por projeto.
+ *  Várias arquitetas trabalham no mesmo projeto: quem recebe uma etapa vê o projeto, mesmo em nome de outra. */
+export type MinhaEtapa = { dia: string; etapa: string | null; titulo: string; periodo: string; entrega: boolean; validacao: string; status: number };
+export async function etapasDe(usuarioId: number): Promise<Map<number, MinhaEtapa[]>> {
+  const desde = somaDias(hojeLocal(), -30);
+  const r = await db.execute(sql`select a.projeto_codigo, (a.fim at time zone 'America/Sao_Paulo')::date::text dia, a.etapa_rucelle, a.titulo, a.periodo, a.inicio, a.fim, a.dia_inteiro, a.entrega, a.validacao, a.status
+    from atividade a where a.responsavel_id = ${usuarioId} and a.projeto_codigo is not null and a.status <> 5 and a.validacao <> 'devolvida'
+    and (a.fim at time zone 'America/Sao_Paulo')::date >= ${desde}::date order by a.fim`);
+  const m = new Map<number, MinhaEtapa[]>();
+  for (const x of r.rows as Record<string, unknown>[]) {
+    const k = Number(x.projeto_codigo);
+    const periodo = P.rotuloPeriodo({ periodo: x.periodo as string | null, inicio: x.inicio ? new Date(String(x.inicio)) : null, fim: new Date(String(x.fim)), diaInteiro: !!x.dia_inteiro } as P.Atividade);
+    m.set(k, [...(m.get(k) ?? []), { dia: String(x.dia), etapa: (x.etapa_rucelle as string | null) ?? null, titulo: String(x.titulo), periodo, entrega: !!x.entrega, validacao: String(x.validacao), status: Number(x.status) }]);
+  }
+  return m;
+}
+/** Pedido do cliente: também pode registrar quem tem etapa no projeto. */
+async function podeRegistrarPedido(u: Usuario, codigo: number) {
+  return (await podeRegistrar(u, codigo)) || (await etapasDe(u.id)).has(codigo);
+}
 export async function acaoFeita(u: Usuario, codigo: number): Promise<R> {
   if (!(await podeRegistrar(u, codigo))) return { ok: false, mensagem: "Você não acompanha este projeto." };
   const a = await acompanhamento(codigo);
@@ -208,7 +228,7 @@ export async function registrarComunicacao(u: Usuario, codigo: number, situacao:
 export async function registrarSolicitacao(u: Usuario, codigo: number, texto: string): Promise<R> {
   const t = texto.trim().slice(0, 500);
   if (!t) return { ok: false, mensagem: "Escreva o que o cliente pediu." };
-  if (!(await podeRegistrar(u, codigo))) return { ok: false, mensagem: "Você não acompanha este projeto." };
+  if (!(await podeRegistrarPedido(u, codigo))) return { ok: false, mensagem: "Você não acompanha este projeto." };
   if (!(await projetoValido(codigo))) return { ok: false, mensagem: "Projeto não encontrado entre os ativos." };
   await db.insert(schema.agendaSolicitacoes).values({ projetoCodigo: codigo, texto: t, usuarioId: u.id });
   await hist(codigo, `solicitação do cliente registrada: ${t}`, u);
