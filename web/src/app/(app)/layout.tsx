@@ -32,8 +32,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ] },
     // Etapa A da Agenda de Produção (13/11/2026): quadro da equipe, semana da arquiteta, validação e disponibilidade
     { label: "Agenda de Produção", items: [
-      ...(gAgenda ? [{ href: "/agenda/quadro", label: "Quadro da equipe", icon: "calendar" as const }] : []),
+      ...(gAgenda ? [{ href: "/agenda/quadro", label: "Quadro da equipe", icon: "calendar" as const },
+        { href: "/agenda/projetos", label: "Projetos ativos", icon: "bolt" as const }, // Etapa C
+        { href: "/agenda/carteira", label: "Carteira da equipe", icon: "ads" as const }] : []),
       { href: "/agenda/semana", label: "Minha semana", icon: "tasks" as const },
+      { href: "/agenda/meus-projetos", label: "Meus projetos", icon: "bolt" as const }, // Etapa C
       ...(gAgenda || valida ? [{ href: "/agenda/validacao", label: "Validação", icon: "check" as const }] : []),
       ...(gAgenda ? [{ href: "/agenda/indisponibilidades", label: "Indisponibilidades", icon: "bell" as const },
         { href: "/agenda/feriados", label: "Feriados", icon: "calendar" as const },

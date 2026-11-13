@@ -794,3 +794,51 @@ export const agendaHistorico = pgTable("agenda_historico", {
   usuarioId: integer("usuario_id").references(() => usuarios.id),
   quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("agenda_historico_idx").on(t.entidade, t.entidadeId)]);
+
+// ---------------------------------------------------------------------------------------------- Agenda de Produção · Etapa C (13/11/2026)
+// Acompanhamento dos projetos ativos. O projeto vem do cadastro do A360 (Vobi, só leitura); aqui fica só o que o Vobi não tem.
+// Três coisas separadas: situação do PROJETO, etapa atual de produção e AÇÃO de acompanhamento (não é tarefa e não entra na carga).
+export const agendaProjetos = pgTable("agenda_projeto", {
+  projetoCodigo: integer("projeto_codigo").primaryKey(),
+  responsavelId: integer("responsavel_id").references(() => usuarios.id),  // arquiteta responsável (≠ quem executa cada atividade)
+  situacao: text("situacao").notNull().default("andamento"),              // andamento | cliente | pausado | concluido
+  etapa: text("etapa"),                                                      // ETAPAS (LEV, PN, LAY…)
+  terceirizadoId: integer("terceirizado_id"),
+  acaoTipo: text("acao_tipo"),
+  acaoQuemId: integer("acao_quem_id").references(() => usuarios.id),
+  acaoAte: text("acao_ate"),                                                 // AAAA-MM-DD
+  atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+export const agendaSolicitacoes = pgTable("agenda_solicitacao", {
+  id: serial("id").primaryKey(),
+  projetoCodigo: integer("projeto_codigo").notNull(),
+  texto: text("texto").notNull(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("agenda_solicitacao_proj_idx").on(t.projetoCodigo)]);
+export const agendaComunicacoes = pgTable("agenda_comunicacao", {
+  id: serial("id").primaryKey(),
+  projetoCodigo: integer("projeto_codigo").notNull(),
+  semana: text("semana").notNull(),                                          // segunda-feira AAAA-MM-DD
+  situacao: text("situacao").notNull(),                                      // feita | pendente | na
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  quando: timestamp("quando", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("agenda_comunicacao_semana_idx").on(t.projetoCodigo, t.semana)]);
+export const agendaTiposAcao = pgTable("agenda_tipo_acao", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  ativo: boolean("ativo").notNull().default(true),
+});
+export const agendaTerceirizados = pgTable("agenda_terceirizado", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  contato: text("contato"),
+  ativo: boolean("ativo").notNull().default(true),
+});
+export const agendaRegras = pgTable("agenda_regra", {
+  chave: text("chave").primaryKey(),                                         // carga_alta | sobrecarga
+  valor: text("valor").notNull(),
+  atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});

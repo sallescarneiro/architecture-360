@@ -5,6 +5,8 @@ import * as P from "@/lib/agenda/producao";
 import { dataCurta, dataHora, hojeLocal } from "@/lib/agenda/datas";
 import { Button, PageHeader } from "@/components/ui";
 import { configAction, substitutaAction } from "../quadro/actions";
+import * as C from "@/lib/agenda/carteira";
+import { desativarTercAction, desativarTipoAction, incluirTercAction, incluirTipoAction, regrasAction } from "../projetos/actions";
 
 const PERFIL: Record<string, string> = { admin: "administração", gestao: "gestão", coordenacao: "coordenação", arquiteta: "arquiteta" };
 
@@ -14,7 +16,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
   if (!P.gestor(u)) redirect("/agenda/semana");
   const pode = P.administraConfig(u);
   const sp = await searchParams;
-  const [pessoas, hist] = await Promise.all([P.pessoasComConfig(), P.historicoAgenda("pessoa", 20)]);
+  const [pessoas, hist, ref, tipos, tercs, histRegra, linhas] = await Promise.all([P.pessoasComConfig(), P.historicoAgenda("pessoa", 20), C.regras(), C.tiposAcao(), C.terceirizados(), P.historicoAgenda("regra", 10), C.linhasProjetos()]);
   const sel = pessoas.find((p) => String(p.id) === sp.p) ?? null;
   const hoje = hojeLocal();
   const validadoras = pessoas.filter((p) => p.cfg.validadora);
@@ -82,6 +84,42 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
           </aside>
         )}
       </div>
+      <section id="regras" className="flex flex-col gap-3" aria-label="Regras da carteira">
+        <div><div className="eyebrow">Regras da carteira{pode ? "" : " · consulta"}</div><h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">Carga, tipos de ação e terceirizados</h2></div>
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="card flex min-w-0 flex-[1_1_300px] flex-col gap-2.5 p-4">
+            <h3 className="font-semibold">Referência de carga</h3>
+            {pode ? (
+              <form action={regrasAction} className="flex flex-col gap-2.5">
+                <input type="hidden" name="volta" value="/agenda/pessoas#regras" />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Carga alta a partir de<input type="number" name="alta" min={1} max={49} required defaultValue={ref.alta} className="input mt-1" /></label>
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Sobrecarga a partir de<input type="number" name="sob" min={2} max={50} required defaultValue={ref.sob} className="input mt-1" /></label>
+                </div>
+                <Button variant="primary" className="self-start">Salvar referência</Button>
+              </form>
+            ) : <p className="text-sm">Carga alta a partir de <b>{ref.alta}</b> projetos; sobrecarga a partir de <b>{ref.sob}</b>.</p>}
+            <p className="text-xs text-[var(--muted)]">Projetos em andamento ou aguardando cliente em que a arquiteta é responsável, sem os terceirizados. A planilha usava 6 e 8. É referência visual: nada é bloqueado.</p>
+          </div>
+          <div className="card flex min-w-0 flex-[1_1_300px] flex-col gap-2.5 p-4">
+            <h3 className="font-semibold">Tipos de ação de acompanhamento</h3>
+            <ul className="flex flex-col gap-1 text-sm">{tipos.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-2 border-b border-[#f0e8e2] pb-1">{t.nome}
+                {pode && <form action={desativarTipoAction}><input type="hidden" name="id" value={t.id} /><input type="hidden" name="volta" value="/agenda/pessoas#regras" /><button className="text-xs text-[var(--vinho)] underline" aria-label={`Desativar ${t.nome}`}>desativar</button></form>}</li>))}</ul>
+            {pode && <form action={incluirTipoAction} className="flex gap-1.5"><input type="hidden" name="volta" value="/agenda/pessoas#regras" /><input name="nome" required maxLength={80} className="input min-w-0 flex-1" placeholder="novo tipo" /><Button variant="secondary" className="btn-sm">Incluir</Button></form>}
+            <p className="text-xs text-[var(--muted)]">Sem duplicidade; desativado sai das novas ações e continua nas antigas.</p>
+          </div>
+          <div className="card flex min-w-0 flex-[1_1_300px] flex-col gap-2.5 p-4">
+            <h3 className="font-semibold">Terceirizados</h3>
+            {tercs.length === 0 ? <p className="text-xs text-[var(--muted)]">Nenhum cadastrado.</p> : <ul className="flex flex-col gap-1 text-sm">{tercs.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-2 border-b border-[#f0e8e2] pb-1"><span>{t.nome}{t.contato ? <span className="block text-xs text-[var(--muted)]">{t.contato}</span> : null}</span>
+                <span className="flex items-center gap-2 text-xs text-[var(--muted)]">{linhas.filter((l) => l.terceirizadoId === t.id).length} projeto(s){pode && <form action={desativarTercAction}><input type="hidden" name="id" value={t.id} /><input type="hidden" name="volta" value="/agenda/pessoas#regras" /><button className="text-[var(--vinho)] underline" aria-label={`Desativar ${t.nome}`}>desativar</button></form>}</span></li>))}</ul>}
+            {pode && <form action={incluirTercAction} className="flex flex-col gap-1.5"><input type="hidden" name="volta" value="/agenda/pessoas#regras" /><div className="grid grid-cols-2 gap-1.5"><input name="nome" required maxLength={120} className="input" placeholder="nome" /><input name="contato" maxLength={160} className="input" placeholder="contato" /></div><Button variant="secondary" className="btn-sm self-start">Incluir terceirizado</Button></form>}
+            <p className="text-xs text-[var(--muted)]">Executor externo, sem acesso ao A360. O projeto terceirizado continua com uma arquiteta responsável que acompanha, e fica fora da carga dela.</p>
+          </div>
+        </div>
+        {histRegra.length > 0 && <ul className="flex flex-col gap-1 text-xs">{histRegra.map((h, k) => <li key={k}><span className="text-[var(--muted)]">{dataHora(new Date(h.quando))}</span> · {h.resumo}</li>)}</ul>}
+      </section>
     </div>
   );
 }
