@@ -67,7 +67,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
               <div key={d} className={`card flex flex-col gap-2 p-3 ${d === hoje ? "ring-2 ring-[rgba(91,13,13,.18)]" : ""}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{P.rotuloDia(d)}{d === hoje ? " · hoje" : ""}</b>
                   <span className="flex flex-wrap gap-1.5">
-                    {fer && <span className="rounded-md border border-[#cfe0e0] bg-[#eef5f5] px-2 py-0.5 text-[0.7rem] font-bold text-[#2f5f5f]">Feriado · {fer.nome}</span>}
+                    {fer && <span className="rounded-md bg-[#f6f3f1] px-2 py-0.5 text-[0.7rem] font-bold text-[var(--muted)]">Feriado · {fer.nome}</span>}
                     {ind && <span className="rounded-md border border-[#efcfc6] bg-[#fff4f1] px-2 py-0.5 text-[0.7rem] font-bold text-[#8a2f1d]">{ind.situacao === "pendente" ? "Seu pedido de ausência · aguardando confirmação" : (P.TIPOS_INDISP[ind.tipo]?.rotulo ?? "Indisponível")}</span>}
                   </span>
                 </div>

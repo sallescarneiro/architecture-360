@@ -9,10 +9,11 @@ export function curto(nome: string | null | undefined): string {
   return (i > 0 ? nome.slice(i + 3) : nome).trim();
 }
 
-const COR_VAL: Record<string, string> = { aguardando: "bg-[#fff1d6] text-[#7a4b00]", aprovada: "bg-[#e2f1e6] text-[#21613a]", devolvida: "bg-[#fbe2dd] text-[#962b19]", rascunho: "bg-[#efebe8] text-[#5f5752]", confirmada: "bg-[#efe9f6] text-[#4b3470]" };
+// T-237 (2ª rodada): selo só como texto; cor apenas no que pede ação (aguardando, devolvida)
+const COR_VAL: Record<string, string> = { aguardando: "text-[#8a5200]", aprovada: "text-[var(--muted)]", devolvida: "text-[var(--bad)]", rascunho: "text-[var(--muted)]", confirmada: "text-[var(--muted)]" };
 export function SeloValidacao({ v, sempre = false }: { v: string; sempre?: boolean }) {
   if (v === "confirmada" && !sempre) return null;
-  return <span className={`inline-flex items-center rounded-full px-2 py-px text-[0.68rem] font-bold ${COR_VAL[v] ?? ""}`}>{VALIDACAO[v]?.rotulo ?? v}</span>;
+  return <span className={`inline-flex items-center text-[0.68rem] font-semibold ${COR_VAL[v] ?? ""}`}>{VALIDACAO[v]?.rotulo ?? v}</span>;
 }
 export function ChipEtapa({ k }: { k: string | null }) {
   const e = etapa(k);
@@ -28,9 +29,9 @@ const STATUS: Record<number, string> = { 1: "Planejada", 2: "Em andamento", 4: "
 /** Bloco de produção no quadro: etapa, período, projeto, entrega, validação e andamento. */
 export function Bloco({ a, projeto, href, selecionado, apagado }: { a: Atividade; projeto: string | null; href: string; selecionado?: boolean; apagado?: boolean }) {
   const titulo = a.etapaRucelle ? curto(projeto) : a.titulo;
-  const borda = a.entrega ? "border-2 border-[var(--vinho)]" : a.validacao === "rascunho" ? "border border-dashed border-[#b9aea7] bg-[#fcfaf8]" : "border border-[var(--line)]";
+  const borda = a.entrega ? "border-2 border-[var(--vinho)] bg-white" : a.validacao === "rascunho" ? "border border-dashed border-[#b9aea7] bg-white" : a.validacao === "aguardando" || a.validacao === "devolvida" ? "border border-[var(--line)] bg-white" : "border border-transparent bg-[var(--rose-2)]";
   return (
-    <Link href={href} scroll={false} className={`flex flex-col gap-0.5 rounded-[9px] bg-white px-2 py-1.5 text-[0.75rem] no-underline text-[var(--txt)] shadow-[0_1px_1px_rgba(91,13,13,.04)] hover:border-[#c9b4a8] ${borda} ${selecionado ? "ring-2 ring-[rgba(91,13,13,.25)]" : ""} ${apagado ? "opacity-30" : ""}`}
+    <Link href={href} scroll={false} className={`flex flex-col gap-0.5 rounded-[9px] px-2 py-1.5 text-[0.75rem] no-underline text-[var(--txt)] hover:border-[#e8c8bd] ${borda} ${selecionado ? "ring-2 ring-[rgba(91,13,13,.25)]" : ""} ${apagado ? "opacity-30" : ""}`}
       aria-label={`${titulo}, ${etapa(a.etapaRucelle)?.n ?? "atividade"}, ${rotuloPeriodo(a)}${a.entrega ? ", entrega" : ""}${a.validacao !== "confirmada" ? `, ${VALIDACAO[a.validacao]?.rotulo}` : ""}`}>
       <span className="flex flex-wrap items-center gap-1"><ChipEtapa k={a.etapaRucelle} /><span className="text-[0.66rem] font-semibold text-[var(--muted)]">{rotuloPeriodo(a)}</span>{a.vinculo !== "independente" && <span className="text-[0.62rem] font-bold text-[#2c4373]">VOBI</span>}</span>
       <span className="font-semibold leading-tight">{titulo}</span>

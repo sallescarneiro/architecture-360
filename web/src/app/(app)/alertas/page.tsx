@@ -17,7 +17,7 @@ export default async function AlertasPage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Architecture 360 · Alertas" title="Alertas e correção de rota"
-        subtitle="Divergências identificadas pela IA e pelas verificações do A360 entre o que foi aprovado, decidido e registrado. A IA identifica e recomenda; a gestão decide; a produção executa. Nada altera o Vobi."
+        subtitle="Divergências entre o aprovado, o decidido e o registrado. A gestão decide; nada altera o Vobi."
         actions={<div className="flex gap-2"><LinkButton href="/integracao-vobi">Cobertura Vobi</LinkButton><LinkButton href="/painel">← Painel</LinkButton></div>} />
       {ind && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">

@@ -50,7 +50,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Agenda · programação da produção" title="Quadro da equipe"
-        subtitle={<>Uma linha por arquiteta e os dias úteis. “+ Incluir” programa no dia; clique numa atividade para editar ou reprogramar. Programação da gestão e da coordenação entra confirmada; propostas das arquitetas autônomas passam pela validação.</>}
+        subtitle="Programação da semana por arquiteta. Clique numa atividade para editar ou reprogramar."
         actions={<div className="flex flex-wrap gap-2">
           <LinkButton href="/agenda/indisponibilidades">Indisponibilidades</LinkButton>
           {(validadora || P.gestor(u)) && <LinkButton href="/agenda/validacao" variant="primary">Fila de validação · {nAguard}</LinkButton>}
@@ -78,10 +78,10 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
             {dias.map((d) => {
               const fn = feriados.find((f) => f.data === d && (f.abrangencia === "nacional" || f.abrangencia === "recesso"));
               const fl = feriados.filter((f) => f.data === d && f.abrangencia !== "nacional" && f.abrangencia !== "recesso");
-              return <div key={d} className={`border-b border-[var(--line)] px-3 py-2 text-xs font-bold text-[var(--txt-2)] ${fn ? "bg-[#e8f1f1]" : "bg-[#fbf7f4]"} ${d === hoje ? "text-[var(--vinho)]" : ""}`}>
+              return <div key={d} className={`border-b border-[var(--line)] px-3 py-2 text-xs font-bold text-[var(--txt-2)] ${fn ? "bg-[#f6f3f1] text-[var(--muted)]" : "bg-white"} ${d === hoje ? "text-[var(--vinho)]" : ""}`}>
                 {P.rotuloDia(d)}{d === hoje && " · hoje"}
-                {fn && <span className="block text-[0.66rem] font-semibold text-[#2f5f5f]">{fn.nome} · {P.ABRANGENCIA[fn.abrangencia].toLowerCase()}</span>}
-                {fl.map((f) => <span key={f.id} className="block text-[0.66rem] font-semibold text-[#2f5f5f]">{f.nome} · {f.municipio ? `${f.municipio}/` : ""}{f.uf}</span>)}
+                {fn && <span className="block text-[0.66rem] font-semibold text-[var(--muted)]">{fn.nome} · {P.ABRANGENCIA[fn.abrangencia].toLowerCase()}</span>}
+                {fl.map((f) => <span key={f.id} className="block text-[0.66rem] font-semibold text-[var(--muted)]">{f.nome} · {f.municipio ? `${f.municipio}/` : ""}{f.uf}</span>)}
               </div>;
             })}
             {pessoas.length === 0 && <div className="col-span-6 p-6 text-sm text-[var(--muted)]">Nenhuma arquiteta ativa cadastrada.</div>}
@@ -95,8 +95,8 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                 bl.forEach((b) => { if (b.validacao !== "rascunho" && b.validacao !== "devolvida") { prog += P.peso(b); horas += P.horasComHorario(b); } });
                 const cheio = fer || (ind && ind.situacao === "confirmada" && ind.periodo === "dia");
                 return (
-                  <div key={d} className={`flex min-h-[118px] flex-col gap-1.5 border-b border-r border-[#f0e8e2] p-1.5 ${fer ? "bg-[repeating-linear-gradient(135deg,#eef5f5_0_8px,#e4eeee_8px_16px)]" : cheio ? "bg-[repeating-linear-gradient(135deg,#fbf1ee_0_8px,#f6e6e1_8px_16px)]" : "bg-white"}`}>
-                    {fer && <span className="self-start rounded-md border border-[#cfe0e0] bg-white px-1.5 py-0.5 text-[0.68rem] font-bold text-[#2f5f5f]">Feriado · {fer.nome}</span>}
+                  <div key={d} className={`flex min-h-[118px] flex-col gap-1.5 border-b border-r border-[#f0e8e2] p-1.5 ${fer ? "bg-[repeating-linear-gradient(135deg,#faf8f7_0_8px,#f3efec_8px_16px)]" : cheio ? "bg-[repeating-linear-gradient(135deg,#fbf1ee_0_8px,#f6e6e1_8px_16px)]" : "bg-white"}`}>
+                    {fer && <span className="self-start rounded-md bg-white px-1.5 py-0.5 text-[0.68rem] font-semibold text-[var(--muted)]">Feriado · {fer.nome}</span>}
                     {ind && <span className={`self-start rounded-md px-1.5 py-0.5 text-[0.68rem] font-bold ${ind.situacao === "pendente" ? "border border-dashed border-[#d9a94a] bg-white text-[#7a4b00]" : "border border-[#efcfc6] bg-[#fff4f1] text-[#8a2f1d]"}`}>{P.rotuloIndispColetivo(ind)}</span>}
                     {bl.map((b) => <Bloco key={b.id} a={b} projeto={b.projetoCodigo ? nomesProj.get(b.projetoCodigo) ?? null : null} href={q({ ver: b.id })} selecionado={b.id === selId} apagado={!casa(b)} />)}
                     <Link href={q({ novo: `${p.id}:${d}` })} scroll={false} className="mt-auto flex min-h-[30px] items-center justify-center gap-1 rounded-lg border border-dashed border-[#d9cbc2] text-[0.72rem] font-semibold text-[#8a7d76] no-underline hover:border-[var(--vinho)] hover:bg-white hover:text-[var(--vinho)]" aria-label={`Incluir atividade para ${p.nome} em ${P.rotuloDia(d)}`}>+ Incluir</Link>
@@ -110,11 +110,11 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                     <div className="flex flex-wrap gap-1" role="group" aria-label={`Modelo de programação de ${p.nome}`}>
                       {([["estruturada", "Estruturada"], ["autonoma", "Autônoma"]] as const).map(([k, t]) => (
                         <form key={k} action={modeloAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="modelo" value={k} /><input type="hidden" name="volta" value={q({})} />
-                          <button aria-pressed={p.cfg.modelo === k} title={P.MODELOS[k].descricao} className={`rounded-full border px-2 py-0.5 text-[0.64rem] font-bold ${p.cfg.modelo === k ? (k === "autonoma" ? "border-[#1f5a3b] bg-[#e1f0e7] text-[#1f5a3b]" : "border-[#4b3470] bg-[#eae4f4] text-[#4b3470]") : "border-[var(--line)] bg-white text-[var(--muted)] hover:border-[var(--vinho)]"}`}>{t}</button></form>
+                          <button aria-pressed={p.cfg.modelo === k} title={P.MODELOS[k].descricao} className={`rounded-full border px-2 py-0.5 text-[0.64rem] font-bold ${p.cfg.modelo === k ? "border-[var(--vinho)] bg-[var(--vinho)] text-white" : "border-[var(--line)] bg-white text-[var(--muted)] hover:border-[var(--vinho)]"}`}>{t}</button></form>
                       ))}
                       {p.cfg.modelo === "indefinido" && <span className="text-[0.62rem] text-[var(--muted)]">a definir</span>}
                     </div>
-                  ) : <span className={`self-start rounded-full px-2 text-[0.66rem] font-bold ${p.cfg.modelo === "autonoma" ? "bg-[#e1f0e7] text-[#1f5a3b]" : p.cfg.modelo === "estruturada" ? "bg-[#eae4f4] text-[#4b3470]" : "border border-dashed border-[#b9aea7] bg-[#efebe8] text-[#5f5752]"}`}>{p.cfg.modelo === "indefinido" ? "A definir · como estruturada" : P.MODELOS[p.cfg.modelo].rotulo}</span>}
+                  ) : <span className={`self-start rounded-full px-2 text-[0.66rem] font-bold ${p.cfg.modelo === "indefinido" ? "border border-dashed border-[#b9aea7] text-[var(--muted)]" : "bg-[var(--rose-2)] text-[var(--vinho)]"}`}>{p.cfg.modelo === "indefinido" ? "A definir · como estruturada" : P.MODELOS[p.cfg.modelo].rotulo}</span>}
                   <span className="text-[0.68rem] text-[var(--muted)]">{[p.cfg.municipio, p.cfg.uf].filter(Boolean).join("/") || "localidade não informada"}</span>
                   <span className={`text-[0.68rem] ${prog > disp ? "font-semibold text-[var(--bad)]" : "text-[var(--txt-2)]"}`}>Disponível {P.fmtDias(disp)} · programado {P.fmtProgramado(prog, horas)}</span>
                 </div>,
@@ -178,12 +178,17 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
         )}
       </div>
 
-      <div className="card flex flex-wrap items-center gap-3 px-4 py-2.5 text-[0.72rem] text-[var(--txt-2)]" aria-label="Legenda">
-        <b>Etapas</b>{P.ETAPAS.map((e) => <span key={e.k} className="inline-flex items-center gap-1"><ChipEtapa k={e.k} />{e.n}</span>)}
-        <span className="inline-flex items-center gap-1"><Entrega /> entrega ao cliente</span>
-        <span className="inline-flex flex-wrap items-center gap-1"><SeloValidacao v="aguardando" /><SeloValidacao v="aprovada" /><SeloValidacao v="devolvida" /><SeloValidacao v="rascunho" /> propostas de autônomas; sem selo = confirmada</span>
-      </div>
-      <p className="text-xs text-[var(--muted)]">Disponível = dias úteis − feriados da localidade − indisponibilidades confirmadas (meio período = 0,5). Pedido de ausência pendente aparece tracejado e não desconta. Programado = dia inteiro 1, manhã ou tarde 0,5; atividades com horário específico aparecem em horas, à parte; rascunhos e devolvidas não contam. Atestado aparece só como “Indisponível”. Nada aqui é enviado ao Vobi.</p>
+      <details className="fold text-[0.78rem] text-[var(--txt-2)]">
+        <summary>Legenda e regras de cálculo</summary>
+        <div className="fold-body flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3" aria-label="Legenda">
+            <b>Etapas</b>{P.ETAPAS.map((e) => <span key={e.k} className="inline-flex items-center gap-1"><ChipEtapa k={e.k} />{e.n}</span>)}
+            <span className="inline-flex items-center gap-1"><Entrega /> entrega ao cliente</span>
+            <span className="inline-flex flex-wrap items-center gap-2"><SeloValidacao v="aguardando" /><SeloValidacao v="aprovada" /><SeloValidacao v="devolvida" /><SeloValidacao v="rascunho" /> propostas de autônomas; sem selo = confirmada</span>
+          </div>
+          <p className="text-xs text-[var(--muted)]">Disponível = dias úteis − feriados da localidade − indisponibilidades confirmadas (meio período = 0,5). Pedido de ausência pendente aparece tracejado e não desconta. Programado = dia inteiro 1, manhã ou tarde 0,5; atividades com horário específico aparecem em horas, à parte; rascunhos e devolvidas não contam. Atestado aparece só como “Indisponível”. Nada aqui é enviado ao Vobi.</p>
+        </div>
+      </details>
     </div>
   );
 }

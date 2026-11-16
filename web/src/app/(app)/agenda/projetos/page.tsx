@@ -5,11 +5,11 @@ import * as P from "@/lib/agenda/producao";
 import * as C from "@/lib/agenda/carteira";
 import { dataCurta, dataHora, hojeLocal } from "@/lib/agenda/datas";
 import { Button, PageHeader } from "@/components/ui";
-import { ChipEtapa, curto } from "@/components/agenda/Producao";
+import { curto } from "@/components/agenda/Producao";
 import { SelSituacao, SelComunicacao } from "@/components/agenda/Carteira";
 import { acaoFeitaAction, comFeitaAction, comNaAction, comPendenteAction, salvarAcompAction, solicitacaoAction } from "./actions";
 
-const FILTROS: [string, string][] = [["todas", "projetos ativos"], ["venc", "ações vencidas"], ["com", "comunicações pendentes na semana"], ["sem", "em andamento sem entrega programada"], ["pau", "pausados ou aguardando cliente"], ["resp", "sem responsável definido"]];
+const FILTROS: [string, string][] = [["todas", "todos"], ["venc", "ações vencidas"], ["com", "comunicação pendente"], ["sem", "sem entrega"], ["pau", "pausados ou aguardando cliente"], ["resp", "sem responsável"]];
 const casa: Record<string, (l: C.LinhaProjeto) => boolean> = {
   todas: (l) => l.situacao !== "concluido", venc: (l) => l.acaoVencida, com: (l) => l.comunicacao === "pendente" && l.situacao !== "concluido",
   sem: (l) => l.situacao === "andamento" && !l.entrega, pau: (l) => l.situacao === "pausado" || l.situacao === "cliente", resp: (l) => !l.responsavelId && l.situacao !== "concluido",
@@ -39,18 +39,18 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Agenda de Produção · acompanhamento dos projetos" title="Projetos ativos"
-        subtitle="Um projeto por linha, agrupado pela arquiteta responsável. A situação diz em que pé está o projeto; a etapa diz o que está sendo produzido; a próxima ação é o acompanhamento que alguém precisa fazer, com responsável e data. Ação não é tarefa de produção: não entra no quadro nem na carga." />
+        subtitle="Situação, etapa e próxima ação de cada projeto, por arquiteta responsável." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5" role="group" aria-label="Atalhos">
+      <div className="flex flex-wrap gap-1 border-b border-[var(--line)]" role="group" aria-label="Filtros">
         {FILTROS.map(([k, t]) => {
           const n = linhas.filter((l) => casa[k](l) && (pessoaF === null || l.responsavelId === pessoaF)).length;
           return <Link key={k} href={q({ f: k === "todas" ? null : k })} aria-pressed={f === k}
-            className={`rounded-xl bg-white px-3 py-2.5 no-underline text-[var(--txt)] ${f === k ? "border-2 border-[var(--vinho)]" : "border border-[var(--line)]"}`}>
-            <b className="block font-[family-name:var(--font-display)] text-2xl text-[var(--vinho)]">{n}</b><span className="text-[0.74rem] text-[var(--txt-2)]">{t}</span></Link>;
+            className={`-mb-px px-3 py-2.5 text-[0.84rem] no-underline ${f === k ? "border-b-2 border-[var(--vinho)] font-semibold text-[var(--vinho)]" : "text-[var(--txt-2)] hover:text-[var(--vinho)]"}`}>
+            {t.charAt(0).toUpperCase() + t.slice(1)} <span className={k === "venc" && n ? "font-semibold text-[var(--bad)]" : "text-[var(--muted)]"}>{n}</span></Link>;
         })}
       </div>
-      <div className="card flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Arquiteta">
           {[{ id: null as number | null, nome: "Todas as arquitetas" }, ...pessoas.map((p) => ({ id: p.id as number | null, nome: p.nome.split(" ")[0] }))].map((p) => (
             <Link key={p.id ?? 0} href={q({ p: p.id })} aria-pressed={pessoaF === p.id}
@@ -61,25 +61,23 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
       </div>
 
       <div className="flex flex-wrap items-start gap-4">
-        <section className="card min-w-0 flex-[999_1_720px] overflow-x-auto" aria-label="Projetos">
-          <table className="w-full min-w-[900px] border-collapse text-[0.8rem]">
-            <thead><tr className="bg-[#fbf7f4] text-left text-[0.64rem] uppercase tracking-wider text-[var(--muted)]">
-              {["Projeto", "Etapa atual", "Situação", "Próxima entrega", "Próxima ação", "Solicitação do cliente", "Comunicação da semana"].map((h) => <th key={h} className="whitespace-nowrap border-b border-[var(--line)] px-2.5 py-2 font-semibold">{h}</th>)}
+        <section className="card min-w-0 flex-[999_1_640px] overflow-x-auto" aria-label="Projetos">
+          <table className="w-full min-w-[760px] border-collapse text-[0.82rem]">
+            <thead><tr className="text-left text-[0.6rem] uppercase tracking-[0.16em] text-[var(--vinho)]">
+              {["Projeto", "Etapa", "Situação", "Entrega", "Próxima ação", "Comunicação"].map((h) => <th key={h} className="whitespace-nowrap border-b border-[var(--line)] px-3 py-3 font-semibold">{h}</th>)}
             </tr></thead>
             <tbody>
               {grupos.map((g) => [
-                <tr key={`g${g.id}`}><td colSpan={7} className="bg-[#f8f2ee] px-2.5 py-1.5 text-xs font-bold text-[var(--txt-2)]">{g.nome} · {g.itens.length} projeto(s)</td></tr>,
+                <tr key={`g${g.id}`}><td colSpan={6} className="border-b border-[var(--line)] px-3 pb-2 pt-4 text-[0.8rem] font-semibold text-[var(--grafite)]">{g.nome} <span className="font-normal text-[var(--muted)]">· {g.itens.length}</span></td></tr>,
                 ...g.itens.map((l) => (
-                  <tr key={l.codigo} className={l.codigo === selCod ? "bg-[#fbf1ec]" : ""}>
-                    <td className="border-b border-[#f0e8e2] px-2.5 py-2 align-top"><Link href={q({ sel: l.codigo })} scroll={false} className="font-bold text-[var(--vinho)] no-underline">{curto(l.nome)}</Link>
-                      {l.terceirizadoId && <span className="ml-1 rounded bg-[#eef2fb] px-1 text-[0.62rem] font-bold text-[#2c4373]">TERCEIRIZADO</span>}
-                      <span className="block text-[0.7rem] text-[var(--muted)]">nº {l.codigo}{l.cliente ? ` · ${l.cliente}` : ""}</span></td>
-                    <td className="border-b border-[#f0e8e2] px-2.5 py-2 align-top">{l.etapa ? <><ChipEtapa k={l.etapa} /><span className="block text-[0.7rem] text-[var(--muted)]">{P.etapa(l.etapa)?.n}</span></> : <span className="text-[var(--muted)]">—</span>}</td>
-                    <td className="border-b border-[#f0e8e2] px-2.5 py-2 align-top"><SelSituacao s={l.situacao} /></td>
-                    <td className="border-b border-[#f0e8e2] px-2.5 py-2 align-top">{l.entrega ? <>{P.rotuloDia(l.entrega.dia)}<span className="block text-[0.7rem] text-[var(--muted)]">{l.entrega.quem.split(" ")[0]}{l.entrega.etapa ? ` · ${P.etapa(l.entrega.etapa)?.n}` : ""}</span></> : <span className="text-[var(--muted)]">{l.situacao === "andamento" ? "sem data" : "—"}</span>}</td>
-                    <td className="border-b border-[#f0e8e2] px-2.5 py-2 align-top">{l.acaoTipo ? <><b className={l.acaoVencida ? "text-[#9b2c1f]" : ""}>{l.acaoTipo}</b><span className="block text-[0.7rem] text-[var(--muted)]">{l.acaoQuem?.split(" ")[0]} · até {dataCurta(l.acaoAte!)}{l.acaoVencida ? " · vencida" : ""}</span></> : "—"}</td>
-                    <td className="max-w-[220px] border-b border-[#f0e8e2] px-2.5 py-2 align-top">{l.solicitacao ? <>{l.solicitacao.texto}<span className="block text-[0.7rem] text-[var(--muted)]">{dataCurta(hojeLocal(l.solicitacao.quando))}</span></> : "—"}</td>
-                    <td className="border-b border-[#f0e8e2] px-2.5 py-2 align-top"><SelComunicacao s={l.comunicacao} /></td>
+                  <tr key={l.codigo} className={l.codigo === selCod ? "bg-[var(--rose-2)]" : ""}>
+                    <td className="border-b border-[#f3ece8] px-3 py-3 align-top"><Link href={q({ sel: l.codigo })} scroll={false} className="font-bold text-[var(--vinho)] no-underline">{curto(l.nome)}</Link>
+                      <span className="block text-[0.7rem] text-[var(--muted)]">{l.terceirizado ? `Terceirizado · ${l.terceirizado}` : l.cliente ?? `nº ${l.codigo}`}</span></td>
+                    <td className="border-b border-[#f3ece8] px-3 py-3 align-top">{l.etapa ? P.etapa(l.etapa)?.n : <span className="text-[var(--muted)]">—</span>}</td>
+                    <td className="border-b border-[#f3ece8] px-3 py-3 align-top"><SelSituacao s={l.situacao} /></td>
+                    <td className="border-b border-[#f3ece8] px-3 py-3 align-top">{l.entrega ? <>{P.rotuloDia(l.entrega.dia)}<span className="block text-[0.7rem] text-[var(--muted)]">{l.entrega.quem.split(" ")[0]}{l.entrega.etapa ? ` · ${P.etapa(l.entrega.etapa)?.n}` : ""}</span></> : <span className="text-[var(--muted)]">{l.situacao === "andamento" ? "sem data" : "—"}</span>}</td>
+                    <td className="border-b border-[#f3ece8] px-3 py-3 align-top">{l.acaoTipo ? <><span className={l.acaoVencida ? "font-semibold text-[var(--bad)]" : ""}>{l.acaoTipo}</span><span className="block text-[0.7rem] text-[var(--muted)]">{l.acaoQuem?.split(" ")[0]} · até {dataCurta(l.acaoAte!)}{l.acaoVencida ? " · vencida" : ""}</span></> : "—"}</td>
+                    <td className="border-b border-[#f3ece8] px-3 py-3 align-top"><SelComunicacao s={l.comunicacao} /></td>
                   </tr>
                 )),
               ])}
@@ -121,7 +119,8 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
             <form action={solicitacaoAction} className="flex flex-col gap-1.5 rounded-[10px] border border-[#f0e8e2] p-2.5">
               <input type="hidden" name="codigo" value={sel.codigo} /><input type="hidden" name="volta" value={volta} />
               <label className="text-[0.68rem] font-bold uppercase tracking-wider text-[var(--muted)]">Solicitação do cliente<textarea name="texto" rows={2} required maxLength={500} className="input mt-1 font-normal normal-case tracking-normal" placeholder="ex.: incluir layout dos vestiários" /></label>
-              <span className="text-xs text-[var(--muted)]">Registro do pedido, com data. Não vira tarefa sozinho: se exigir produção, a coordenação programa no quadro.</span>
+              {sel.solicitacao && <span className="text-xs text-[var(--txt-2)]">Último pedido ({dataCurta(hojeLocal(sel.solicitacao.quando))}): {sel.solicitacao.texto}</span>}
+              <span className="text-xs text-[var(--muted)]">Não vira tarefa sozinho: se exigir produção, a coordenação programa no quadro.</span>
               <Button variant="secondary" className="btn-sm self-start">Registrar pedido</Button>
             </form>
             <ul className="flex flex-col gap-1.5 border-t border-[#f0e8e2] pt-2 text-xs" aria-label="Histórico">

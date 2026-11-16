@@ -24,7 +24,7 @@ export default async function CarteiraPage({ searchParams }: { searchParams: Pro
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Agenda de Produção · visão gerencial · gestão e coordenação" title="Carteira da equipe"
-        subtitle="Quantos projetos cada arquiteta é responsável, em que etapas, quantos dias livres ela tem nas próximas duas semanas e o que está atrasado. É informação de distribuição, não avaliação de pessoas." />
+        subtitle="Projetos acompanhados por arquiteta e folga nas próximas duas semanas. Distribuição, não avaliação." />
       {desequilibrio && <div className="leitura" role="note"><b>Desequilíbrio</b>{maior.nome.split(" ")[0]} tem {maior.projetos} projeto(s) e {menor.nome.split(" ")[0]} tem {menor.projetos}. A gerência decide se redistribui; o sistema não move nada sozinho.</div>}
       {fora.semResponsavel > 0 && <div className="leitura" role="note"><b>A definir</b>{fora.semResponsavel} projeto(s) ativo(s) sem responsável definido não entram na carga de ninguém. Defina em <Link href="/agenda/projetos?f=resp" className="underline">Projetos ativos</Link>.</div>}
       <section className="card flex flex-col gap-2 p-4" aria-label="Carga por arquiteta">

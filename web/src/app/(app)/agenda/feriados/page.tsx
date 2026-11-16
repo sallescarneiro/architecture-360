@@ -18,7 +18,7 @@ export default async function FeriadosPage({ searchParams }: { searchParams: Pro
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow={`Agenda · disponibilidade${pode ? "" : " · consulta"}`} title="Feriados e recessos"
-        subtitle="Nacional e recesso da empresa valem para todos; estadual, para quem está no estado; municipal, para quem está no município. A localidade de cada pessoa fica em Pessoas da agenda." />
+        subtitle="Nacionais e recesso valem para todos; estaduais e municipais, pela localidade da pessoa." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       {semLocal > 0 && <div className="leitura" role="note">{semLocal} arquiteta(s) sem localidade informada: para elas só valem feriados nacionais e recessos.</div>}

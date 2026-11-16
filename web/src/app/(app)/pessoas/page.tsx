@@ -44,7 +44,7 @@ export default async function PessoasPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow="Dados" title="Pessoas"
-        subtitle="A estrutura organizacional (cargos, gestores, coordenadores, vínculos) vem do People Rucelle e é apenas exibida aqui. O Architecture 360 não mantém cadastro próprio de pessoas: o único dado seu é o vínculo entre o nome exportado pelo Vobi e o e-mail @rucelle."
+        subtitle="Estrutura vinda do People Rucelle, só exibida aqui. O A360 guarda apenas o vínculo entre o nome no Vobi e o e-mail."
         actions={u.perfil === "admin" && <form action={sincronizarPeopleAction}><Button variant="secondary" disabled={!org.configurado} title={org.configurado ? "Ler o People agora" : "Defina PEOPLE_URL e PEOPLE_TOKEN no serviço"}>Atualizar do People</Button></form>} />
 
       <Card title={<>Estrutura organizacional <Badge tone="neutral">fonte: People</Badge></>}

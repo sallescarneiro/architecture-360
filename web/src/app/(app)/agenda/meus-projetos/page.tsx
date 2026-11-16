@@ -19,7 +19,7 @@ export default async function MeusProjetosPage({ searchParams }: { searchParams:
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow={`Agenda de Produção · ${u.nome}`} title="Meus projetos"
-        subtitle="Os projetos em que você é a responsável e também os projetos em nome de outra arquiteta em que você recebeu uma etapa no quadro. Aqui você marca as ações de acompanhamento como feitas, registra a comunicação da semana (projetos seus) e anota o que o cliente pediu. A situação e a etapa do projeto são da coordenação; você vê, não altera." />
+        subtitle="Projetos que você acompanha e projetos de colegas em que você tem etapa." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       {meus.length === 0 ? <div className="card p-4 text-sm text-[var(--muted)]">Nenhum projeto com você como responsável nem etapa sua programada no quadro.</div> : (

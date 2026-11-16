@@ -24,7 +24,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow={`Agenda · configuração${pode ? "" : " · consulta"}`} title="Pessoas da agenda"
-        subtitle="Localidade (para os feriados estaduais e municipais; sem localidade, só valem os nacionais), almoço e modelo de programação de cada pessoa, e quem valida as propostas. Ninguém recebe modelo automaticamente: “A definir” funciona como programação estruturada." />
+        subtitle="Localidade, almoço, modelo de programação e validadoras de cada pessoa." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       <div className="flex flex-wrap items-start gap-4">
@@ -36,7 +36,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                 <td><b>{p.nome}</b><span className="block text-[0.7rem] text-[var(--muted)]">{PERFIL[p.perfil] ?? p.perfil}</span></td>
                 <td>{[p.cfg.municipio, p.cfg.uf].filter(Boolean).join("/") || <span className="text-[var(--muted)]">não informada</span>}</td>
                 <td>{p.cfg.almocoInicio && p.cfg.almocoFim ? `${p.cfg.almocoInicio}–${p.cfg.almocoFim}` : <span className="text-[var(--muted)]">—</span>}</td>
-                <td>{p.perfil === "arquiteta" ? <span className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${p.cfg.modelo === "autonoma" ? "bg-[#e1f0e7] text-[#1f5a3b]" : p.cfg.modelo === "estruturada" ? "bg-[#eae4f4] text-[#4b3470]" : "border border-dashed border-[#b9aea7] bg-[#efebe8] text-[#5f5752]"}`}>{P.MODELOS[p.cfg.modelo].rotulo}</span> : <span className="text-[var(--muted)]">—</span>}</td>
+                <td>{p.perfil === "arquiteta" ? <span className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${p.cfg.modelo === "indefinido" ? "border border-dashed border-[#b9aea7] text-[var(--muted)]" : "bg-[var(--rose-2)] text-[var(--vinho)]"}`}>{P.MODELOS[p.cfg.modelo].rotulo}</span> : <span className="text-[var(--muted)]">—</span>}</td>
                 <td className="text-xs">{p.cfg.validadora ? "sim" : p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje ? `substituta até ${dataCurta(p.cfg.substitutaAte)}` : "—"}</td>
                 {pode && <td><Link href={`/agenda/pessoas?p=${p.id}`} className="btn btn-secondary btn-sm" scroll={false} aria-label={`Editar ${p.nome}`}>Editar</Link></td>}
               </tr>))}

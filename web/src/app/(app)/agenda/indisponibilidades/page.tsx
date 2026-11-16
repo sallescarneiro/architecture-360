@@ -17,7 +17,7 @@ export default async function IndisponibilidadesPage({ searchParams }: { searchP
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Agenda · disponibilidade" title="Indisponibilidades"
-        subtitle="Férias, atestado, ausências e impedimentos. Aparecem no quadro da equipe e descontam da disponibilidade. Não movem nem cancelam atividades sozinhas: o quadro avisa e a coordenação decide. Pedido feito pela arquiteta só vale depois de confirmado." />
+        subtitle="Férias, atestados e ausências. Descontam da disponibilidade; pedidos só valem depois de confirmados." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       <div className="flex flex-wrap items-start gap-4">

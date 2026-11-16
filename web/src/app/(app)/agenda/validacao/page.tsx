@@ -42,7 +42,7 @@ export default async function ValidacaoPage({ searchParams }: { searchParams: Pr
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Agenda · validação de atividades" title="Fila de validação"
-        subtitle="Atividades propostas pelas arquitetas com programação autônoma. Cada uma é decidida sozinha: aprovar (observação opcional) ou devolver para ajuste (justificativa obrigatória). Ana Paula e Thaís decidem; qualquer uma assume a fila. O histórico grava quem decidiu, com data e hora." />
+        subtitle="Propostas das arquitetas autônomas, decididas uma a uma. Devolver exige justificativa." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       {!valida && <div className="leitura" role="note">Você acompanha a fila e o histórico. Decidem Ana Paula, Thaís ou uma substituta designada pela gestão em <Link href="/agenda/pessoas" className="underline">Pessoas da agenda</Link>.</div>}

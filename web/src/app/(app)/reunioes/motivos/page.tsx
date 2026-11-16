@@ -19,7 +19,7 @@ export default async function MotivosPage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow="Inteligência de Reuniões · só a gestão" title="Motivos da reunião"
-        subtitle="O motivo diz o assunto tratado. A gestão inclui novos motivos e desativa os que não servem mais. Nada é apagado: motivo desativado sai do formulário de novas reuniões, mas continua nas reuniões antigas que o usam. Cada inclusão, desativação e reativação fica no histórico." />
+        subtitle="Assuntos das reuniões. Desativar tira dos novos registros e mantém nos antigos." />
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       <div className="flex flex-wrap items-start gap-4">
