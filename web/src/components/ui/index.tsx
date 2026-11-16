@@ -69,11 +69,11 @@ export function Card({ children, className = "", title, subtitle, actions, id }:
 /** Cabeçalho de página: rótulo da seção (eyebrow), título editorial, apoio e ações. */
 export function PageHeader({ title, subtitle, actions, eyebrow }: { title: string; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0 max-w-4xl">
         {eyebrow && <div className="eyebrow mb-1">{eyebrow}</div>}
-        <h1 className="display text-[1.45rem] leading-[1.2] text-[var(--grafite)] md:text-[1.55rem]">{title}</h1>
-        {subtitle && <p className="mt-1 text-[0.82rem] leading-relaxed text-[var(--muted)]">{subtitle}</p>}
+        <h1 className="display text-[1.5rem] leading-[1.2] md:text-[1.7rem]">{title}</h1>
+        {subtitle && <p className="mt-1.5 max-w-3xl text-[0.86rem] leading-relaxed text-[var(--txt-2)]">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

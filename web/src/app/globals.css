@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 /*
- * Sistema visual rucelle — padrão do Rucelle 360 (repo rucelle-360, src/app/globals.css), aplicado ao A360 em 08/11/2026 (T-196).
- * Montserrat apenas (como o R360); fontes auto-hospedadas. Tailwind continua só para utilitários de layout.
+ * Sistema visual rucelle. T-237 (16/11/2026): visual limpo, direção B escolhida por Rodrigo, seguindo o Caderno de Marca (cap. 08):
+ * Montserrat em tudo (títulos Bold/ExtraBold em vinho, números grandes Light, rótulos em caixa alta com espaçamento largo,
+ * texto Regular em grafite #1F1F1F); paleta oficial (rosé #F7CFC4, vinho #5B0D0D, nude #D7A483, terracota #E35336, grafite #1F1F1F);
+ * branco e rosé como base; logotipo oficial, sem recolorir. Lateral clara, vinho só na marca, no item ativo e nos botões.
+ * Tailwind continua só para utilitários de layout.
  */
 @font-face { font-family: "Montserrat"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-Regular.woff2") format("woff2"); }
 @font-face { font-family: "Montserrat"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-Medium.woff2") format("woff2"); }
 @font-face { font-family: "Montserrat"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-SemiBold.woff2") format("woff2"); }
 @font-face { font-family: "Montserrat"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-Bold.woff2") format("woff2"); }
-/* T-212 (11/11/2026): Fraunces (serifa editorial, OFL) só em marca, títulos e KPIs — mesmo padrão da Central de Operações */
-@font-face { font-family: "Fraunces"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/Fraunces-Medium.woff2") format("woff2"); }
-@font-face { font-family: "Fraunces"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Fraunces-SemiBold.woff2") format("woff2"); }
+/* T-237: Light para números grandes e ExtraBold para títulos (Caderno de Marca). A Fraunces saiu: não está no caderno. */
+@font-face { font-family: "Montserrat"; font-weight: 300; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-Light.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-weight: 800; font-style: normal; font-display: swap; src: url("/fonts/Montserrat-ExtraBold.woff2") format("woff2"); }
 
 :root {
   /* Marca */
@@ -18,23 +21,23 @@
   --vinho-2: #7a1c1c;
   --vinho-3: #3f0707;
   --rose: #f7cfc4;            /* R360 --rose */
-  --rose-2: #fbe9e3;
-  --nude: #f6efe9;            /* R360 --nude = fundo da aplicação */
-  --nude-2: #e2d6ce;          /* R360 --fx-borda2 */
+  --rose-2: #fdf1ed;          /* rosé claro: superfícies e realces */
+  --nude: #d7a483;            /* nude quente do caderno (uso pontual) */
+  --nude-2: #e8d9d2;          /* borda de campo */
   --terracota: #c8432a;       /* terracota escurecida para texto (contraste ≥ 4,5:1) */
   --terracota-vivo: #e35336;  /* R360 --terracota (realce, marca) */
-  --grafite: #2b2b2b;         /* R360 --grafite */
+  --grafite: #1f1f1f;         /* grafite profundo do caderno */
 
   /* Superfícies neutras quentes (R360) */
-  --bg: #f6efe9;
+  --bg: #ffffff;              /* branco: 40% da marca */
   --card: #ffffff;
-  --surface-2: #fbf8f6;
-  --line: #e6dcd5;            /* R360 --linha */
-  --line-2: #ece3dd;          /* R360 borda de cartão */
-  --txt: #2b2b2b;
-  --txt-2: #4d4643;
-  --muted: #6f6763;           /* R360 --muted */
-  --muted-2: #8a7f79;         /* R360 --fx-mut */
+  --surface-2: #fdf6f3;       /* rosé muito claro */
+  --line: #f0e4df;
+  --line-2: #f0e4df;
+  --txt: #1f1f1f;
+  --txt-2: #4a423e;
+  --muted: #736a66;
+  --muted-2: #8a7f79;
 
   /* Estados funcionais (texto sempre legível sobre o fundo) */
   --ok: #2f6b3a;      --ok-bg: #e6f1e8;   /* R360 --ok */
@@ -54,15 +57,15 @@
 
   --radius: 14px;
   --radius-sm: 8px;
-  --shadow: 0 1px 2px rgba(91, 13, 13, 0.04);
-  --shadow-pop: 0 6px 18px rgba(91, 13, 13, 0.09);
+  --shadow: none;             /* T-237: sem sombra; só borda fina */
+  --shadow-pop: 0 4px 14px rgba(91, 13, 13, 0.08);
   --sidebar: 15.5rem;
   --topo: 57px;
 }
 
 @theme inline {
-  --font-sans: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Montserrat", Arial, sans-serif;
+  --font-display: "Montserrat", Arial, sans-serif; /* T-237: Montserrat em tudo; sem Montserrat, Arial */
 }
 
 html { font-size: 15.4px; } /* 14px × 1,10 — Rodrigo aprovou a leitura com zoom de 110% */
@@ -75,8 +78,8 @@ body { background: var(--bg); color: var(--txt); font-family: var(--font-sans); 
 .skip-link:focus { left: 0.75rem; }
 
 /* Tipografia (R360: títulos Montserrat 700, levemente condensados) */
-.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.015em; font-variation-settings: "opsz" 72; }
-.eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--terracota); }
+.display { font-family: var(--font-sans); font-weight: 800; letter-spacing: -0.01em; color: var(--vinho); }
+.eyebrow { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--terracota); }
 .ajuda { display: inline-grid; place-items: center; width: 1.05rem; height: 1.05rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 0.66rem; font-weight: 700; cursor: help; vertical-align: 1px; }
 .ajuda:hover { border-color: var(--terracota-vivo); color: var(--terracota); }
 
@@ -139,8 +142,8 @@ details.fold > .fold-body { padding: 0 1.1rem 1rem; }
 @media (max-width: 640px) { .tlin { grid-template-columns: 5rem 1fr; } .tlin > :nth-child(2) { grid-column: 2; } .tlin > :nth-child(3) { grid-column: 1 / -1; } .tlin > :nth-child(4) { grid-column: 1 / -1; justify-self: end; } }
 
 /* Faixa de leitura (R360 .fx-leitura) */
-.leitura { border-left: 3px solid var(--vinho); background: linear-gradient(90deg, #fbe4dd, rgba(251, 228, 221, 0) 75%); border-radius: 0 10px 10px 0; padding: 0.55rem 0.9rem; font-size: 0.86rem; color: var(--txt); }
-.leitura > b:first-child { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--vinho); margin-right: 0.6rem; }
+.leitura { background: var(--rose-2); border-radius: 10px; padding: 0.65rem 0.95rem; font-size: 0.86rem; color: var(--txt); }
+.leitura > b:first-child { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--vinho); margin-right: 0.6rem; }
 
 /* Filtros ativos */
 .chip { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; border: 1px solid var(--line); background: #fff; padding: 0.25rem 0.35rem 0.25rem 0.7rem; font-size: 0.78rem; color: var(--txt-2); }
@@ -156,10 +159,10 @@ details.fold > .fold-body { padding: 0 1.1rem 1rem; }
 
 /* Tabelas */
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-.tbl th { text-align: left; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.tbl th { text-align: left; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--vinho); font-weight: 600; padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
 .tbl th a { color: inherit; display: inline-flex; align-items: center; gap: 0.3rem; }
 .tbl th a:hover, .tbl th a[aria-sort] { color: var(--vinho); }
-.tbl td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl tbody tr:hover td { background: var(--surface-2); }
 .tbl a.ent { color: var(--vinho); font-weight: 600; text-decoration: none; } .tbl a.ent:hover { text-decoration: underline; }
@@ -167,30 +170,30 @@ details.fold > .fold-body { padding: 0 1.1rem 1rem; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Números de destaque */
-.kpi-val { font-family: var(--font-display); font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: var(--grafite); }
+.kpi-val { font-family: var(--font-sans); font-size: 1.9rem; font-weight: 300; letter-spacing: -0.01em; line-height: 1.15; color: var(--grafite); }
 .bar { height: 6px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
 .bar > span { display: block; height: 100%; border-radius: 999px; }
 
 /* Topo fixo (R360 .topo) */
 /* .topo (topo branco) removido em T-212: a marca, o usuário e o selo do Vobi vivem na lateral, como na Central de Operações */
 .marca { font-weight: 700; color: var(--vinho); letter-spacing: 0.02em; text-decoration: none; font-size: 0.98rem; white-space: nowrap; }
-.marca span { color: var(--terracota-vivo); }
+.marca span { color: var(--terracota); }
 .marca small { color: var(--muted); font-weight: 600; margin-left: 0.5rem; }
 .selo { font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--rose); color: var(--vinho); white-space: nowrap; }
 
-/* Barra lateral branca (R360 .lateral / .nav-item) */
-.side { background: linear-gradient(180deg, var(--vinho-3) 0%, var(--vinho) 100%); color: #f4e4df; }
-.side a.nav { display: flex; align-items: center; gap: 0.7rem; border-radius: 9px; padding: 0.5rem 0.7rem; font-size: 0.88rem; color: #f1dcd5; transition: background 0.15s, color 0.15s; text-decoration: none; }
-.side a.nav:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
-.side a.nav[aria-current="page"] { background: #fff; color: var(--vinho); font-weight: 600; }
-.side a.nav svg { width: 1.05rem; height: 1.05rem; flex-shrink: 0; opacity: 0.9; }
-.side .group { margin: 1.1rem 0 0.35rem; padding: 0 0.7rem; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #d7a99b; }
-.side .count { margin-left: auto; border-radius: 999px; background: var(--terracota-vivo); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 0 0.45rem; line-height: 1.35rem; }
-.side a.nav[aria-current="page"] .count { background: var(--vinho); color: #fff; }
-.side .marca-r { font-family: var(--font-display); font-weight: 600; font-size: 1.55rem; letter-spacing: -0.015em; color: #fff; line-height: 1; font-variation-settings: "opsz" 72; }
-.side .marca-sub { display: block; margin-top: 0.3rem; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #d7a99b; }
-.side .selo { background: rgba(247, 207, 196, 0.14); color: #f7cfc4; }
-.side .btn-ghost { color: #f1dcd5; } .side .btn-ghost:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+/* Barra lateral clara (T-237, direção B): rosé claro; vinho só na marca, no item ativo e nos botões */
+.side { background: var(--rose-2); color: var(--txt-2); border-right: 1px solid #f7cfc4; }
+.side a.nav { display: flex; align-items: center; gap: 0.7rem; border-radius: 9px; padding: 0.5rem 0.7rem; font-size: 0.88rem; color: var(--txt-2); transition: background 0.15s, color 0.15s; text-decoration: none; }
+.side a.nav:hover { background: rgba(247, 207, 196, 0.55); color: var(--vinho); }
+.side a.nav[aria-current="page"] { background: var(--vinho); color: #fff; font-weight: 600; }
+.side a.nav svg { width: 1.05rem; height: 1.05rem; flex-shrink: 0; opacity: 0.85; }
+.side .group { margin: 1.2rem 0 0.4rem; padding: 0 0.7rem; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--terracota); }
+.side .count { margin-left: auto; border-radius: 999px; background: var(--terracota); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 0 0.45rem; line-height: 1.35rem; }
+.side a.nav[aria-current="page"] .count { background: #fff; color: var(--vinho); }
+.side .marca-logo { display: block; width: 8rem; height: auto; }
+.side .marca-sub { display: block; margin-top: 0.7rem; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--terracota); }
+.side .selo { background: #fff; color: var(--vinho); border: 1px solid #f7cfc4; }
+.side .btn-ghost { color: var(--vinho); } .side .btn-ghost:hover { background: rgba(247, 207, 196, 0.55); }
 .mnav summary { list-style: none; }
 
 /* Menu móvel (details/summary, funciona sem JavaScript) */
@@ -216,7 +219,7 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .gcol .gcol-bar{width:70%;border-radius:4px 4px 0 0;background:var(--vinho);opacity:.88;min-height:2px}
 .gcol .gcol-val{font-size:.82rem;font-weight:700;margin-bottom:4px}
 .gcol .gcol-lab{font-size:.68rem;color:var(--txt-2);margin-top:6px;text-align:center;line-height:1.25}
-.leitura.leitura-bad { border-left-color: var(--st-critico); background: linear-gradient(90deg, #f8dcd7, rgba(248, 220, 215, 0) 75%); }
+.leitura.leitura-bad { background: var(--bad-bg); }
 .leitura.leitura-bad > b:first-child { color: var(--st-critico); }
 
 /* ===== T-187 · Agenda (Etapa 2): calendário mês/semana/dia ===== */
@@ -226,7 +229,7 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .ev-chip{display:flex;gap:4px;align-items:baseline;min-width:0;font-size:.74rem;line-height:1.25;padding:1px 6px 1px 5px;border-left:3px solid var(--tipo);border-radius:4px;background:var(--surface-2);color:var(--txt);text-decoration:none;overflow:hidden}
 .ev-chip b{font-weight:700;color:var(--txt-2);flex:none}
 .ev-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ev-chip:hover{background:var(--nude)}
+.ev-chip:hover{background:var(--rose-2)}
 .ev-priv{font-style:italic;color:var(--muted);background:repeating-linear-gradient(135deg,var(--surface-2) 0 6px,#fff 6px 10px)}
 /* mês */
 .cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
@@ -238,7 +241,7 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .cal-fora .ev-chip{opacity:.65}
 .cal-hoje .cal-num,.cal-sem-dia-cab.cal-hoje b{background:var(--vinho);color:#fff}
 .cal-num{align-self:flex-start;font-size:.78rem;font-weight:700;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;color:inherit;text-decoration:none}
-.cal-num:hover{background:var(--nude)}
+.cal-num:hover{background:var(--rose-2)}
 .cal-chips{display:flex;flex-direction:column;gap:2px;min-width:0}
 .cal-mais{font-size:.7rem;font-weight:700;color:var(--vinho);text-decoration:none;padding-left:6px}
 .cal-novo{position:absolute;right:6px;bottom:4px;font-size:.9rem;line-height:1;color:var(--muted);opacity:0;text-decoration:none}
@@ -252,7 +255,7 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .cal-sem-dia-cab:last-child{border-right:0}
 .cal-sem-dia-cab>a{display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--txt-2);text-decoration:none;text-transform:uppercase;letter-spacing:.03em}
 .cal-sem-dia-cab>a b{font-size:.95rem;width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;color:var(--txt)}
-.cal-sem-dia-cab>a:hover b{background:var(--nude)}
+.cal-sem-dia-cab>a:hover b{background:var(--rose-2)}
 .cal-inteiro,.cal-fora-hora{display:flex;flex-direction:column;gap:2px;margin-top:3px}
 .cal-fora-hora{font-size:.66rem;color:var(--muted)}
 .cal-fora-baixo{position:absolute;left:2px;right:2px;bottom:2px;background:#fff}
@@ -265,7 +268,7 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .cal-col:last-child{border-right:0}
 .cal-col.cal-hoje{background:#fdf8f4}
 .cal-slot{display:block;border-bottom:1px solid var(--line);background:linear-gradient(to bottom,transparent 50%,var(--line-2,var(--line)) 50%,transparent calc(50% + 1px))}
-.cal-slot:hover{background-color:var(--nude)}
+.cal-slot:hover{background-color:var(--rose-2)}
 .cal-agora{position:absolute;left:0;right:0;height:2px;background:var(--vinho);z-index:3;pointer-events:none}
 .cal-agora::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--vinho)}
 .ev-bloco{position:absolute;z-index:2;display:flex;flex-direction:column;gap:1px;min-width:0;overflow:hidden;padding:3px 6px 2px 5px;border-left:3px solid var(--tipo);border-radius:5px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);font-size:.74rem;line-height:1.25;color:var(--txt);text-decoration:none;box-sizing:border-box}

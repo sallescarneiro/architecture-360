@@ -11,8 +11,8 @@ const FONTES = `<style>
 @font-face{font-family:"Montserrat";font-weight:500;src:url("/fonts/Montserrat-Medium.woff2") format("woff2");font-display:swap}
 @font-face{font-family:"Montserrat";font-weight:600;src:url("/fonts/Montserrat-SemiBold.woff2") format("woff2");font-display:swap}
 @font-face{font-family:"Montserrat";font-weight:700;src:url("/fonts/Montserrat-Bold.woff2") format("woff2");font-display:swap}
-@font-face{font-family:"Fraunces";font-weight:500;src:url("/fonts/Fraunces-Medium.woff2") format("woff2");font-display:swap}
-@font-face{font-family:"Fraunces";font-weight:600;src:url("/fonts/Fraunces-SemiBold.woff2") format("woff2");font-display:swap}
+@font-face{font-family:"Montserrat";font-weight:300;src:url("/fonts/Montserrat-Light.woff2") format("woff2");font-display:swap}
+@font-face{font-family:"Montserrat";font-weight:800;src:url("/fonts/Montserrat-ExtraBold.woff2") format("woff2");font-display:swap}
 </style>`;
 
 

@@ -8,28 +8,28 @@ API = "api" in sys.argv  # variante para quando a sincronização automática pe
 URL = "https://architecture-360-production.up.railway.app"
 
 CSS = """
-:root{--vinho:#5b0d0d;--vinho-2:#7a1c1c;--rose:#f7cfc4;--rose-2:#fbe9e3;--nude:#f6efe9;--terracota:#c8432a;--grafite:#2b2b2b;
---bg:#f6efe9;--card:#fff;--surface-2:#fbf8f6;--line:#e6dcd5;--txt:#2b2b2b;--txt-2:#4d4643;--muted:#6f6763;
---ok:#2f6b3a;--ok-bg:#e6f1e8;--warn:#9a5a00;--warn-bg:#fff1d6;--bad:#b3261e;--bad-bg:#fbe5e3;--vinho-3:#3f0707;--side-txt:#f1dcd5;--side-mut:#d7a99b;--font:"Montserrat","Segoe UI",system-ui,sans-serif;--display:"Fraunces",Georgia,"Times New Roman",serif}
+:root{--vinho:#5b0d0d;--vinho-2:#7a1c1c;--rose:#f7cfc4;--rose-2:#fdf1ed;--nude:#d7a483;--terracota:#c8432a;--grafite:#1f1f1f;
+--bg:#fff;--card:#fff;--surface-2:#fdf6f3;--line:#f0e4df;--txt:#1f1f1f;--txt-2:#4a423e;--muted:#736a66;
+--ok:#2f6b3a;--ok-bg:#e6f1e8;--warn:#9a5a00;--warn-bg:#fff1d6;--bad:#b3261e;--bad-bg:#fbe5e3;--vinho-3:#3f0707;--side-txt:#4a423e;--side-mut:#c8432a;--font:"Montserrat",Arial,sans-serif;--display:"Montserrat",Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--vinho:#e8a3a3;--vinho-2:#f0b9b9;--rose:#4a2a24;--rose-2:#3a2420;--nude:#1f1816;--terracota:#e3936a;--grafite:#f1e9e4;--bg:#1f1816;--card:#2a211e;--surface-2:#332925;--line:#43362f;--txt:#f1e9e4;--txt-2:#cfc1b9;--muted:#9a8d86;--ok:#8fd19a;--ok-bg:#203826;--warn:#e5b56a;--warn-bg:#3c2e18;--bad:#f08c86;--bad-bg:#45201d;color-scheme:dark}}
 :root[data-theme="dark"]{--vinho:#e8a3a3;--vinho-2:#f0b9b9;--rose:#4a2a24;--rose-2:#3a2420;--nude:#1f1816;--terracota:#e3936a;--grafite:#f1e9e4;--bg:#1f1816;--card:#2a211e;--surface-2:#332925;--line:#43362f;--txt:#f1e9e4;--txt-2:#cfc1b9;--muted:#9a8d86;--ok:#8fd19a;--ok-bg:#203826;--warn:#e5b56a;--warn-bg:#3c2e18;--bad:#f08c86;--bad-bg:#45201d;color-scheme:dark}
 *{box-sizing:border-box}body{background:var(--bg);color:var(--txt);font-family:var(--font);font-size:15px;line-height:1.55;margin:0;padding-block:0 0;padding-left:0;padding-right:0}
 a{color:var(--vinho)}h1,h2,h3{text-wrap:balance;margin:0}
 .shell{display:grid;grid-template-columns:15.5rem minmax(0,1fr);min-height:100vh}
 @media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static!important;height:auto!important}.side .nav{display:none}.side.aberta .nav{display:flex}.side .menu-btn{display:inline-flex!important}}
-.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:linear-gradient(180deg,var(--vinho-3) 0%,#5b0d0d 100%);color:var(--side-txt);display:flex;flex-direction:column;gap:1rem;padding:1.3rem .9rem 1rem}
-.side .marca{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;padding:0 .4rem}.side .marca b{display:block;font-family:var(--display);font-weight:600;font-size:1.55rem;letter-spacing:-.015em;color:#fff;line-height:1}.side .marca small{display:block;margin-top:.3rem;font-size:.62rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--side-mut)}
-.side .menu-btn{display:none;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:.35rem .7rem;font:inherit;font-size:.8rem;cursor:pointer}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:#fdf1ed;border-right:1px solid #f7cfc4;color:var(--side-txt);display:flex;flex-direction:column;gap:1rem;padding:1.3rem .9rem 1rem}
+.side .marca{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;padding:0 .4rem}.side .marca img{display:block;width:8rem;height:auto}.side .marca small{display:block;margin-top:.7rem;font-size:.62rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--side-mut)}
+.side .menu-btn{display:none;border:1px solid #f7cfc4;background:#fff;color:#5b0d0d;border-radius:8px;padding:.35rem .7rem;font:inherit;font-size:.8rem;cursor:pointer}
 .nav{display:flex;flex-direction:column;gap:.15rem;font-size:.86rem;flex:1}
 .nav a{color:var(--side-txt);text-decoration:none;padding:.45rem .7rem;border-radius:9px;display:flex;justify-content:space-between;gap:.5rem}
-.nav a:hover{background:rgba(255,255,255,.08);color:#fff}.nav a.feito{color:#fff}.nav a.feito::after{content:"✓";color:#8fd19a}.nav a.ativa{background:#fff;color:#5b0d0d;font-weight:600}.nav .grupo{font-size:.64rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--side-mut);margin:.9rem .7rem .3rem}
-.side .prog{border-top:1px solid rgba(255,255,255,.12);padding-top:.8rem;font-size:.76rem;color:var(--side-mut);display:grid;gap:.4rem}.side .prog .bar{height:6px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden}.side .prog .bar i{display:block;height:100%;width:0;background:#e35336;transition:width .3s}.side .prog b{color:#fff}
-.side .voltar{color:#fff;font-size:.82rem;text-decoration:none;padding:.4rem .7rem;border:1px solid rgba(255,255,255,.25);border-radius:8px;text-align:center}.side .trilhas{font-size:.76rem;color:var(--side-mut);display:grid;gap:.2rem}.side .trilhas a{color:#f1dcd5}
+.nav a:hover{background:rgba(247,207,196,.55);color:#5b0d0d}.nav a.feito{color:#1f1f1f}.nav a.feito::after{content:"✓";color:#2f6b3a}.nav a.ativa{background:#5b0d0d;color:#fff;font-weight:600}.nav .grupo{font-size:.6rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--side-mut);margin:.9rem .7rem .3rem}
+.side .prog{border-top:1px solid #f7cfc4;padding-top:.8rem;font-size:.76rem;color:var(--side-mut);display:grid;gap:.4rem}.side .prog .bar{height:6px;border-radius:999px;background:#f7cfc4;overflow:hidden}.side .prog .bar i{display:block;height:100%;width:0;background:#e35336;transition:width .3s}.side .prog b{color:#5b0d0d}
+.side .voltar{color:#5b0d0d;background:#fff;font-size:.82rem;text-decoration:none;padding:.4rem .7rem;border:1px solid #f7cfc4;border-radius:8px;text-align:center}.side .trilhas{font-size:.76rem;color:var(--side-mut);display:grid;gap:.2rem}.side .trilhas a{color:#5b0d0d}
 .conteudo{min-width:0;padding-block:1.6rem 4rem;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .conteudo>main{width:100%}
 main{display:grid;gap:2.2rem;min-width:0}
-.eyebrow{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--terracota)}
-h1{font-family:var(--display);font-weight:600;letter-spacing:-.015em;font-size:clamp(1.7rem,3vw,2.4rem);line-height:1.12;margin:.2rem 0 .5rem}h2{font-family:var(--display);font-weight:600;letter-spacing:-.01em;font-size:1.45rem;margin-bottom:.3rem}h3{font-size:.98rem;margin-bottom:.25rem}
+.eyebrow{font-size:.68rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--terracota)}
+h1{font-family:var(--display);font-weight:800;color:var(--vinho);letter-spacing:-.01em;font-size:clamp(1.7rem,3vw,2.4rem);line-height:1.12;margin:.2rem 0 .5rem}h2{font-family:var(--display);font-weight:700;color:var(--vinho);letter-spacing:-.005em;font-size:1.45rem;margin-bottom:.3rem}h3{font-size:.98rem;margin-bottom:.25rem}
 p{margin:0;max-width:110ch;color:var(--txt-2)}.lead{color:var(--txt);font-size:1.02rem}
 section{scroll-margin-top:24px;display:grid;gap:1rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;min-width:0}
@@ -461,12 +461,12 @@ def gerar(cfg):
     secs.append(secao("quiz", "Teste rápido", "Fixar o que importa", quiz(cfg["quiz"]) + '<p style="font-size:.8rem">Respostas erradas mostram a correta. Nada é registrado; é só para você.</p>', mod=False))
     page = f"""<title>{cfg['titulo']}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-{'' if DENTRO else '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">'}
+{'' if DENTRO else '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap">'}
 <style>{CSS}</style>
 <body data-perfil="{cfg['perfil']}">
 <div class="shell">
 <aside class="side" id="lateral">
-  <div class="marca"><a href="#intro" style="text-decoration:none"><b>rucelle</b><small>Architecture 360 · Treinamento</small></a><button class="menu-btn" type="button" onclick="document.getElementById('lateral').classList.toggle('aberta')">Menu</button></div>
+  <div class="marca"><a href="#intro" style="text-decoration:none"><img src="/marca/rucelle-vinho.png" alt="rucelle Arquitetura Fitness"><small>Architecture 360 · Treinamento</small></a><button class="menu-btn" type="button" onclick="document.getElementById('lateral').classList.toggle('aberta')">Menu</button></div>
   <nav class="nav">{''.join(nav)}</nav>
   <div class="prog"><span>{cfg['cab']} · entendido <b>0/0</b></span><div class="bar"><i></i></div></div>
   {'<!--TRILHAS--><a class="voltar" href="/meu-dia">← Voltar ao A360</a>' if DENTRO else ''}

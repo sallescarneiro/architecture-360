@@ -17,7 +17,8 @@ export function SeloValidacao({ v, sempre = false }: { v: string; sempre?: boole
 export function ChipEtapa({ k }: { k: string | null }) {
   const e = etapa(k);
   if (!e) return null;
-  return <span className="rounded-[5px] px-1.5 py-px text-[0.66rem] font-bold" style={{ background: e.bg, color: e.fg }} title={e.n}>{e.k}</span>;
+  // T-237: sigla em vinho sobre rosé claro, em vez de uma cor por etapa (visual limpo, Caderno de Marca)
+  return <span className="rounded-[5px] bg-[var(--rose-2)] px-1.5 py-px text-[0.66rem] font-bold tracking-wide text-[var(--vinho)]" title={e.n}>{e.k}</span>;
 }
 export function Entrega() {
   return <span className="inline-flex items-center gap-1 rounded-[4px] bg-[var(--vinho)] px-1.5 py-px text-[0.62rem] font-bold tracking-wider text-white"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l10 10-10 10L2 12z" /></svg>ENTREGA</span>;

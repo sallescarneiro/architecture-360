@@ -58,16 +58,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ];
   const marca = (
     <Link href="/" className="block leading-none no-underline">
-      <span className="marca-r">rucelle</span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- logotipo oficial (Caderno de Marca), sem recolorir */}
+      <img src="/marca/rucelle-vinho.png" alt="rucelle Arquitetura Fitness" width={512} height={139} className="marca-logo" />
       <span className="marca-sub">Architecture 360</span>
     </Link>
   );
   const me = (
-    <div className="flex items-center gap-2.5 border-t border-white/10 pt-3">
-      <span className="rounded-full ring-2 ring-white/30"><Avatar name={u.nome} size={30} /></span>
+    <div className="flex items-center gap-2.5 border-t border-[#f7cfc4] pt-3">
+      <span className="rounded-full ring-2 ring-white"><Avatar name={u.nome} size={30} /></span>
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate text-[0.84rem] font-semibold text-white">{u.nome}</span>
-        <span className="flex items-center gap-1.5 text-[0.68rem] text-[#e2c3b9]"><span className="truncate">{PERFIL[u.perfil] ?? u.perfil}</span>·<Link href="/conta/senha" className="text-[#f1dcd5] underline-offset-2 hover:text-white hover:underline" title="Alterar minha senha">senha</Link>·<form action={sairAction} className="inline"><button className="text-[#f1dcd5] underline-offset-2 hover:text-white hover:underline" title="Sair">sair</button></form></span>
+        <span className="block truncate text-[0.84rem] font-semibold text-[var(--grafite)]">{u.nome}</span>
+        <span className="flex items-center gap-1.5 text-[0.68rem] text-[var(--muted)]"><span className="truncate">{PERFIL[u.perfil] ?? u.perfil}</span>·<Link href="/conta/senha" className="text-[var(--vinho)] underline-offset-2 hover:underline" title="Alterar minha senha">senha</Link>·<form action={sairAction} className="inline"><button className="text-[var(--vinho)] underline-offset-2 hover:underline" title="Sair">sair</button></form></span>
       </span>
     </div>
   );
@@ -89,7 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {marca}
           <span className="btn btn-ghost btn-sm" aria-hidden="true">Menu</span>
         </summary>
-        <div className="flex flex-col gap-3 border-t border-white/10 px-3.5 pb-4 pt-2">
+        <div className="flex flex-col gap-3 border-t border-[#f7cfc4] px-3.5 pb-4 pt-2">
           <NavLinks groups={groups} />
           <div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
           {me}
