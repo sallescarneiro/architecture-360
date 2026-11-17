@@ -475,7 +475,7 @@ def gerar(cfg):
 <div><div class="eyebrow">rucelle · Architecture 360 · material de treinamento · {cfg['cab'].lower()}</div><h1>{cfg['titulo'].replace('Treinamento A360 — ','A360 para ')}</h1><p class="lead">{cfg['intro']}</p>
 <p style="margin-top:.5rem"><span class="pill">endereço: {URL.replace('https://','')}</span><span class="pill">{"dados do Vobi: sincronizados pela API todos os dias de manhã" if API else "dados do Vobi: todos os dias de manhã"}</span><span class="pill">Vobi somente leitura</span><span class="pill">clique nas imagens para ampliar</span></p></div>
 {''.join(secs)}
-<div class="rodape">As telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Nas telas da Agenda de Produção (capturadas em 13/11/2026), Beatriz Teste e Carla Teste são arquitetas fictícias e a programação é de exemplo. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
+<div class="rodape">As telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Telas atualizadas em 16/11/2026 com o visual novo (as de programação a partir do Vobi, de conflito, de pendências e da ata por IA são anteriores). Beatriz Teste e Carla Teste são arquitetas fictícias e a programação é de exemplo. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
 </main></div></div>
 <div class="lightbox" role="dialog" aria-label="Imagem ampliada"><img alt=""></div>
 <script>{JS}</script>
