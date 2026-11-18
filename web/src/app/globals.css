@@ -198,6 +198,7 @@ details.fold > .fold-body { padding: 0 1.1rem 1rem; }
 
 /* Menu móvel (details/summary, funciona sem JavaScript) */
 details.mnav > summary { list-style: none; cursor: pointer; }
+details.mnav[open] > div { max-height: calc(100dvh - 4.5rem); overflow-y: auto; }
 details.mnav > summary::-webkit-details-marker { display: none; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }

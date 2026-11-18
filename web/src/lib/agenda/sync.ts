@@ -81,7 +81,9 @@ export async function sincronizar(usuarioId: number, forcar = false): Promise<Re
     const manuais = new Map((await db.select({ g: schema.eventosAgenda.googleId, p: schema.eventosAgenda.projetoCodigo, o: schema.eventosAgenda.projetoOrigem }).from(schema.eventosAgenda).where(and(eq(schema.eventosAgenda.usuarioId, usuarioId), eq(schema.eventosAgenda.projetoOrigem, "manual")))).map((r) => [r.g, { projetoCodigo: r.p, projetoOrigem: r.o }]));
     const linhas: NonNullable<ReturnType<typeof converter>>[] = [];
     const vistos = new Set<string>();
-    for (const cal of calendarios) {
+    // só os calendários da própria pessoa (principal e os que ela é dona): agendas de colegas assinadas no Google
+    // traziam para a agenda dela compromissos de que ela não participa
+    for (const cal of calendarios.filter((k) => k.primario || k.acesso === "owner")) {
       const brutos = await listarEventos(token, min, max, cal.id);
       for (const e of brutos) {
         if (e.status === "cancelled" || e.eventType === "workingLocation" || e.eventType === "birthday" || e.eventType === "outOfOffice" || vistos.has(e.id)) continue;
