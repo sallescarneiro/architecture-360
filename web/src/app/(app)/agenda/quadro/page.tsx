@@ -11,6 +11,13 @@ import { FormBloco } from "@/components/agenda/FormBloco";
 import { criarBlocoAction, editarBlocoAction, modeloAction, reprogramarAction } from "./actions";
 
 const FILTROS: [string, string][] = [["todas", "Tudo"], ["pend", "Aguardando validação"], ["dev", "Devolvidas"], ["ent", "Entregas"]];
+/** Explicação curta de cada destaque: o que é, o que fazer e quem faz. */
+const EXPLICA: Record<string, string> = {
+  todas: "Toda a programação da semana. Use os destaques para ver o que pede ação.",
+  pend: "Programação que uma arquiteta autônoma propôs para si. A coordenação ou a gerência aprova ou devolve, em Validação.",
+  dev: "Proposta devolvida pela coordenação ou pela gerência, com a justificativa. Volta para a arquiteta ajustar e reenviar.",
+  ent: "Dias marcados como entrega de etapa ao cliente. Não é aprovação: só sinaliza o prazo.",
+};
 
 /** Etapa A — Quadro da equipe: uma linha por arquiteta, colunas de segunda a sexta. Só gestão e coordenação. */
 export default async function QuadroPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -69,6 +76,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
           {FILTROS.map(([k, t]) => <Link key={k} href={q({ f: k === "todas" ? null : k })} aria-current={filtro === k ? "true" : undefined}
             className={`rounded-full border px-3 py-1.5 text-[0.78rem] font-semibold no-underline ${filtro === k ? "border-[var(--vinho)] bg-[var(--vinho)] text-white" : "border-[var(--line)] bg-white text-[var(--txt-2)]"}`}>{t}</Link>)}
         </div>
+        <p className="w-full text-xs text-[var(--muted)]">{EXPLICA[filtro]}</p>
       </div>
 
       <div className="flex flex-wrap items-start gap-4">
@@ -106,7 +114,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               return [
                 <div key={`p${p.id}`} className="sticky left-0 z-10 flex flex-col gap-1 border-b border-r border-[#f0e8e2] bg-white p-2.5">
                   <b className="text-[0.82rem]">{p.nome}</b>
-                  {P.administraConfig(u) ? (
+                  {P.configuraPessoas(u) ? (
                     <div className="flex flex-wrap gap-1" role="group" aria-label={`Modelo de programação de ${p.nome}`}>
                       {([["estruturada", "Estruturada"], ["autonoma", "Autônoma"]] as const).map(([k, t]) => (
                         <form key={k} action={modeloAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="modelo" value={k} /><input type="hidden" name="volta" value={q({})} />

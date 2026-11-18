@@ -10,11 +10,11 @@ import { desativarTercAction, desativarTipoAction, incluirTercAction, incluirTip
 
 const PERFIL: Record<string, string> = { admin: "administração", gestao: "gestão", coordenacao: "coordenação", arquiteta: "arquiteta" };
 
-/** Etapa A — Pessoas da agenda: localidade, almoço, modelo de programação e validadoras. Gestão altera; coordenação consulta. */
+/** Etapa A — Pessoas da agenda: localidade, almoço, modelo de programação e validadoras. Gestão e coordenação alteram localidade, almoço e modelo; validadoras e regras, só a gestão. */
 export default async function PessoasAgendaPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const u = await exigirUsuario();
   if (!P.gestor(u)) redirect("/agenda/semana");
-  const pode = P.administraConfig(u);
+  const pode = P.administraConfig(u), edita = P.configuraPessoas(u);
   const sp = await searchParams;
   const [pessoas, hist, ref, tipos, tercs, histRegra, linhas] = await Promise.all([P.pessoasComConfig(), P.historicoAgenda("pessoa", 20), C.regras(), C.tiposAcao(), C.terceirizados(), P.historicoAgenda("regra", 10), C.linhasProjetos()]);
   const sel = pessoas.find((p) => String(p.id) === sp.p) ?? null;
@@ -23,14 +23,14 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
   const substitutas = pessoas.filter((p) => p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje);
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader eyebrow={`Agenda · configuração${pode ? "" : " · consulta"}`} title="Pessoas da agenda"
+      <PageHeader eyebrow={`Agenda · configuração${edita ? "" : " · consulta"}`} title="Pessoas da agenda"
         subtitle="Localidade, almoço, modelo de programação e validadoras de cada pessoa." />
       {sp.erro && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{sp.erro}</div>}
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       <div className="flex flex-wrap items-start gap-4">
         <section className="card min-w-0 flex-[999_1_560px] p-4" aria-label="Pessoas">
           <div className="overflow-x-auto"><table className="tbl">
-            <thead><tr><th>Pessoa</th><th>Localidade</th><th>Almoço</th><th>Modelo</th><th>Valida</th>{pode && <th></th>}</tr></thead>
+            <thead><tr><th>Pessoa</th><th>Localidade</th><th>Almoço</th><th>Modelo</th><th>Valida</th>{edita && <th></th>}</tr></thead>
             <tbody>{pessoas.map((p) => (
               <tr key={p.id} className={sel?.id === p.id ? "bg-[#fbf4f1]" : ""}>
                 <td><b>{p.nome}</b><span className="block text-[0.7rem] text-[var(--muted)]">{PERFIL[p.perfil] ?? p.perfil}</span></td>
@@ -38,7 +38,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                 <td>{p.cfg.almocoInicio && p.cfg.almocoFim ? `${p.cfg.almocoInicio}–${p.cfg.almocoFim}` : <span className="text-[var(--muted)]">—</span>}</td>
                 <td>{p.perfil === "arquiteta" ? <span className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${p.cfg.modelo === "indefinido" ? "border border-dashed border-[#b9aea7] text-[var(--muted)]" : "bg-[var(--rose-2)] text-[var(--vinho)]"}`}>{P.MODELOS[p.cfg.modelo].rotulo}</span> : <span className="text-[var(--muted)]">—</span>}</td>
                 <td className="text-xs">{p.cfg.validadora ? "sim" : p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje ? `substituta até ${dataCurta(p.cfg.substitutaAte)}` : "—"}</td>
-                {pode && <td><Link href={`/agenda/pessoas?p=${p.id}`} className="btn btn-secondary btn-sm" scroll={false} aria-label={`Editar ${p.nome}`}>Editar</Link></td>}
+                {edita && <td><Link href={`/agenda/pessoas?p=${p.id}`} className="btn btn-secondary btn-sm" scroll={false} aria-label={`Editar ${p.nome}`}>Editar</Link></td>}
               </tr>))}
             </tbody>
           </table></div>
@@ -55,7 +55,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
           <h2 className="mb-1 mt-4 font-[family-name:var(--font-display)] text-lg font-semibold">Histórico de configuração</h2>
           {hist.length === 0 ? <p className="text-xs text-[var(--muted)]">Nenhuma alteração ainda.</p> : <ul className="flex flex-col gap-1 text-xs">{hist.map((h, k) => <li key={k}><span className="text-[var(--muted)]">{dataHora(new Date(h.quando))}</span> · {h.resumo}</li>)}</ul>}
         </section>
-        {pode && sel && (
+        {edita && sel && (
           <aside className="card flex min-w-0 max-w-[400px] flex-[1_1_330px] flex-col gap-3 p-4" aria-label="Editar pessoa">
             <div className="eyebrow">Editar</div>
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">{sel.nome}</h2>
@@ -77,7 +77,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                   </label>
                 ))}
               </fieldset>
-              <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="validadora" value="1" defaultChecked={sel.cfg.validadora} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Valida propostas das arquitetas autônomas</label>
+              {pode && <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="validadora" value="1" defaultChecked={sel.cfg.validadora} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Valida propostas das arquitetas autônomas</label>}
               <p className="text-xs text-[var(--muted)]">Mudar o modelo não altera atividades já programadas. Propostas aguardando validação continuam na fila.</p>
               <div className="flex flex-wrap gap-2"><Button variant="primary">Salvar</Button><Link href="/agenda/pessoas" className="btn btn-ghost">Fechar</Link></div>
             </form>

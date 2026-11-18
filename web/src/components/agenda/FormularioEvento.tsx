@@ -1,4 +1,5 @@
 import type { CalendarioGoogle } from "@/db/schema";
+import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
 import { Button, LinkButton } from "@/components/ui";
 
@@ -41,10 +42,10 @@ export function FormularioEvento({ action, valores, projetos, calendarios, pesso
         <datalist id="pessoas-a360">{pessoas.map((p) => <option key={p.email} value={p.email}>{p.nome ?? p.email}</option>)}</datalist>
       </label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Projeto / cliente relacionado <span className="font-normal text-[var(--muted)]">(Vobi, só leitura)</span>
-        <select name="projeto" className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
+        <BuscaOpcoes><select name="projeto" className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
           <option value="">— nenhum —</option>
-          {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""} ({p.codigo})</option>)}
-        </select>
+          {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — nº {p.codigo}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
+        </select></BuscaOpcoes>
       </label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Descrição<textarea name="descricao" rows={4} maxLength={4000} defaultValue={v.descricao} className="input mt-1" placeholder="pauta, links, observações" /></label>
       <div className="flex flex-wrap gap-5 text-sm">

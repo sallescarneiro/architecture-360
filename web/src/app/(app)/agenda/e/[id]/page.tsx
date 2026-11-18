@@ -85,7 +85,7 @@ export default async function EventoPage({ params, searchParams }: { params: Pro
               <form action={associarProjetoAction} className="flex flex-wrap items-end gap-2">
                 <input type="hidden" name="id" value={e.id} /><input type="hidden" name="volta" value={volta} />
                 <label className="block min-w-[16rem] flex-1 text-xs font-semibold text-[var(--txt-2)]">{projeto ? (e.projetoOrigem === "sugestao" ? "Confirmar ou corrigir" : "Alterar") : "Associar a um projeto"}
-                  <select name="projeto" className="input mt-1" defaultValue={e.projetoCodigo ?? ""}><option value="">— nenhum —</option>{projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""} ({p.codigo})</option>)}</select>
+                  <select name="projeto" className="input mt-1" defaultValue={e.projetoCodigo ?? ""}><option value="">— nenhum —</option>{projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — nº {p.codigo}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}</select>
                 </label>
                 <Button className="btn-sm" variant="secondary">{e.projetoOrigem === "sugestao" ? "Confirmar" : "Salvar"}</Button>
               </form>

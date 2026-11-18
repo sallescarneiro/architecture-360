@@ -3,6 +3,7 @@
 // Responsável, Data de início, Data de término (= prazo), Prioridade (Baixa/Média/Alta), Status (Planejado/Em andamento/
 // Concluído/Cancelado), Duração estimada (h), Descrição. Validação definitiva no servidor (lerFormulario).
 import { useMemo, useState } from "react";
+import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 
 type Pessoa = { id: number; nome: string; perfil: string; idVobi: number | null; idsVobi: number[] };
 type Projeto = { codigo: number; nome: string; cliente: string | null };
@@ -66,10 +67,10 @@ export function FormularioAtividade({ action, valores, pessoas, projetos, etapas
       {vinculada ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <label className={lbl}>Projeto
-            <select name="projeto" required className="input mt-1" value={v.projeto ?? ""} disabled={edicao} onChange={(e) => setV((o) => ({ ...o, projeto: e.target.value ? Number(e.target.value) : null, etapa: null, tarefa: null }))}>
+            <BuscaOpcoes><select name="projeto" required className="input mt-1" value={v.projeto ?? ""} disabled={edicao} onChange={(e) => setV((o) => ({ ...o, projeto: e.target.value ? Number(e.target.value) : null, etapa: null, tarefa: null }))}>
               <option value="">— escolha —</option>
-              {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
-            </select>
+              {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — nº {p.codigo}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
+            </select></BuscaOpcoes>
             {edicao && <input type="hidden" name="projeto" value={v.projeto ?? ""} />}
           </label>
           <label className={lbl}>Etapa

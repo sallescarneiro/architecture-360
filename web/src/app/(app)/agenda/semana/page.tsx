@@ -136,7 +136,11 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">De<input type="date" name="inicio" required className="input mt-1" /></label>
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Até<input type="date" name="fim" className="input mt-1" /></label>
                 </div>
-                <label className="block text-xs font-semibold text-[var(--txt-2)]">Duração no dia<select name="periodo" className="input mt-1"><option value="dia">Dia inteiro</option><option value="manha">Manhã</option><option value="tarde">Tarde</option></select></label>
+                <label className="block text-xs font-semibold text-[var(--txt-2)]">Duração no dia<select name="periodo" className="input mt-1"><option value="dia">Dia inteiro</option><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="intervalo">Intervalo de horário</option></select></label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Das (intervalo)<input type="time" name="a_partir_de" className="input mt-1" /></label>
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Às<input type="time" name="ate_as" className="input mt-1" /></label>
+                </div>
                 <label className="block text-xs font-semibold text-[var(--txt-2)]">Observação<input name="obs" maxLength={300} className="input mt-1" placeholder="opcional; não informe diagnóstico" /></label>
                 <Button variant="secondary">{gestor ? "Registrar" : "Enviar pedido à coordenação"}</Button>
               </form>

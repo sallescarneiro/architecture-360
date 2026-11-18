@@ -50,6 +50,8 @@ export const MOTIVOS_REPROG = ["Cliente pediu outra data", "Aguardando informaç
 // ---------------------------------------------------------------------------------------------- permissões
 export const gestor = (u: Usuario) => podeGerirAgenda(u.perfil); // admin, gestão, coordenação
 export const administraConfig = (u: Usuario) => u.perfil === "admin" || u.perfil === "gestao";
+/** Localidade, almoço e modelo de programação: gestão e coordenação (pedido da gerência em 18/11/2026). Validadoras e substitutas seguem só com a gestão. */
+export const configuraPessoas = (u: Usuario) => gestor(u);
 
 const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
 
@@ -107,7 +109,7 @@ export async function indisponibilidadesEntre(de: string, ate: string, situacoes
 /** Rótulo para a visão coletiva: atestado vira "Indisponível" (sem tipo nem observação). */
 export function rotuloIndispColetivo(i: Indisp): string {
   const base = TIPOS_INDISP[i.tipo]?.privado ? "Indisponível" : TIPOS_INDISP[i.tipo]?.rotulo ?? "Indisponível";
-  const per = i.periodo === "dia" ? "" : i.periodo === "hora" ? ` · a partir das ${i.aPartirDe}` : ` · ${i.periodo === "manha" ? "manhã" : "tarde"}`;
+  const per = i.periodo === "dia" ? "" : i.periodo === "hora" ? ` · a partir das ${i.aPartirDe}` : i.periodo === "intervalo" ? ` · ${i.aPartirDe}–${i.ateAs}` : ` · ${i.periodo === "manha" ? "manhã" : "tarde"}`;
   return i.situacao === "pendente" ? `Pedido de ${base.toLowerCase()} · aguardando confirmação` : base + per;
 }
 
@@ -148,7 +150,7 @@ export function rotuloPeriodo(a: Pick<Atividade, "periodo" | "inicio" | "fim" | 
 export function disponivelNoDia(dia: string, c: ConfigPessoa, feriados: Feriado[], indisp: Indisp[]): number {
   if (feriados.some((f) => f.data === dia && feriadoVale(f, c))) return 0;
   const i = indisp.find((x) => x.usuarioId === c.usuarioId && x.situacao === "confirmada" && x.inicio <= dia && x.fim >= dia);
-  if (!i) return 1;
+  if (!i || i.periodo === "intervalo") return 1; // intervalo de horário não vira fração de dia (decisão de 13/11); aparece na agenda e nos avisos
   return i.periodo === "dia" ? 0 : 0.5;
 }
 
@@ -351,23 +353,24 @@ export async function historicoValidacao(limite = 60) {
 }
 
 // ---------------------------------------------------------------------------------------------- indisponibilidades
-export type DadosIndisp = { usuarioId: number; tipo: string; inicio: string; fim: string; periodo: string; aPartirDe: string; obs: string };
+export type DadosIndisp = { usuarioId: number; tipo: string; inicio: string; fim: string; periodo: string; aPartirDe: string; ateAs: string; obs: string };
 export function lerIndisp(fd: FormData): { d: DadosIndisp } | { erro: string } {
   const s = (k: string) => String(fd.get(k) ?? "").trim();
-  const d: DadosIndisp = { usuarioId: Number(s("pessoa")), tipo: s("tipo"), inicio: s("inicio"), fim: s("fim") || s("inicio"), periodo: s("periodo") || "dia", aPartirDe: s("a_partir_de"), obs: s("obs").slice(0, 300) };
+  const d: DadosIndisp = { usuarioId: Number(s("pessoa")), tipo: s("tipo"), inicio: s("inicio"), fim: s("fim") || s("inicio"), periodo: s("periodo") || "dia", aPartirDe: s("a_partir_de"), ateAs: s("ate_as"), obs: s("obs").slice(0, 300) };
   if (!Number.isInteger(d.usuarioId) || d.usuarioId <= 0) return { erro: "Escolha a pessoa." };
   if (!TIPOS_INDISP[d.tipo]) return { erro: "Escolha o tipo." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(d.fim)) return { erro: "Informe as datas." };
   if (d.fim < d.inicio) return { erro: "A data final não pode ser antes da inicial." };
-  if (!["dia", "manha", "tarde", "hora"].includes(d.periodo)) return { erro: "Duração inválida." };
+  if (!["dia", "manha", "tarde", "hora", "intervalo"].includes(d.periodo)) return { erro: "Duração inválida." };
   if (d.periodo === "hora" && !/^\d{2}:\d{2}$/.test(d.aPartirDe)) return { erro: "Informe a partir de que horário." };
+  if (d.periodo === "intervalo" && !(/^\d{2}:\d{2}$/.test(d.aPartirDe) && /^\d{2}:\d{2}$/.test(d.ateAs) && d.ateAs > d.aPartirDe)) return { erro: "Informe o início e o fim do intervalo (o fim depois do início)." };
   return { d };
 }
 /** Gestão/coordenação registra confirmada; a arquiteta só pede para si (fica pendente até a coordenação confirmar). */
 export async function registrarIndisp(u: Usuario, d: DadosIndisp): Promise<R<{ id: number }>> {
   const pedido = !gestor(u);
   if (pedido && d.usuarioId !== u.id) return { ok: false, mensagem: "Você só pode pedir a sua própria ausência." };
-  const [r] = await db.insert(schema.indisponibilidades).values({ usuarioId: d.usuarioId, tipo: d.tipo, inicio: d.inicio, fim: d.fim, periodo: d.periodo, aPartirDe: d.periodo === "hora" ? d.aPartirDe : null,
+  const [r] = await db.insert(schema.indisponibilidades).values({ usuarioId: d.usuarioId, tipo: d.tipo, inicio: d.inicio, fim: d.fim, periodo: d.periodo, aPartirDe: d.periodo === "hora" || d.periodo === "intervalo" ? d.aPartirDe : null, ateAs: d.periodo === "intervalo" ? d.ateAs : null,
     observacao: d.obs || null, situacao: pedido ? "pendente" : "confirmada", registradoPorId: u.id, ...(pedido ? {} : { decididoPorId: u.id, decididoEm: new Date() }) }).returning({ id: schema.indisponibilidades.id });
   await histAgenda("indisponibilidade", r.id, `${pedido ? "Pedido" : "Registro"}: ${TIPOS_INDISP[d.tipo].rotulo} de ${await nomeUsuario(d.usuarioId)}, ${dataCurta(d.inicio)}${d.fim !== d.inicio ? ` a ${dataCurta(d.fim)}` : ""}`, u.id);
   return { ok: true, id: r.id };
@@ -393,7 +396,7 @@ export async function listaIndisp(u: Usuario, de: string) {
     const ve = gestor(u) || r.usuario_id === u.id;
     const t = TIPOS_INDISP[String(r.tipo)];
     return { id: Number(r.id), pessoa: String(r.pessoa), usuarioId: Number(r.usuario_id), tipo: ve ? t?.rotulo ?? String(r.tipo) : t?.privado ? "Indisponível" : t?.rotulo ?? "Indisponível",
-      privado: !!t?.privado, inicio: String(r.inicio), fim: String(r.fim), periodo: String(r.periodo), aPartirDe: r.a_partir_de as string | null, obs: ve ? (r.observacao as string | null) : null,
+      privado: !!t?.privado, inicio: String(r.inicio), fim: String(r.fim), periodo: String(r.periodo), aPartirDe: r.a_partir_de as string | null, ateAs: r.ate_as as string | null, obs: ve ? (r.observacao as string | null) : null,
       situacao: String(r.situacao), registradoPor: String(r.registrado_por), decididoPor: r.decidido_por as string | null, criadoEm: new Date(String(r.criado_em)) };
   });
 }
@@ -425,13 +428,13 @@ export async function desativarFeriado(u: Usuario, id: number): Promise<R> {
 
 // ---------------------------------------------------------------------------------------------- configuração por pessoa
 export async function salvarConfig(u: Usuario, usuarioId: number, fd: FormData): Promise<R> {
-  if (!administraConfig(u)) return { ok: false, mensagem: "Só a gestão altera a configuração das pessoas." };
+  if (!configuraPessoas(u)) return { ok: false, mensagem: "Só a gestão e a coordenação alteram a configuração das pessoas." };
   const s = (k: string) => String(fd.get(k) ?? "").trim();
   const atual = await configDe(usuarioId);
   const nome = await nomeUsuario(usuarioId);
   const novo = {
     uf: s("uf").toUpperCase().slice(0, 2) || null, municipio: s("municipio").slice(0, 80) || null,
-    almocoInicio: s("almoco_inicio") || null, almocoFim: s("almoco_fim") || null, modelo: s("modelo"), validadora: s("validadora") === "1",
+    almocoInicio: s("almoco_inicio") || null, almocoFim: s("almoco_fim") || null, modelo: s("modelo"), validadora: administraConfig(u) ? s("validadora") === "1" : atual.validadora,
   };
   if (novo.uf && !/^[A-Z]{2}$/.test(novo.uf)) return { ok: false, mensagem: "UF inválida (duas letras)." };
   if (!MODELOS[novo.modelo]) return { ok: false, mensagem: "Modelo inválido." };
@@ -470,7 +473,7 @@ export async function projetosAtivos() {
 
 /** A gerência (gestão/administração) define o modelo de programação direto no quadro. Fica no histórico. */
 export async function definirModelo(u: Usuario, usuarioId: number, modelo: string): Promise<R> {
-  if (!administraConfig(u)) return { ok: false, mensagem: "Só a gerência define o modelo de programação." };
+  if (!configuraPessoas(u)) return { ok: false, mensagem: "Só a gestão e a coordenação definem o modelo de programação." };
   if (!MODELOS[modelo]) return { ok: false, mensagem: "Modelo inválido." };
   const atual = await configDe(usuarioId);
   if (atual.modelo === modelo) return { ok: true };

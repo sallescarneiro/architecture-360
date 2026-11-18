@@ -1,4 +1,5 @@
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
+import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 import { TIPOS } from "@/lib/entregaveis";
 import { Button, LinkButton } from "@/components/ui";
 
@@ -25,7 +26,7 @@ export function FormularioEntregavel({ action, valores, projetos, usuarios, reun
       </div>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Projeto / cliente (Vobi, só leitura)
         {edicao ? <><input type="hidden" name="projeto" value={v.projetoCodigo ?? ""} /><div className="input mt-1 bg-[var(--surface-2)]">{projetos.find((p) => p.codigo === v.projetoCodigo)?.nome ?? v.projetoCodigo} <span className="text-xs text-[var(--muted)]">(não muda)</span></div></>
-          : <select name="projeto" required className="input mt-1" defaultValue={v.projetoCodigo ?? ""}><option value="">— escolha o projeto —</option>{projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""} ({p.codigo})</option>)}</select>}
+          : <BuscaOpcoes><select name="projeto" required className="input mt-1" defaultValue={v.projetoCodigo ?? ""}><option value="">— escolha o projeto —</option>{projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — nº {p.codigo}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}</select></BuscaOpcoes>}
       </label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Descrição / escopo do entregável<textarea name="descricao" rows={4} maxLength={4000} defaultValue={v.descricao} className="input mt-1" placeholder="O que este entregável contém e o que o cliente precisa aprovar." /></label>
       {reunioes.length > 0 && (

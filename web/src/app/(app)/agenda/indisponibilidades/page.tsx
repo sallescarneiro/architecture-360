@@ -5,7 +5,7 @@ import { dataCurta, dataHora, hojeLocal, somaDias } from "@/lib/agenda/datas";
 import { Button, PageHeader } from "@/components/ui";
 import { decidirIndispAction, indispAction } from "../quadro/actions";
 
-const per = (i: { periodo: string; aPartirDe: string | null }) => i.periodo === "dia" ? "dia inteiro" : i.periodo === "hora" ? `a partir das ${i.aPartirDe}` : i.periodo === "manha" ? "manhã" : "tarde";
+const per = (i: { periodo: string; aPartirDe: string | null; ateAs?: string | null }) => i.periodo === "dia" ? "dia inteiro" : i.periodo === "hora" ? `a partir das ${i.aPartirDe}` : i.periodo === "intervalo" ? `das ${i.aPartirDe} às ${i.ateAs}` : i.periodo === "manha" ? "manhã" : "tarde";
 const SIT: Record<string, string> = { confirmada: "Confirmada", pendente: "Aguardando confirmação", recusada: "Pedido recusado", cancelada: "Cancelada" };
 
 /** Etapa A — Indisponibilidades: gestão e coordenação registram e confirmam pedidos; atestado só aparece aqui (privacidade). */
@@ -32,11 +32,14 @@ export default async function IndisponibilidadesPage({ searchParams }: { searchP
               <label className="block text-xs font-semibold text-[var(--txt-2)]">Data final<input type="date" name="fim" className="input mt-1" /></label>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <label className="block text-xs font-semibold text-[var(--txt-2)]">Duração no dia<select name="periodo" className="input mt-1"><option value="dia">Dia inteiro</option><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="hora">A partir de um horário</option></select></label>
-              <label className="block text-xs font-semibold text-[var(--txt-2)]">A partir de (se horário)<input type="time" name="a_partir_de" className="input mt-1" /></label>
+              <label className="block text-xs font-semibold text-[var(--txt-2)]">Duração no dia<select name="periodo" className="input mt-1"><option value="dia">Dia inteiro</option><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="hora">A partir de um horário</option><option value="intervalo">Intervalo de horário (início e fim)</option></select></label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs font-semibold text-[var(--txt-2)]">Das / a partir de<input type="time" name="a_partir_de" className="input mt-1" /></label>
+                <label className="block text-xs font-semibold text-[var(--txt-2)]">Até (intervalo)<input type="time" name="ate_as" className="input mt-1" /></label>
+              </div>
             </div>
             <label className="block text-xs font-semibold text-[var(--txt-2)]">Observação<input name="obs" maxLength={300} className="input mt-1" placeholder="opcional; não registre diagnóstico de saúde" /></label>
-            <p className="text-xs text-[var(--muted)]">Registrado por {u.nome}. Entra confirmada. Meio período ou a partir de um horário desconta 0,5 dia.</p>
+            <p className="text-xs text-[var(--muted)]">Registrado por {u.nome}. Entra confirmada. Meio período ou a partir de um horário desconta 0,5 dia; um intervalo (ex.: 10h às 12h) aparece na agenda e nos avisos, sem descontar o dia.</p>
             <Button variant="primary">Registrar</Button>
           </form>
         </section>

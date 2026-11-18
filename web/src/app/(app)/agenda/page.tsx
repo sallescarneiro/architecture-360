@@ -8,6 +8,7 @@ import { contagemFila, listarAtividades, pendencias, pessoasDaAgenda, podeGerirA
 import { deEvento, Legenda, Mes, Semana, type ItemCal } from "@/components/agenda/Calendario";
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
 import { atualizarAgendaAction } from "./actions";
+import { configs } from "@/lib/agenda/producao";
 
 type Visao = "mes" | "semana" | "dia";
 const TOM_VINCULADA = "var(--vinho)", TOM_INDEPENDENTE = "var(--st-ok)", TOM_PRAZO = "var(--st-breve)";
@@ -31,6 +32,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   // quem está sendo visto: arquiteta = sempre ela; gestão = "todas" ou uma pessoa (padrão: todas)
   const pessoaSel = gestao ? (sp.pessoa && /^\d+$/.test(sp.pessoa) && pessoas.some((p) => p.id === Number(sp.pessoa)) ? Number(sp.pessoa) : sp.pessoa === "eu" ? u.id : null) : u.id;
   const consolidada = gestao && pessoaSel === null;
+  // visão consolidada: "Equipe de projetos" (padrão: arquitetas, coordenação e quem valida) ou "Empresa inteira" (?pessoa=todos)
+  const cfgs = await configs();
+  const equipe = pessoas.filter((p) => p.perfil === "arquiteta" || p.perfil === "coordenacao" || cfgs.get(p.id)?.validadora).map((p) => p.id);
+  const empresa = consolidada && sp.pessoa === "todos";
+  const grupo: number[] | null = consolidada ? (empresa ? null : equipe) : [pessoaSel!];
   // Google: na visão da equipe fica desligado por padrão (as agendas compartilhadas repetem os mesmos compromissos)
   const comGoogle = consolidada ? sp.google === "1" : sp.google !== "0";
   const projetoSel = sp.projeto && /^\d+$/.test(sp.projeto) ? Number(sp.projeto) : null;
@@ -46,14 +52,16 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   else { dias = [d]; titulo = dataLonga(d); ant = somaDias(d, -1); prox = somaDias(d, 1); }
   const de = inicioDoDia(dias[0]), ate = fimDoDia(dias[dias.length - 1]);
   const params = (o: Record<string, string | number | null | undefined>) => {
-    const base: Record<string, string | number | null | undefined> = { v, d, pessoa: gestao ? (pessoaSel ?? undefined) : undefined, projeto: projetoSel ?? undefined, vobi: comVobi ? undefined : 0, google: consolidada ? (comGoogle ? 1 : undefined) : (comGoogle ? undefined : 0), ...o };
+    const base: Record<string, string | number | null | undefined> = { v, d, pessoa: gestao ? (pessoaSel ?? (empresa ? "todos" : undefined)) : undefined, projeto: projetoSel ?? undefined, vobi: comVobi ? undefined : 0, google: consolidada ? (comGoogle ? 1 : undefined) : (comGoogle ? undefined : 0), ...o };
     return "/agenda?" + Object.entries(base).filter(([, x]) => x !== undefined && x !== null && x !== "").map(([k, x]) => `${k}=${encodeURIComponent(String(x))}`).join("&");
   };
   const atual = params({});
   const nomePor = new Map(pessoas.map((p) => [p.id, p.nome]));
 
   // 1. atividades do A360
-  const ativs: Atividade[] = await listarAtividades(u, { responsavelIds: pessoaSel === null ? null : [pessoaSel], de, ate, projeto: projetoSel });
+  const ativs: Atividade[] = await listarAtividades(u, { responsavelIds: grupo, de, ate, projeto: projetoSel });
+  const nomeProj = new Map(gestao ? (await apoioVinculo()).projetos.map((p) => [p.codigo, p.nome.replace(/^.*?-\s*/, "").slice(0, 28)] as [number, string]) : []);
+  const comProjeto = (t: string, codigo: number | null | undefined) => (consolidada && codigo && nomeProj.get(codigo) ? `${nomeProj.get(codigo)} · ${t}` : t);
   // atividade de um dia = bloco no horário; atividade de vários dias = marca de início e marca de prazo (o prazo é o que a gestão acompanha)
   const itens: ItemCal[] = ativs.flatMap((a) => {
     const base = {
@@ -63,14 +71,14 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     };
     const ini = a.inicio ?? a.fim; // tarefa do Vobi só com término: aparece como prazo
     const d0 = hojeLocal(ini), d1 = hojeLocal(a.fim);
-    if (d0 === d1) return [{ ...base, chave: `a${a.id}`, inicio: ini, fim: a.fim, diaInteiro: a.diaInteiro || !a.inicio, titulo: a.inicio ? a.titulo : `prazo · ${a.titulo}` }];
-    const marcas: ItemCal[] = [{ ...base, chave: `a${a.id}f`, inicio: inicioDoDia(d1), fim: fimDoDia(d1), diaInteiro: true, titulo: `prazo ${a.diaInteiro ? "" : `${hora(a.fim)} `}· ${a.titulo}` }];
+    if (d0 === d1) return [{ ...base, chave: `a${a.id}`, inicio: ini, fim: a.fim, diaInteiro: a.diaInteiro || !a.inicio, titulo: comProjeto(a.inicio ? a.titulo : `prazo · ${a.titulo}`, a.projetoCodigo) }];
+    const marcas: ItemCal[] = [{ ...base, chave: `a${a.id}f`, inicio: inicioDoDia(d1), fim: fimDoDia(d1), diaInteiro: true, titulo: comProjeto(`prazo ${a.diaInteiro ? "" : `${hora(a.fim)} `}· ${a.titulo}`, a.projetoCodigo) }];
     if (a.inicio && a.inicio >= de) marcas.push({ ...base, chave: `a${a.id}i`, inicio: inicioDoDia(d0), fim: fimDoDia(d0), diaInteiro: true, titulo: `início · ${a.titulo}`, classe: "ev-ativ ev-inicio" });
     return marcas;
   });
   // 2. Google Agenda (espelho já sincronizado de cada pessoa; só a própria é lida do Google agora)
   if (comGoogle && !projetoSel) {
-    const quem = pessoaSel === null ? pessoas.map((p) => p.id) : [pessoaSel];
+    const quem = grupo ?? pessoas.map((p) => p.id);
     for (const id of quem) {
       const evs = await eventosDe(id, de, ate);
       for (const e of evs) {
@@ -84,7 +92,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   let semNumero = 0;
   let semData: Awaited<ReturnType<typeof semDataVobi>> = [];
   if (comVobi) {
-    const idsVobi = pessoaSel === null ? null : (() => { const p = pessoas.find((x) => x.id === pessoaSel); if (!p?.idsVobi.length) semNumero = 1; return p?.idsVobi ?? []; })();
+    const idsVobi = consolidada ? (empresa ? null : pessoas.filter((p) => equipe.includes(p.id)).flatMap((p) => p.idsVobi)) : (() => { const p = pessoas.find((x) => x.id === pessoaSel); if (!p?.idsVobi.length) semNumero = 1; return p?.idsVobi ?? []; })();
     const porVobi = new Map(pessoas.flatMap((p) => p.idsVobi.map((i) => [i, p.nome] as [number, string])));
     for (const { t, projeto } of await programacaoVobi({ idsVobi, de, ate, projeto: projetoSel })) {
       const feita = t.status === 4 || t.status === 5;
@@ -95,7 +103,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       };
       const ini = t.inicio ?? t.fim!, fim = t.fim ?? t.inicio!;
       const d0 = hojeLocal(ini), d1 = hojeLocal(fim);
-      const rot = (x: string) => `${feita ? `${STATUS_V[t.status!]} · ` : ""}${x}`;
+      const rot = (x: string) => `${feita ? `${STATUS_V[t.status!]} · ` : ""}${consolidada && projeto ? `${String(projeto).replace(/^.*?-\s*/, "").slice(0, 28)} · ` : ""}${x}`;
       if (d0 === d1 && t.inicio && t.fim && hora(t.inicio) !== "00:00") itens.push({ ...base, chave: `v${t.idVobi}`, inicio: t.inicio, fim: t.fim, diaInteiro: false, titulo: rot(t.nome) });
       else {
         if (t.fim) itens.push({ ...base, chave: `v${t.idVobi}f`, inicio: inicioDoDia(d1), fim: fimDoDia(d1), diaInteiro: true, titulo: rot(`término · ${t.nome}`) });
@@ -127,7 +135,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="flex flex-col gap-3">
-      <PageHeader eyebrow="Architecture 360 · Agenda" title={consolidada ? "Agenda da equipe" : gestao && pessoaSel !== u.id ? `Agenda de ${nomeSel}` : "Minha agenda"}
+      <PageHeader eyebrow="Architecture 360 · Agenda" title={consolidada ? (empresa ? "Agenda da empresa" : "Agenda da equipe de projetos") : gestao && pessoaSel !== u.id ? `Agenda de ${nomeSel}` : "Minha agenda"}
         subtitle={<>{gestao ? "Programação das atividades das arquitetas, compromissos do Google e prazos do Vobi numa só agenda." : "Suas atividades programadas pela gestão e seus compromissos do Google."}
           {c ? <> · Google de <b>{c.emailGoogle}</b>{c.ultimaSincOkEm ? <> sincronizado {dataHora(c.ultimaSincOkEm)}</> : ""} · <Link className="underline" href="/agenda/conexao">conexão</Link>{c.estado !== "revogada" && <> · <form action={atualizarAgendaAction} className="inline"><input type="hidden" name="volta" value={atual} /><button className="underline" type="submit">atualizar agora</button></form></>}</>
             : configurada ? <> · <Link className="underline" href="/api/agenda/conectar">conectar minha Google Agenda</Link></> : null}</>}
@@ -144,16 +152,17 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       {gestao && (
         <form method="get" action="/agenda" className="card flex flex-wrap items-end gap-3 px-3 py-2">
           <input type="hidden" name="v" value={v} /><input type="hidden" name="d" value={d} />
-          <label className="w-72 max-w-full text-xs font-semibold text-[var(--txt-2)]">Pessoa
-            <select name="pessoa" defaultValue={pessoaSel ?? ""} className="input mt-1">
-              <option value="">Toda a equipe (visão consolidada)</option>
+          <label className="w-[26rem] max-w-full text-xs font-semibold text-[var(--txt-2)]">Pessoa
+            <select name="pessoa" defaultValue={pessoaSel ?? (empresa ? "todos" : "")} className="input mt-1">
+              <option value="">Equipe de projetos (arquitetas, coordenação e gerência)</option>
+              <option value="todos">Empresa inteira</option>
               {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}{p.perfil !== "arquiteta" ? " · gestão" : ""}{p.idVobi ? "" : " · sem nº Vobi"}</option>)}
             </select>
           </label>
           <label className="w-96 max-w-full text-xs font-semibold text-[var(--txt-2)]">Projeto
             <select name="projeto" defaultValue={projetoSel ?? ""} className="input mt-1">
               <option value="">Todos</option>
-              {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
+              {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — nº {p.codigo}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
             </select>
           </label>
           <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="vobi" value="0" defaultChecked={!comVobi} /> esconder Programação do Vobi</label>
@@ -186,7 +195,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-[0.72rem] text-[var(--muted)]">
           <Badge color={TOM_VINCULADA}>atividade · tarefa do Vobi</Badge><Badge color={TOM_INDEPENDENTE}>atividade independente</Badge>{comVobi && <Badge color={TOM_PRAZO}>Programação do Vobi (ainda não programada no A360)</Badge>}
-          {consolidada && <span>· iniciais = pessoa</span>}
+          {consolidada && <span>· iniciais = pessoa · nome curto do projeto antes da atividade</span>}
         </div>
         {comGoogle && <Legenda />}
       </div>

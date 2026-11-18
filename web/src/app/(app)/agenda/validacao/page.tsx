@@ -8,6 +8,12 @@ import { ChipEtapa, curto, Entrega, SeloValidacao } from "@/components/agenda/Pr
 import { aprovarAction, devolverAction } from "../quadro/actions";
 
 const ABAS: [string, string][] = [["aguardando", "Aguardando"], ["devolvida", "Devolvidas"], ["aprovada", "Aprovadas"], ["historico", "Histórico"]];
+const EXPLICA: Record<string, string> = {
+  aguardando: "Programações que as arquitetas autônomas propuseram para si. Quem valida aprova ou devolve com justificativa. A validação é da programação (dia e etapa), não da entrega.",
+  devolvida: "Voltaram para a arquiteta com a justificativa. Ela ajusta e envia de novo; aí reaparecem em Aguardando.",
+  aprovada: "Aprovadas: já valem no quadro da equipe e na agenda.",
+  historico: "Todas as decisões, com quem decidiu e quando.",
+};
 
 /** Etapa A — Fila de validação: propostas das arquitetas autônomas. Decidem Ana Paula, Thaís ou substituta designada; a gestão acompanha. */
 export default async function ValidacaoPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -50,6 +56,7 @@ export default async function ValidacaoPage({ searchParams }: { searchParams: Pr
         {ABAS.map(([k, t]) => <Link key={k} role="tab" aria-selected={aba === k} href={`/agenda/validacao?aba=${k}`}
           className={`rounded-full border px-3 py-1.5 text-[0.8rem] font-semibold no-underline ${aba === k ? "border-[var(--vinho)] bg-[var(--vinho)] text-white" : "border-[var(--line)] bg-white text-[var(--txt-2)]"}`}>{t}{k !== "historico" ? ` (${n[k] ?? 0})` : ""}</Link>)}
       </div>
+      <p className="text-xs text-[var(--muted)]">{EXPLICA[aba]}</p>
 
       {aba === "historico" ? (
         <section className="card p-4" aria-label="Histórico de validação">

@@ -764,8 +764,9 @@ export const indisponibilidades = pgTable("agenda_indisponibilidade", {
   tipo: text("tipo").notNull(),                             // ferias | atestado | pessoal | folga | parcial | equipamento | outro
   inicio: text("inicio").notNull(),                         // AAAA-MM-DD
   fim: text("fim").notNull(),
-  periodo: text("periodo").notNull().default("dia"),        // dia | manha | tarde | hora
-  aPartirDe: text("a_partir_de"),                           // HH:MM quando periodo = hora
+  periodo: text("periodo").notNull().default("dia"),        // dia | manha | tarde | hora | intervalo
+  aPartirDe: text("a_partir_de"),                           // HH:MM quando periodo = hora ou intervalo
+  ateAs: text("ate_as"),                                    // HH:MM quando periodo = intervalo (fim)
   observacao: text("observacao"),
   situacao: text("situacao").notNull(),                     // confirmada | pendente | recusada | cancelada
   registradoPorId: integer("registrado_por_id").notNull().references(() => usuarios.id),

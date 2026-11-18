@@ -1,4 +1,5 @@
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
+import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 import { Button, LinkButton } from "@/components/ui";
 import { ORIGENS } from "@/lib/reunioes-motivos";
 
@@ -18,11 +19,11 @@ export function FormularioReuniao({ action, valores, projetos, motivos, pessoas,
       {eventoId && <input type="hidden" name="evento" value={eventoId} />}
       {/* T-227: toda reunião pertence a um projeto; o cliente vem do projeto */}
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Projeto (Vobi, só leitura) *
-        <select name="projeto" required className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
+        <BuscaOpcoes><select name="projeto" required className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
           <option value="">— escolha o projeto —</option>
           {v.projetoCodigo && !projetos.some((p) => p.codigo === v.projetoCodigo) && <option value={v.projetoCodigo}>projeto atual nº {v.projetoCodigo} (encerrado ou fora da lista)</option>}
-          {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}{p.cliente ? ` · ${p.cliente}` : ""} ({p.codigo})</option>)}
-        </select>
+          {projetos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — nº {p.codigo}{p.cliente ? ` · ${p.cliente}` : ""}</option>)}
+        </select></BuscaOpcoes>
         <span className="sub font-normal">O cliente vem do projeto. Projeto fora da lista pode ser trazido em Projetos › Buscar projeto no Vobi.</span>
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
