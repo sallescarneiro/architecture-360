@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
 
 export type IconName = "home" | "tasks" | "bell" | "ads" | "insta" | "users" | "tag" | "upload" | "mail" | "plug" | "shield" | "plus" | "bolt" | "check" | "calendar";
 export type NavItem = { href: string; label: string; icon: IconName; count?: number };
@@ -46,11 +45,8 @@ export function NavLinks({ groups }: { groups: NavGroup[] }) {
   // vale o item mais específico: em /reunioes/clientes acende "Histórico por cliente", não também "Reuniões"
   const todos = groups.flatMap((g) => g.items.map((i) => i.href)).filter((h) => isOn(path, h));
   const ativo = todos.sort((a, b) => b.length - a.length)[0];
-  // celular/tablet: o menu recolhível fecha sozinho ao trocar de página (senão cobre o conteúdo)
-  const navRef = useRef<HTMLElement>(null);
-  useEffect(() => { navRef.current?.closest("details.mnav")?.removeAttribute("open"); }, [path]);
   return (
-    <nav ref={navRef} aria-label="Navegação principal" className="space-y-0.5">
+    <nav aria-label="Navegação principal" className="space-y-0.5">
       {groups.map((g) => (
         <div key={g.label}>
           <div className="group">{g.label}</div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MenuMovel } from "@/components/menu-movel";
 import { redirect } from "next/navigation";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
 import { sairAction } from "@/app/login/actions";
@@ -73,29 +74,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </div>
   );
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[var(--sidebar)_1fr]">
+    <div className="shell min-h-screen">
       <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
 
       {/* Computador: lateral fixa no padrão da Central de Operações (T-212) */}
-      <aside className="side sticky top-0 hidden h-screen flex-col gap-4 overflow-y-auto px-3.5 py-5 lg:flex">
+      <aside className="side side-desk sticky top-0 h-screen flex-col gap-4 overflow-y-auto px-3.5 py-5">
         <div className="px-1.5">{marca}</div>
         <div className="flex-1"><NavLinks groups={groups} /></div>
         <div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
         {me}
       </aside>
 
-      {/* Celular e tablet: a mesma lateral, recolhível */}
-      <details className="mnav side sticky top-0 z-30 lg:hidden">
-        <summary className="flex items-center justify-between px-4 py-3">
-          {marca}
-          <span className="btn btn-ghost btn-sm" aria-hidden="true">Menu</span>
-        </summary>
-        <div className="flex flex-col gap-3 border-t border-[#f7cfc4] px-3.5 pb-4 pt-2">
-          <NavLinks groups={groups} />
-          <div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
-          {me}
-        </div>
-      </details>
+      {/* Celular e tablet: a mesma navegação, como painel sobreposto (fecha ao navegar, ESC ou clique fora) */}
+      <MenuMovel groups={groups} marca={marca} rodape={<><div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>{me}</>} />
 
       <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="w-full">{children}</div></main>
     </div>

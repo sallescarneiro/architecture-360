@@ -194,12 +194,26 @@ details.fold > .fold-body { padding: 0 1.1rem 1rem; }
 .side .marca-sub { display: block; margin-top: 0.7rem; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--terracota); }
 .side .selo { background: #fff; color: var(--vinho); border: 1px solid #f7cfc4; }
 .side .btn-ghost { color: var(--vinho); } .side .btn-ghost:hover { background: rgba(247, 207, 196, 0.55); }
-.mnav summary { list-style: none; }
-
-/* Menu móvel (details/summary, funciona sem JavaScript) */
-details.mnav > summary { list-style: none; cursor: pointer; }
-details.mnav[open] > div { max-height: calc(100dvh - 4.5rem); overflow-y: auto; }
-details.mnav > summary::-webkit-details-marker { display: none; }
+/* Navegação: lateral fixa no computador; painel sobreposto em tablet e celular.
+   "Computador" = 1280 px ou mais, ou 1024 px ou mais com mouse (notebook). Tablet deitado (toque) fica com o painel. */
+.side-desk { display: none; }
+.mtop { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.6rem max(1rem, env(safe-area-inset-right, 0px)) 0.6rem max(1rem, env(safe-area-inset-left, 0px)); border-right: 0; border-bottom: 1px solid #f7cfc4; }
+.mtop .marca-logo { width: 6.5rem; } .mtop .marca-sub { margin-top: 0.35rem; }
+.mbotao { display: inline-flex; align-items: center; gap: 0.45rem; } .mbotao svg { width: 1.1rem; height: 1.1rem; }
+.mpainel { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+.mpainel[data-aberto="1"] { pointer-events: auto; }
+.mfundo { position: absolute; inset: 0; background: rgba(31, 31, 31, 0.38); opacity: 0; transition: opacity 0.2s; }
+.mpainel[data-aberto="1"] .mfundo { opacity: 1; }
+.mlateral { position: absolute; top: 0; bottom: 0; left: 0; width: min(19rem, 86vw); display: flex; flex-direction: column; gap: 1rem;
+  overflow-y: auto; overscroll-behavior: contain; padding: max(1.1rem, env(safe-area-inset-top, 0px)) 0.875rem max(1.1rem, env(safe-area-inset-bottom, 0px)) max(0.875rem, env(safe-area-inset-left, 0px));
+  transform: translateX(-102%); transition: transform 0.22s ease; box-shadow: 0 0 0 1px #f7cfc4; }
+.mpainel[data-aberto="1"] .mlateral { transform: none; }
+@media (min-width: 1280px), (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; }
+  .side-desk { display: flex; }
+  .mtop, .mpainel { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
