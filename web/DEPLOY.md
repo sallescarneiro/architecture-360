@@ -217,3 +217,7 @@ Para ligar a exportação ao Rucelle 360°: definir `EXPORT_TOKEN` no serviço `
 - **Testes:**
   - Locais (`.local/t219-unit.mts`): 15 casos das regras.
   - Ponta a ponta com o Vobi simulado (`.local/mockvobi`, `.local/t219.mts`): criar os três tipos de atividade, bloqueio de duplicidade, permissões da arquiteta, adoção, conflito, divergência e resolução de conflito.
+
+## Leitura do Rucelle 360° — Gestão diária (19/11/2026, T-260)
+
+`GET /api/r360/gestao`, somente leitura, autorizada por Rodrigo em 19/11/2026: entregáveis em revisão interna e alertas abertos de prioridade crítica ou alta, para a Gestão diária do Rucelle 360°. Exige o cabeçalho `x-r360-key` igual à variável `R360_READ_KEY` (mín. 16 caracteres) no Railway; sem a variável, responde 503.
