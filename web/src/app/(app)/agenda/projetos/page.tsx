@@ -22,11 +22,15 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
   const sp = await searchParams;
   const f = sp.f && casa[sp.f] ? sp.f : "todas";
   const pessoaF = /^\d+$/.test(sp.p ?? "") ? Number(sp.p) : null;
+  // busca por nome do projeto, cliente ou nº do Vobi (sem acento e sem diferenciar maiúsculas)
+  const busca = (sp.busca ?? "").trim().slice(0, 80);
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const bate = (l: { nome: string; cliente: string | null; codigo: number }) => !busca || norm(`${l.nome} ${l.cliente ?? ""} ${l.codigo}`).includes(norm(busca));
   const [linhas, pessoas, todas, tipos, tercs] = await Promise.all([C.linhasProjetos(), P.arquitetas(), P.pessoasComConfig(), C.tiposAcao(), C.terceirizados()]);
-  const vis = linhas.filter((l) => casa[f](l) && (pessoaF === null || l.responsavelId === pessoaF));
+  const vis = linhas.filter((l) => casa[f](l) && (pessoaF === null || l.responsavelId === pessoaF) && bate(l));
   const q = (o: Record<string, string | number | null | undefined>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ f: f === "todas" ? null : f, p: pessoaF, ...o })) if (v != null && v !== "") p.set(k, String(v));
+    for (const [k, v] of Object.entries({ f: f === "todas" ? null : f, p: pessoaF, busca: busca || null, ...o })) if (v != null && v !== "") p.set(k, String(v));
     const s = p.toString(); return s ? `/agenda/projetos?${s}` : "/agenda/projetos";
   };
   const selCod = /^\d+$/.test(sp.sel ?? "") ? Number(sp.sel) : null;
@@ -44,7 +48,7 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
       {sp.ok && <div className="leitura" role="status"><b>OK</b>{sp.ok}</div>}
       <div className="flex flex-wrap gap-1 border-b border-[var(--line)]" role="group" aria-label="Filtros">
         {FILTROS.map(([k, t]) => {
-          const n = linhas.filter((l) => casa[k](l) && (pessoaF === null || l.responsavelId === pessoaF)).length;
+          const n = linhas.filter((l) => casa[k](l) && (pessoaF === null || l.responsavelId === pessoaF) && bate(l)).length;
           return <Link key={k} href={q({ f: k === "todas" ? null : k })} aria-pressed={f === k}
             className={`-mb-px px-3 py-2.5 text-[0.84rem] no-underline ${f === k ? "border-b-2 border-[var(--vinho)] font-semibold text-[var(--vinho)]" : "text-[var(--txt-2)] hover:text-[var(--vinho)]"}`}>
             {t.charAt(0).toUpperCase() + t.slice(1)} <span className={k === "venc" && n ? "font-semibold text-[var(--bad)]" : "text-[var(--muted)]"}>{n}</span></Link>;
@@ -57,6 +61,12 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
               className={`rounded-full border px-3 py-1.5 text-[0.78rem] font-semibold no-underline ${pessoaF === p.id ? "border-[var(--vinho)] bg-[var(--vinho)] text-white" : "border-[var(--line)] bg-white text-[var(--txt-2)]"}`}>{p.nome}</Link>
           ))}
         </div>
+        <form method="get" action="/agenda/projetos" className="flex items-center gap-1.5" role="search">
+          {f !== "todas" && <input type="hidden" name="f" value={f} />}{pessoaF !== null && <input type="hidden" name="p" value={pessoaF} />}
+          <input type="search" name="busca" defaultValue={busca} placeholder="buscar projeto, cliente ou nº do Vobi" aria-label="Buscar projeto" className="input w-72 max-w-full" />
+          <button className="btn btn-secondary btn-sm" type="submit">Buscar</button>
+          {busca && <Link href={q({ busca: null })} className="text-xs underline">limpar</Link>}
+        </form>
         <span className="text-xs text-[var(--muted)]">Comunicação: semana de {C.rotuloSemana()} · hoje {dataCurta(hoje)}</span>
       </div>
 
