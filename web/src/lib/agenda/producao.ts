@@ -287,6 +287,40 @@ export async function reprogramar(u: Usuario, id: number, novoDia: string, motiv
   return { ok: true, avisos: await avisosDoDia(a.responsavelId, novoDia, id) };
 }
 
+/** Cancela uma atividade que não será mais executada (ex.: cliente cancelou). Só gestão/coordenação; motivo obrigatório; nada é excluído. */
+export async function cancelarBloco(u: Usuario, id: number, motivo: string): Promise<R> {
+  if (!gestor(u)) return { ok: false, mensagem: "Só a coordenação ou a gerência cancela uma atividade." };
+  const a = (await db.select().from(schema.atividades).where(eq(schema.atividades.id, id)))[0];
+  if (!a || a.status === 5) return { ok: false, mensagem: "Atividade não encontrada." };
+  if (a.vinculo !== "independente") return { ok: false, mensagem: "Atividade ligada ao Vobi: cancele pela página da atividade." };
+  if (motivo.trim().length < 5) return { ok: false, mensagem: "Escreva o motivo do cancelamento." };
+  await db.update(schema.atividades).set({ status: 5, atualizadoPorId: u.id, atualizadoEm: new Date() }).where(eq(schema.atividades.id, id));
+  await histAtv(id, u.id, `Cancelada · motivo: ${motivo.trim().slice(0, 300)} (nada é excluído)`);
+  return { ok: true };
+}
+
+/**
+ * Retorno de etapa / refação: interrompe a atividade atual (ex.: 3D) com motivo e programa uma nova na etapa anterior
+ * (ex.: Layout), no dia escolhido. A interrompida fica no histórico; para retomar depois, programa-se a etapa de novo.
+ */
+export async function retornarEtapa(u: Usuario, id: number, etapaNova: string, dia: string, motivo: string): Promise<R<{ id: number; avisos: string[] }>> {
+  if (!gestor(u)) return { ok: false, mensagem: "Só a coordenação ou a gerência registra retorno de etapa." };
+  const a = (await db.select().from(schema.atividades).where(eq(schema.atividades.id, id)))[0];
+  if (!a || a.status === 5) return { ok: false, mensagem: "Atividade não encontrada." };
+  if (a.vinculo !== "independente" || !a.projetoCodigo) return { ok: false, mensagem: "Atividade ligada ao Vobi: trate pela página da atividade." };
+  if (!etapa(etapaNova)) return { ok: false, mensagem: "Escolha a etapa para onde o projeto volta." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { ok: false, mensagem: "Escolha o dia da refação." };
+  if (motivo.trim().length < 5) return { ok: false, mensagem: "Escreva o motivo do retorno." };
+  const de = etapa(a.etapaRucelle ?? "")?.n ?? "etapa atual", para = etapa(etapaNova)!.n, m = motivo.trim().slice(0, 300);
+  const nova = await criarBloco(u, { pessoaId: a.responsavelId, dia, projetoCodigo: a.projetoCodigo, etapa: etapaNova, periodo: a.periodo ?? "dia",
+    hi: a.inicio ? horaInput(a.inicio) : "09:00", hf: horaInput(a.fim), entrega: false, obs: `Refação: volta de ${de} para ${para} · ${m}` });
+  if (!nova.ok) return nova;
+  await db.update(schema.atividades).set({ status: 5, atualizadoPorId: u.id, atualizadoEm: new Date() }).where(eq(schema.atividades.id, id));
+  await histAtv(id, u.id, `Interrompida: projeto voltou de ${de} para ${para} · motivo: ${m}. Refação programada para ${rotuloDia(dia)}; esta etapa pode ser programada de novo depois.`);
+  await histAtv(nova.id, u.id, `Refação aberta a partir da interrupção de ${de} · motivo: ${m}`);
+  return nova;
+}
+
 /** A arquiteta envia a proposta (rascunho ou devolvida) para validação. */
 export async function enviarParaValidacao(u: Usuario, id: number): Promise<R> {
   const a = (await db.select().from(schema.atividades).where(eq(schema.atividades.id, id)))[0];

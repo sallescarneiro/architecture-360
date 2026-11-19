@@ -8,12 +8,12 @@ import { dataHora, diaValido, hojeLocal, horaInput, inicioSemana, somaDias } fro
 import { LinkButton, PageHeader } from "@/components/ui";
 import { Bloco, ChipEtapa, curto, Entrega, SeloValidacao } from "@/components/agenda/Producao";
 import { FormBloco } from "@/components/agenda/FormBloco";
-import { criarBlocoAction, editarBlocoAction, modeloAction, reprogramarAction } from "./actions";
+import { cancelarBlocoAction, criarBlocoAction, editarBlocoAction, modeloAction, reprogramarAction, retornarEtapaAction } from "./actions";
 
 const FILTROS: [string, string][] = [["todas", "Tudo"], ["pend", "Aguardando validação"], ["dev", "Devolvidas"], ["ent", "Entregas"]];
 /** Explicação curta de cada destaque: o que é, o que fazer e quem faz. */
 const EXPLICA: Record<string, string> = {
-  todas: "Toda a programação da semana. Use os destaques para ver o que pede ação.",
+  todas: "Estruturada: a coordenação ou a gerência programa e já entra confirmada; a arquiteta atualiza o andamento e avisa impedimento. Autônoma: a arquiteta faz um rascunho e envia; fica aguardando validação até ser aprovada ou devolvida. Prazos do Vobi são referência: para trazer ao quadro sem redigitar, use “Programar no A360” na tarefa do Vobi.",
   pend: "Programação que uma arquiteta autônoma propôs para si. A coordenação ou a gerência aprova ou devolve, em Validação.",
   dev: "Proposta devolvida pela coordenação ou pela gerência, com a justificativa. Volta para a arquiteta ajustar e reenviar.",
   ent: "Dias marcados como entrega de etapa ao cliente. Não é aprovação: só sinaliza o prazo.",
@@ -45,7 +45,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
   // painel lateral
   const [novoP, novoD] = (sp.novo ?? "").split(":");
   const novo = /^\d+$/.test(novoP ?? "") && diaValido(novoD) ? { pessoa: pessoas.find((p) => p.id === Number(novoP)), dia: novoD } : null;
-  const selId = /^\d+$/.test(sp.ver ?? sp.rep ?? "") ? Number(sp.ver ?? sp.rep) : null;
+  const selId = /^\d+$/.test(sp.ver ?? sp.rep ?? sp.can ?? sp.ret ?? "") ? Number(sp.ver ?? sp.rep ?? sp.can ?? sp.ret) : null;
   const sel = selId ? (await db.select().from(schema.atividades).where(eq(schema.atividades.id, selId)))[0] ?? null : null;
   const hist = sel ? await db.select({ h: schema.atividadeHistorico, quem: schema.usuarios.nome }).from(schema.atividadeHistorico).leftJoin(schema.usuarios, eq(schema.usuarios.id, schema.atividadeHistorico.usuarioId)).where(eq(schema.atividadeHistorico.atividadeId, sel.id)).orderBy(desc(schema.atividadeHistorico.quando)).limit(12) : [];
   const selPessoa = sel ? pessoas.find((p) => p.id === sel.responsavelId) ?? null : null;
@@ -144,7 +144,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               <LinkButton href={q({})} variant="ghost">Cancelar</LinkButton>
             </>)}
             {sel && (<>
-              <div className="eyebrow">{sp.rep ? "Reprogramar" : "Atividade"}</div>
+              <div className="eyebrow">{sp.rep ? "Reprogramar" : sp.can ? "Cancelar" : sp.ret ? "Retorno de etapa / refação" : "Atividade"}</div>
               <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">{sel.etapaRucelle ? curto(selProj) : sel.titulo}</h2>
               <div className="flex flex-wrap items-center gap-1.5"><ChipEtapa k={sel.etapaRucelle} />{sel.entrega && <Entrega />}<SeloValidacao v={sel.validacao} sempre /></div>
               <dl className="grid grid-cols-[112px_1fr] gap-x-2.5 gap-y-1 text-[0.8rem]">
@@ -160,7 +160,23 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               {sel.impedimento && <div className="rounded-lg bg-[#fff1d6] px-3 py-2 text-xs text-[#7a4b00]"><b>Impedimento avisado:</b> {sel.impedimento}</div>}
               {sel.vinculo !== "independente" ? (
                 <p className="text-sm">Atividade ligada ao Vobi: altere pela <Link href={`/agenda/atividade/${sel.id}`} className="underline">página da atividade</Link>.</p>
-              ) : sel.status === 5 ? <p className="text-sm text-[var(--muted)]">Atividade cancelada.</p> : sp.rep ? (
+              ) : sel.status === 5 ? <p className="text-sm text-[var(--muted)]">Atividade cancelada ou interrompida (veja o histórico).</p> : sp.can ? (
+                <form action={cancelarBlocoAction} className="flex flex-col gap-2.5">
+                  <input type="hidden" name="id" value={sel.id} /><input type="hidden" name="volta" value={q({ ver: sel.id })} />
+                  <p className="text-xs text-[var(--muted)]">Use quando a atividade não será mais executada (ex.: o cliente cancelou o projeto). Sai do quadro e fica no histórico.</p>
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Motivo (obrigatório)<input name="motivo" required minLength={5} maxLength={300} className="input mt-1" placeholder="ex.: cliente cancelou o projeto" /></label>
+                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Confirmar cancelamento</button><LinkButton href={q({ ver: sel.id })} variant="ghost">Voltar</LinkButton></div>
+                </form>
+              ) : sp.ret ? (
+                <form action={retornarEtapaAction} className="flex flex-col gap-2.5">
+                  <input type="hidden" name="id" value={sel.id} /><input type="hidden" name="volta" value={q({})} />
+                  <p className="text-xs text-[var(--muted)]">Interrompe esta etapa (ex.: 3D) porque o projeto voltou para uma etapa anterior (ex.: revisão de layout). Registra o motivo e programa a refação. Depois, a etapa interrompida pode ser programada de novo.</p>
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Volta para a etapa<select name="etapa" required className="input mt-1" defaultValue=""><option value="">Escolha a etapa</option>{P.ETAPAS.filter((e) => e.k !== sel.etapaRucelle).map((e) => <option key={e.k} value={e.k}>{e.n}</option>)}</select></label>
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Dia da refação<select name="dia" required className="input mt-1" defaultValue=""><option value="">Escolha o dia</option>{diasRep.map((d) => <option key={d} value={d}>{P.rotuloDia(d)}</option>)}</select></label>
+                  <label className="block text-xs font-semibold text-[var(--txt-2)]">Motivo (obrigatório)<input name="motivo" required minLength={5} maxLength={300} className="input mt-1" placeholder="ex.: cliente pediu revisão do layout" /></label>
+                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Interromper e programar refação</button><LinkButton href={q({ ver: sel.id })} variant="ghost">Voltar</LinkButton></div>
+                </form>
+              ) : sp.rep ? (
                 <form action={reprogramarAction} className="flex flex-col gap-2.5">
                   <input type="hidden" name="id" value={sel.id} /><input type="hidden" name="volta" value={q({ ver: sel.id })} />
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Novo dia<select name="novo_dia" required className="input mt-1" defaultValue=""><option value="">Escolha o dia</option>{diasRep.map((d) => <option key={d} value={d} disabled={d === P.diaDoBloco(sel)}>{P.rotuloDia(d)}</option>)}</select></label>
@@ -175,7 +191,12 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   pessoas={pessoas.map((p) => ({ id: p.id, nome: p.nome }))}
                   valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, obs: sel.descricao ?? "" }} />
                 {sel.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, executora, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
-                <LinkButton href={q({ rep: sel.id })}>Reprogramar com motivo</LinkButton>
+                <div className="flex flex-wrap gap-2">
+                  <LinkButton href={q({ rep: sel.id })}>Reprogramar</LinkButton>
+                  <LinkButton href={q({ ret: sel.id })}>Retornar etapa / refação</LinkButton>
+                  <LinkButton href={q({ can: sel.id })} variant="ghost">Cancelar</LinkButton>
+                </div>
+                <p className="text-xs text-[var(--muted)]">Reprogramar muda só a data. Retornar etapa interrompe esta etapa e programa a anterior. Cancelar encerra o que não será mais feito.</p>
               </>)}
               <ul className="flex flex-col gap-2 border-t border-[#f0e8e2] pt-2.5 text-xs" aria-label="Histórico">
                 {hist.map(({ h, quem }) => <li key={h.id}><span className="block">{h.resumo}</span><span className="text-[var(--muted)]">{quem ?? "sistema"} · {dataHora(h.quando)}</span></li>)}

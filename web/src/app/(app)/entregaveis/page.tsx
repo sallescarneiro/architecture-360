@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { exigirUsuario } from "@/lib/auth";
 import { STATUS, TIPOS, contagens, gestao, lerFiltros, listar } from "@/lib/entregaveis";
-import { Badge, Card, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { Badge, Button, Card, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { cancelarDaListaAction } from "./actions";
 
 export const metadata = { title: "Entregáveis — Architecture 360" };
 
@@ -11,13 +12,17 @@ export const metadata = { title: "Entregáveis — Architecture 360" };
  */
 export default async function EntregaveisPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const u = await exigirUsuario();
-  const f = lerFiltros(await searchParams);
+  const sp = await searchParams;
+  const f = lerFiltros(sp);
+  const msg = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);
   const [lista, cont] = await Promise.all([listar(u, f), gestao(u) ? contagens() : Promise.resolve(null)]);
   const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
   const href = (m: Record<string, string | number | null>) => { const p = new URLSearchParams(); const t = { projeto: f.projeto, status: f.status, tipo: f.tipo, q: f.q, ...m }; for (const [k, v] of Object.entries(t)) if (v !== null && v !== "" && !(k === "status" && v === "abertos")) p.set(k, String(v)); const s = p.toString(); return `/entregaveis${s ? `?${s}` : ""}`; };
   return (
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow="Architecture 360 · Entregáveis" title="Entregáveis e aprovações" subtitle="Layouts, apresentações e cadernos com versões, revisão interna e aprovação do cliente registrada com evidência. Registro interno: nada é enviado ao cliente por aqui." actions={<LinkButton href="/entregaveis/novo" variant="primary">+ Novo entregável</LinkButton>} />
+      {msg("erro") && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{msg("erro")}</div>}
+      {msg("ok") && <div className="leitura" role="status"><b>OK</b>{msg("ok")}</div>}
       {cont && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Em aberto" value={cont.abertos} href={href({ status: "abertos" })} />
@@ -42,7 +47,7 @@ export default async function EntregaveisPage({ searchParams }: { searchParams: 
           {(f.projeto || f.q || f.tipo || f.status !== "abertos") && <Link className="btn btn-ghost" href="/entregaveis">limpar</Link>}
         </form>
         {lista.length ? (
-          <div className="mt-3 overflow-x-auto"><table className="tbl"><thead><tr><th>Entregável</th><th>Projeto · cliente</th><th>Tipo</th><th>Versão</th><th>Situação</th><th>Responsável</th><th>Atualizado</th></tr></thead><tbody>
+          <div className="mt-3 overflow-x-auto"><table className="tbl"><thead><tr><th>Entregável</th><th>Projeto · cliente</th><th>Tipo</th><th>Versão</th><th>Situação</th><th>Responsável</th><th>Atualizado</th>{gestao(u) && <th></th>}</tr></thead><tbody>
             {lista.map((e) => (
               <tr key={e.id}>
                 <td className="font-semibold"><Link className="underline" href={`/entregaveis/${e.id}`}>{e.titulo}</Link></td>
@@ -52,6 +57,12 @@ export default async function EntregaveisPage({ searchParams }: { searchParams: 
                 <td><Badge tone={STATUS[e.status]?.tom}>{STATUS[e.status]?.rotulo}</Badge></td>
                 <td className="text-[var(--txt-2)]">{e.responsavelNome ?? "—"}</td>
                 <td className="whitespace-nowrap text-[var(--muted)]">{fmt(e.atualizadoEm)}</td>
+                {gestao(u) && <td>{e.status !== "cancelado" && (
+                  <details><summary className="cursor-pointer whitespace-nowrap text-xs text-[var(--vinho)] underline">Cancelar</summary>
+                    <form action={cancelarDaListaAction} className="mt-1.5 flex min-w-[15rem] flex-col gap-1.5"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="volta" value={href({})} />
+                      <input name="justificativa" className="input" required minLength={5} placeholder="justificativa (obrigatória)" />
+                      <div><Button variant="danger" className="btn-sm">Confirmar cancelamento</Button></div></form>
+                  </details>)}</td>}
               </tr>
             ))}
           </tbody></table></div>

@@ -43,6 +43,15 @@ export async function reprogramarAction(fd: FormData) {
   const u = await exigirUsuario(), v = volta(fd, "/agenda/quadro");
   fim(v, await P.reprogramar(u, id(fd), String(fd.get("novo_dia") ?? ""), String(fd.get("motivo") ?? ""), String(fd.get("detalhe") ?? "").trim()), "Atividade reprogramada.", { rep: null });
 }
+export async function cancelarBlocoAction(fd: FormData) {
+  const u = await exigirUsuario(), v = volta(fd, "/agenda/quadro");
+  fim(v, await P.cancelarBloco(u, id(fd), String(fd.get("motivo") ?? "")), "Atividade cancelada (fica no histórico).", { can: null });
+}
+export async function retornarEtapaAction(fd: FormData) {
+  const u = await exigirUsuario(), v = volta(fd, "/agenda/quadro");
+  const r = await P.retornarEtapa(u, id(fd), String(fd.get("etapa") ?? ""), String(fd.get("dia") ?? ""), String(fd.get("motivo") ?? ""));
+  fim(r.ok ? com(v, { ver: String(r.id) }) : v, r, "Etapa interrompida e refação programada.", { ret: null });
+}
 export async function enviarAction(fd: FormData) {
   const u = await exigirUsuario();
   fim(volta(fd, "/agenda/semana"), await P.enviarParaValidacao(u, id(fd)), "Enviada para validação (Ana Paula ou Thaís).");

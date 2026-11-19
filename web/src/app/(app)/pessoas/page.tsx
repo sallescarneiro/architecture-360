@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { Relatorio } from "@/lib/importador/importador";
 import { db, schema } from "@/db";
 import { exigirUsuario, podeImportar } from "@/lib/auth";
@@ -27,6 +27,19 @@ export default async function PessoasPage() {
   const ultimaApi = (await db.select({ relatorio: schema.cargas.relatorio }).from(schema.cargas)
     .where(and(eq(schema.cargas.origem, "api"))).orderBy(desc(schema.cargas.id)).limit(1))[0];
   const semNome = ((ultimaApi?.relatorio as Relatorio | null)?.api?.responsaveis.semNome ?? []).filter((r) => !mapaResp.some((m) => m.idVobi === r.id));
+  // pistas para reconhecer cada número sem voltar ao Vobi: projetos e tarefas em que ele aparece como responsável
+  const pistas = new Map<number, { projetos: string[]; tarefas: string[] }>();
+  if (semNome.length) {
+    const rows = (await db.execute(sql`select t.id_responsavel r, p.nome projeto, t.nome tarefa from vobi_tarefa t left join projeto p on p.codigo = t.id_refurbish
+      where t.id_responsavel in (${sql.join(semNome.map((r) => sql`${r.id}`), sql`, `)}) and t.ausente_desde is null order by t.fim desc nulls last`)).rows as { r: number; projeto: string | null; tarefa: string }[];
+    for (const x of rows) {
+      const k = Number(x.r), p = pistas.get(k) ?? { projetos: [], tarefas: [] };
+      const nome = (x.projeto ?? "").replace(/^.*?-\s*/, "");
+      if (nome && !p.projetos.includes(nome) && p.projetos.length < 3) p.projetos.push(nome);
+      if (!p.tarefas.includes(x.tarefa) && p.tarefas.length < 3) p.tarefas.push(x.tarefa);
+      pistas.set(k, p);
+    }
+  }
   const nomesVobi = vobi.map((p) => p.nomeVobi).filter((n) => !n.startsWith("Vobi #"));
   const editaResp = edita || u.perfil === "coordenacao";
   const seletor = (idVobi: number, atual?: string) => (
@@ -62,7 +75,7 @@ export default async function PessoasPage() {
         <Card title={<>Responsáveis da API do Vobi <Badge tone={semNome.length ? "warn" : "neutral"}>{semNome.length ? `${semNome.length} sem nome` : "todos identificados"}</Badge></>}
           subtitle="A API do Vobi informa o responsável de cada tarefa só por um número. O A360 reconhece sozinho quem já aparecia na última exportação CSV; os demais são indicados aqui uma única vez e valem para todas as sincronizações seguintes.">
           <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>Nº no Vobi</th><th>Pessoa</th><th>Como foi identificado</th></tr></thead><tbody>
-            {semNome.map((r) => <tr key={`s${r.id}`}><td className="font-semibold">#{r.id}</td><td>{editaResp ? seletor(r.id) : "—"}</td><td><Badge tone="warn">sem nome · {r.tarefas} tarefa(s)</Badge></td></tr>)}
+            {semNome.map((r) => <tr key={`s${r.id}`}><td className="font-semibold">#{r.id}{pistas.get(r.id) && <span className="block max-w-[22rem] text-[0.72rem] font-normal text-[var(--muted)]">Projetos: {pistas.get(r.id)!.projetos.join(", ") || "—"}<br />Tarefas: {pistas.get(r.id)!.tarefas.join(", ")}</span>}</td><td>{editaResp ? seletor(r.id) : "—"}</td><td><Badge tone="warn">sem nome · {r.tarefas} tarefa(s)</Badge></td></tr>)}
             {mapaResp.map((m) => <tr key={m.idVobi}><td className="font-semibold">#{m.idVobi}</td><td>{editaResp ? seletor(m.idVobi, m.nome) : m.nome}</td><td><Badge tone="neutral">{m.origem === "manual" ? "indicado na tela Pessoas" : "pela última exportação CSV"}</Badge></td></tr>)}
           </tbody></table></div>
         </Card>

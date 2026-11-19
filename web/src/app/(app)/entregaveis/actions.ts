@@ -35,6 +35,16 @@ export async function novaVersaoAction(fd: FormData) {
   redirect(volta(id, erro, "versao"));
 }
 
+/** Cancelar direto do painel Entregáveis e aprovações (coordenação/gestão, justificativa obrigatória); volta para a lista. */
+export async function cancelarDaListaAction(fd: FormData) {
+  const u = await exigirUsuario();
+  const id = Number(fd.get("id")); const e = await porId(id); if (!e) redirect("/entregaveis");
+  const erro = await mudarStatus(u, e, "cancelado", String(fd.get("justificativa") ?? ""));
+  revalidatePath(`/entregaveis/${id}`); revalidatePath("/entregaveis");
+  const v = String(fd.get("volta") ?? "/entregaveis"), base = v.startsWith("/entregaveis") ? v : "/entregaveis", sep = base.includes("?") ? "&" : "?";
+  redirect(`${base}${sep}${erro ? `erro=${encodeURIComponent(erro)}` : `ok=${encodeURIComponent(`“${e.titulo}” cancelado. Fica no histórico e pode ser reaberto.`)}`}`);
+}
+
 export async function statusEntregavelAction(fd: FormData) {
   const u = await exigirUsuario();
   const id = Number(fd.get("id")); const e = await porId(id); if (!e) redirect("/entregaveis");

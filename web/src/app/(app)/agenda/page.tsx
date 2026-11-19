@@ -131,6 +131,14 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   else if (sp.erro) avisos.push({ tom: "bad", texto: "Não foi possível concluir a conexão com o Google. Tente novamente; se persistir, avise a gestão." });
   if (sp.sinc === "revogada" || c?.estado === "revogada") avisos.push({ tom: "warn", texto: "O Google recusou o acesso (token expirado ou revogado). Conecte novamente em Conexão." });
   else if (sp.sinc === "erro" || c?.estado === "erro") avisos.push({ tom: "warn", texto: `A última sincronização do Google falhou; os compromissos mostrados são da última leitura bem-sucedida${c?.ultimaSincOkEm ? ` (${dataHora(c.ultimaSincOkEm)})` : ""}.` });
+  if (configurada && !c && (pessoaSel === u.id || !gestao)) avisos.push({ tom: "warn", texto: "Sua Google Agenda ainda não está conectada ao A360: seus compromissos do Google não aparecem aqui nem para a coordenação. Use “conectar minha Google Agenda”, logo abaixo do título (uma vez só)." });
+  // Google de outra pessoa: só aparece se ela mesma conectou a própria conta (Agenda › Conexão), uma vez
+  if (gestao && comGoogle && !projetoSel) {
+    const alvo = grupo ?? pessoas.map((p) => p.id);
+    const sem: string[] = [];
+    for (const id of alvo) { if (id === u.id) continue; const cx = await conexaoDe(id); if (!cx || cx.estado === "revogada") sem.push((nomePor.get(id) ?? "").split(" ")[0]); }
+    if (sem.length) avisos.push({ tom: "warn", texto: `${consolidada ? `Sem Google Agenda conectada: ${sem.join(", ")}.` : `${nomeSel} ainda não conectou a Google Agenda ao A360.`} Cada pessoa conecta a própria conta uma vez, em Agenda › Conexão (com o login dela); até lá aparecem só a programação do A360 e a do Vobi.` });
+  }
   if (semNumero) avisos.push({ tom: "warn", texto: `${nomeSel} ainda não tem o número do Vobi identificado em Pessoas: os prazos do Vobi dela não aparecem.` });
 
   return (
