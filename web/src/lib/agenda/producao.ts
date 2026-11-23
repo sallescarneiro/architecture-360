@@ -22,6 +22,7 @@ export const ETAPAS: { k: string; n: string; bg: string; fg: string }[] = [
   { k: "PN", n: "Programa de necessidades", bg: "#ede5f5", fg: "#56367a" },
   { k: "LAY", n: "Layout e conceito", bg: "#e1f0e7", fg: "#1f5a3b" },
   { k: "3D", n: "Imagens 3D", bg: "#fbe7dc", fg: "#86370f" },
+  { k: "V3D", n: "Vídeo 3D", bg: "#f8e2d6", fg: "#7a2f0c" }, // 23/11/2026
   { k: "REF", n: "Refação", bg: "#fcefcf", fg: "#6e4a00" }, // antiga (sem tipo): segue valendo para o que já foi programado
   { k: "RLAY", n: "Refação de layout", bg: "#fcefcf", fg: "#6e4a00" },
   { k: "R3D", n: "Refação 3D", bg: "#fcefcf", fg: "#6e4a00" },

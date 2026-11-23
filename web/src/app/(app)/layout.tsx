@@ -28,7 +28,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       { href: "/projetos", label: "Projetos", icon: "bolt" },
       { href: "/agenda", label: "Agenda", icon: "calendar" as const }, // T-187: própria agenda (todos os perfis)
       { href: "/entregaveis", label: "Entregáveis", icon: "check" as const }, // T-190: versões, revisão interna e aprovação do cliente com evidência
-      ...(gestao ? [{ href: "/alertas", label: "Alertas", icon: "bell" as const }] : []), // T-188: divergências e correção de rota
+      ...(gestao ? [{ href: "/alertas", label: "Alertas", icon: "bell" as const }] : []), // T-188
+      ...(gestao ? [{ href: "/atrasos", label: "Atrasos", icon: "bell" as const }] : []), // T-287: justificativa (coordenação) e validação (Thaís): divergências e correção de rota
       ...(gestao ? [{ href: "/capacidade", label: "Capacidade e fluxo", icon: "tasks" as const }] : []), // T-189: distribuição, carga por semana, entregas, etapas
       { href: "/qualidade", label: "Qualidade dos dados", icon: "check" },
     ] },

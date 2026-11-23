@@ -46,6 +46,8 @@ export const ETAPAS_CANONICAS: Record<string, string> = {
   "conceito/layout": "Conceito e Layout",
   "layout & conceito": "Conceito e Layout",
   "imagens 3d": "Imagens 3D",
+  "video 3d": "Vídeo 3D",
+  "videos 3d": "Vídeo 3D",
   "projeto executivo civil": "Projeto Executivo Civil",
   "executivo obra civil": "Projeto Executivo Civil",
   "projeto de detalhamento de interiores": "Detalhamento de Interiores",

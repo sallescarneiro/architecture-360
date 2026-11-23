@@ -845,3 +845,25 @@ export const agendaRegras = pgTable("agenda_regra", {
   atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Justificativa de atraso de tarefa do Vobi (T-287, 23/11/2026): coordenação/gestão registra o motivo; gestão (Thaís) ou direção valida
+ *  ou define outra medida. Só registro no A360: a data continua sendo trocada no Vobi (integração só de leitura). */
+export const atrasoJustificativas = pgTable("atraso_justificativa", {
+  id: serial("id").primaryKey(),
+  tarefaChave: text("tarefa_chave").notNull(),
+  idVobi: integer("id_vobi"),
+  projetoCodigo: integer("projeto_codigo"),
+  tarefaNome: text("tarefa_nome").notNull(),
+  etapa: text("etapa"),
+  prazoVobi: text("prazo_vobi"),
+  diasAtraso: integer("dias_atraso"),
+  categoria: text("categoria").notNull(),
+  motivo: text("motivo").notNull(),
+  novaData: text("nova_data"),
+  registradoPorId: integer("registrado_por_id").notNull().references(() => usuarios.id),
+  registradoEm: timestamp("registrado_em", { withTimezone: true }).notNull().defaultNow(),
+  situacao: text("situacao").notNull().default("aguardando"), // aguardando | validada | medida
+  decisao: text("decisao"),
+  decididoPorId: integer("decidido_por_id").references(() => usuarios.id),
+  decididoEm: timestamp("decidido_em", { withTimezone: true }),
+}, (t) => [index("atraso_justificativa_tarefa_idx").on(t.tarefaChave), index("atraso_justificativa_situacao_idx").on(t.situacao)]);

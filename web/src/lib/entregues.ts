@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
-const ORDEM = ["Programa de Necessidades", "Conceito e Layout", "ESTUDO VOLUMÉTRICO", "Imagens 3D", "Projeto Executivo Civil", "Detalhamento de Interiores", "Documentação", "Projeto Legal", "Refação"];
+const ORDEM = ["Programa de Necessidades", "Conceito e Layout", "ESTUDO VOLUMÉTRICO", "Imagens 3D", "Vídeo 3D", "Projeto Executivo Civil", "Detalhamento de Interiores", "Documentação", "Projeto Legal", "Refação"];
 const posicao = (e: string) => { const i = ORDEM.findIndex((o) => o.toLowerCase() === e.toLowerCase()); return i < 0 ? 99 : i; };
 /** Tarefa que é entrega ao cliente: apresentação, entrega, envio ou emissão. */
 export const ehEntregaAoCliente = (nome: string) => /^(apresenta|entrega|envio|emiss)/i.test(nome.trim());

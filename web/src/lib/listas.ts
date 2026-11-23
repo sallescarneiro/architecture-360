@@ -28,7 +28,7 @@ export function lerFiltrosTarefas(sp: ParamsLista): FiltrosTarefas {
   };
 }
 
-export const ETAPAS_ENTREGA = ["Projeto Executivo Civil", "Detalhamento de Interiores", "Documentação", "Projeto Legal", "Imagens 3D"];
+export const ETAPAS_ENTREGA = ["Projeto Executivo Civil", "Detalhamento de Interiores", "Documentação", "Projeto Legal", "Imagens 3D", "Vídeo 3D"];
 
 export type LinhaTarefa = {
   chave: string; nome: string; etapa: string; status: string; dataFim: string | null; dataInicio: string | null; responsavel: string | null;

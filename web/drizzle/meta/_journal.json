@@ -169,6 +169,13 @@
       "when": 1795446033141,
       "tag": "0023_entrega_interna_refacao",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795454815254,
+      "tag": "0024_atraso_justificativa",
+      "breakpoints": true
     }
   ]
 }

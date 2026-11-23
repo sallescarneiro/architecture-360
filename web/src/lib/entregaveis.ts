@@ -12,7 +12,7 @@ export type Entregavel = typeof schema.entregaveis.$inferSelect;
 export type Versao = Omit<typeof schema.versoesEntregavel.$inferSelect, "conteudo">;
 export type Aprovacao = Omit<typeof schema.aprovacoesEntregavel.$inferSelect, "conteudo">;
 
-export const TIPOS: Record<string, string> = { layout: "Layout", apresentacao: "Apresentação ao cliente", executivo: "Projeto executivo / caderno", imagens3d: "Imagens 3D", legal: "Projeto legal", documentacao: "Documentação", outro: "Outro" };
+export const TIPOS: Record<string, string> = { layout: "Layout", apresentacao: "Apresentação ao cliente", executivo: "Projeto executivo / caderno", imagens3d: "Imagens 3D", video3d: "Vídeo 3D", legal: "Projeto legal", documentacao: "Documentação", outro: "Outro" };
 export const STATUS: Record<string, { rotulo: string; tom: "ok" | "warn" | "bad" | "info" | "neutral"; ordem: number }> = {
   em_elaboracao:    { rotulo: "em elaboração",            tom: "neutral", ordem: 1 },
   revisao_interna:  { rotulo: "em revisão interna",       tom: "info",    ordem: 2 },

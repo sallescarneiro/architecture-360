@@ -324,3 +324,13 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 /* Bloco de produção: o motivo só aparece quando a etapa escolhida é uma refação (sem JavaScript) */
 .campo-refacao { display: none; }
 form:has(select[name="etapa"] option[data-ref]:checked) .campo-refacao { display: block; }
+
+/* T-287 — justificativa de atraso */
+.justif summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--vinho);margin-top:4px;list-style:none;text-decoration:underline}
+.justif summary::-webkit-details-marker{display:none}
+.justif-form{display:grid;gap:8px;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);min-width:260px;max-width:380px}
+.justif-form label{display:grid;gap:3px;font-size:12px;font-weight:600;color:var(--txt-2)}
+.justif-nota{font-size:11px;color:var(--muted)}
+.justif-selo{display:grid;gap:3px;margin-top:4px;max-width:420px}
+.justif-texto{font-size:12px;color:var(--txt-2);white-space:normal}
+.justif-meta{color:var(--muted)}

@@ -17,9 +17,11 @@ import { urlCom } from "@/lib/listas";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { JaEntregue } from "@/components/JaEntregue";
 import { jaEntregue } from "@/lib/entregues";
+import { podeJustificar, ultimasDoProjeto } from "@/lib/atrasos";
+import { FormJustificar, SeloJustificativa } from "@/components/atrasos/Justificativa";
 
 /** Detalhe do projeto (somente leitura): dados do Vobi, cliente vinculado e tarefas da última carga. */
-export default async function ProjetoPage({ params, searchParams }: { params: Promise<{ codigo: string }>; searchParams: Promise<{ vobi?: string }> }) {
+export default async function ProjetoPage({ params, searchParams }: { params: Promise<{ codigo: string }>; searchParams: Promise<{ vobi?: string; ok?: string; erro?: string }> }) {
   const u = await exigirUsuario();
   const gestao = veIndicadoresIndividuais(u.perfil);
   const { codigo } = await params;
@@ -45,7 +47,8 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
   const sd = (await db.execute(sql`select d.solicitado_em, u.nome usuario,
       (select count(*)::int from vobi_tarefa t where t.id_refurbish = d.codigo) tarefas
     from projeto_sob_demanda d join usuario u on u.id = d.solicitado_por_id where d.codigo = ${p.codigo} and d.situacao = 'integrado' order by d.id limit 1`)).rows[0] as { solicitado_em: string; usuario: string; tarefas: number } | undefined;
-  const avisoVobi = (await searchParams).vobi;
+  const spr = await searchParams; const avisoVobi = spr.vobi;
+  const justifica = podeJustificar(u); const justificativas = justifica ? await ultimasDoProjeto(p.codigo) : new Map(); // T-287
   const hoje = hojeIso();
   const prazos = new Map(tarefas.map((t) => [t.chave, statusPrazo(t.status, t.dataFim, hoje)]));
   const abertas = tarefas.filter((t) => prazos.get(t.chave)!.aberta);
@@ -102,13 +105,18 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
 
       <JaEntregue d={entregue} />
       <Card title="Tarefas (última carga)" subtitle="Fato importado do Vobi; não é medida de desempenho.">
+        {spr.ok && <p className="mb-3 rounded-[10px] bg-[var(--ok-bg)] px-4 py-2 text-sm text-[var(--ok)]">{spr.ok}</p>}
+        {spr.erro && <p className="mb-3 rounded-[10px] bg-[var(--bad-bg)] px-4 py-2 text-sm text-[var(--bad)]">{spr.erro}</p>}
         {tarefas.length ? (
           <div className="overflow-x-auto"><table className="tbl">
             <thead><tr><th>Etapa</th><th>Tarefa</th><th>Situação</th><th>Status Vobi</th>{gestao && <th>Responsável</th>}<th>Início</th><th>Fim</th><th>Horas</th></tr></thead>
             <tbody>{tarefas.map((t) => (
               <tr key={t.chave}>
                 <td>{t.etapaCsv}</td><td>{t.nome}</td>
-                <td><StatusPrazo info={prazos.get(t.chave)!} /></td>
+                <td><StatusPrazo info={prazos.get(t.chave)!} />
+                  {justifica && justificativas.get(t.chave) && <SeloJustificativa j={justificativas.get(t.chave)!} />}
+                  {justifica && prazos.get(t.chave)!.atrasada && !(justificativas.get(t.chave)?.situacao === "aguardando" || justificativas.get(t.chave)?.prazoVobi === t.dataFim) && <FormJustificar chave={t.chave} volta={`/projetos/${p.codigo}`} />}
+                </td>
                 <td className="text-[var(--txt-2)]">{t.status}</td>
                 {gestao && <td>{t.responsavelNome ?? "—"}</td>}
                 <td>{t.dataInicio ?? "—"}</td><td>{t.dataFim ?? "—"}</td><td>{t.horasRealizadasMin ? minutosParaHoras(t.horasRealizadasMin) : "—"}</td>
