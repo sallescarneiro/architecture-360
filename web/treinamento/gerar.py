@@ -98,12 +98,13 @@ PRIMEIRO_ACESSO = """
 <div class="grid">
 <div>""" + passos([
  f'Abra <a href="{URL}" target="_blank" rel="noreferrer">{URL.replace("https://","")}</a> (funciona no computador e no celular).',
- 'Entre com seu e-mail @rucelle.com.br e a <b>senha provisória</b> que você recebeu.',
+ 'O jeito mais simples: <b>Entrar com Google</b> e escolher a sua conta @rucelle.com.br. Não precisa de senha.',
+ 'Prefere senha? Entre com seu e-mail @rucelle.com.br e a <b>senha provisória</b> que você recebeu.',
  'O sistema pede uma senha nova (mínimo 10 caracteres). Guarde a nova; a provisória deixa de valer.',
  'Para trocar a senha depois: botão <b>Senha</b> no canto superior direito.',
  'Esqueceu a senha? Peça ao administrador (Rodrigo) uma redefinição: ele gera uma nova provisória.',
 ]) + """</div>
-""" + fig("login", "Tela de entrada: e-mail @rucelle e senha.") + fig("senha", "Primeiro acesso: o sistema obriga a definir uma senha sua antes de qualquer tela.") + """
+""" + fig("nov-login", "Tela de entrada: Entrar com Google (conta @rucelle.com.br) ou e-mail e senha.") + fig("senha", "Primeiro acesso: o sistema obriga a definir uma senha sua antes de qualquer tela.") + """
 </div>
 """
 
@@ -267,7 +268,8 @@ ARQ = dict(
  'Da página do projeto você registra reunião e entregável já ligados a ele.',
  'A linha do tempo é a história do projeto: use-a antes de uma reunião com o cliente para lembrar o que foi decidido e aprovado.'])),
   ("agenda", "Agenda", "Suas atividades, seus compromissos e seus prazos", """
-<p>A Agenda mostra <b>só a sua agenda</b>: as atividades que a gestão programou para você, os compromissos da sua Google Agenda e, se quiser, os prazos das suas tarefas do Vobi. Ninguém da equipe vê a sua agenda além da gestão; você não vê a agenda das colegas.</p>
+<p>A Agenda abre na <b>sua agenda</b>: as atividades programadas para você, os compromissos da sua Google Agenda e, se quiser, os prazos das suas tarefas do Vobi. Em <b>Pessoa</b> você também pode ver a agenda de uma colega ou da <b>Equipe de projetos</b> inteira, só para consulta. A agenda da direção (Rodrigo e Flávia) não é compartilhada, e compromisso particular do Google aparece só como “ocupado”.</p>
+""" + fig("nov-agenda-pessoa", "Em Pessoa: minha agenda, a equipe de projetos, a empresa inteira ou uma colega.") + """
 """ + fig("arq-agenda", "Sua agenda na semana: atividades programadas pela gestão (vinho = tarefa do Vobi, verde = atividade independente) e seus compromissos do Google.", alta=True) + """
 <div class="grid"><div class="card"><h3>Como usar</h3>""" + passos([
  'Abra a Agenda e veja o mês, a semana ou o dia.',
@@ -291,18 +293,19 @@ ARQ = dict(
  'Marque a reunião como <b>realizada</b>. O histórico guarda tudo, inclusive versões da ata.',
  'Para mandar ou arquivar a ata: <b>Exportar ata (.docx)</b> ou <b>Exportar ata com papel timbrado</b> (logo e contatos da rucelle). O timbrado é opcional. Só entram itens confirmados.']) + regra("Encaminhamento no A360 é registro de acompanhamento. Ele não cria tarefa no Vobi e não gera cobrança para ninguém.") + regra("A IA não inventa: cada item mostra o trecho de origem e o nível de confiança (mencionado, síntese, inferência, a confirmar). Se um item não tem trecho, desconfie e descarte.", nao=False, rot="atenção")),
   ("entregaveis", "Entregáveis", "O que vai ao cliente e a prova da aprovação", """
-<p>Layout, apresentação, caderno executivo, imagens 3D: cada entregável tem versões, passa pela revisão interna da coordenação e recebe a resposta do cliente <b>com evidência</b>. É registro interno; nada é enviado ao cliente por aqui.</p>
-""" + fig("arq-entregavel-novo", "Novo entregável: título, tipo, responsável, projeto (do Vobi) e o que o cliente precisa aprovar.") + fig("arq-entregavel", "Entregável com versão, aprovação interna, resposta do cliente com evidência, situação, comentários e histórico.", alta=True) + fig("arq-entregavel-resposta-cliente", "Registrar a resposta do cliente: decisão, como chegou (e-mail, mensagem, ata, item de reunião), data, quem respondeu e o trecho ou arquivo.", alta=True) + passos([
- 'Em <b>Entregáveis › + Novo entregável</b> (ou pela página do projeto): título, tipo, descrição.',
+<p>Layout, apresentação, caderno executivo, imagens 3D: cada entregável tem versões, passa pela revisão interna (arquiteta sênior, coordenação e gerência) e recebe a resposta do cliente <b>com evidência</b>. É registro interno; nada é enviado ao cliente por aqui.</p>
+""" + fig("nov-entregavel-novo", "Novo entregável: título, tipo, responsável, projeto, a sênior que revisa e, se já tiver, o arquivo ou link da versão 1.") + fig("arq-entregavel", "Entregável com versão, aprovação interna, resposta do cliente com evidência, situação, comentários e histórico.", alta=True) + fig("arq-entregavel-resposta-cliente", "Registrar a resposta do cliente: decisão, como chegou (e-mail, mensagem, ata, item de reunião), data, quem respondeu e o trecho ou arquivo.", alta=True) + passos([
+ 'Em <b>Entregáveis › + Novo entregável</b> (ou pela página do projeto): título, tipo, descrição e, se você é júnior, a <b>arquiteta sênior que vai revisar</b> (Isys, Amanda ou Luryan).',
+ 'Já tem o material? Coloque o <b>link ou o arquivo</b> no próprio cadastro: o entregável nasce com a versão 1 e vai direto para a revisão.',
  'Precisa do papel timbrado da rucelle para montar um documento? Em <b>Entregáveis › Modelos institucionais</b>, baixe o modelo (.docx) e escreva no corpo.',
- 'Registre a <b>versão</b>: link do Drive ou arquivo (até 15 MB) e o que mudou.',
- 'Clique em <b>Enviar para revisão interna</b>. A coordenação aprova ou pede ajustes.',
+ 'Versões seguintes: registre na página do entregável, com links (um por linha, pode pôr um nome antes) ou arquivo (até 15 MB) e o que mudou. Esqueceu um link? Use <b>+ acrescentar links a esta versão</b>.',
+ 'A revisão interna segue a ordem <b>sênior → coordenação → gerência</b>. Se alguém pedir ajustes, o entregável volta para você; a nova versão recomeça a revisão.',
  'Aprovado internamente? Envie ao cliente pelo canal habitual e marque <b>enviado ao cliente</b>.',
  'Quando o cliente responder, registre a resposta com a evidência: cole o e-mail/mensagem, anexe o print ou aponte o item de aprovação da reunião.',
  'Nova versão depois de uma aprovação volta automaticamente para revisão interna.']) + regra("Aprovação do cliente sem evidência não é registrada — o sistema recusa. Isso protege você: fica provado o que foi aprovado, quando e por quem.") + regra("Nunca registre uma aprovação que ainda não aconteceu, nem marque 'enviado ao cliente' antes de enviar.", nao=True)),
   ("permissoes", "O que você vê e o que não vê", "Permissões do perfil arquiteta", """
-<div class="grid"><div class="card"><h3>Você vê</h3>""" + lista(['Suas tarefas e seus projetos (colaboradora ou responsável no Vobi).','Sua Agenda: atividades programadas para você, seus compromissos do Google e seus prazos do Vobi.', ARQ_PERM_VE_PROD,'Reuniões que você criou, de que participa ou dos seus projetos.','Entregáveis dos seus projetos.','Alertas dos seus projetos (só leitura).','Qualidade dos dados, Clientes e Importação (consulta).']) + """</div>
-<div class="card"><h3>Você não vê</h3>""" + lista(['Painel de Gestão, Capacidade e fluxo, Pessoas, Usuários.','Projetos e tarefas de outras pessoas.','A agenda das colegas, o Quadro da equipe e a fila de validação.','Mudar o seu modelo de programação: é decisão da gerência.','Tratamento de alertas e aprovação interna de entregáveis (coordenação/gestão).']) + """</div></div>
+<div class="grid"><div class="card"><h3>Você vê</h3>""" + lista(['Suas tarefas e seus projetos (colaboradora ou responsável no Vobi).','Sua Agenda: atividades programadas para você, seus compromissos do Google e seus prazos do Vobi; e, só para consulta, a agenda das colegas.', ARQ_PERM_VE_PROD,'Reuniões que você criou, de que participa ou dos seus projetos.','Entregáveis dos seus projetos.','Alertas dos seus projetos (só leitura).','Qualidade dos dados, Clientes e Importação (consulta).']) + """</div>
+<div class="card"><h3>Você não vê</h3>""" + lista(['Painel de Gestão, Capacidade e fluxo, Pessoas, Usuários.','Projetos e tarefas de outras pessoas.','A agenda da direção, o Quadro da equipe e a fila de validação.','Mudar o seu modelo de programação: é decisão da gerência.','Tratamento de alertas e a página Atrasos (coordenação/gestão).','Aprovação interna de entregáveis, a não ser que você seja sênior: nesse caso você revisa os das júnior.']) + """</div></div>
 """ + fig("sem-permissao", "Tentou abrir uma tela de gestão? Aparece esta mensagem. Não é erro: é o perfil.")),
  ],
  quiz=[
@@ -342,10 +345,11 @@ COORD = dict(
  'Pode <b>solicitar esclarecimento</b> ou registrar que foi uma <b>alteração aprovada</b> pelo cliente (não é divergência).',
  '<b>Flags de limitação</b>: dizem o que o A360 não consegue comparar e por quê (ex.: aprovações não vêm do Vobi). Encerram só por resolução ou aceite consciente, com justificativa.']) + regra("Alerta é indício com evidência, nunca prova nem culpa. A decisão é sua; a correção de rota é um direcionamento à produção, registrado em histórico imutável.")),
   ("entregaveis", "Entregáveis — revisão interna", "Aprovar ou pedir ajustes antes de ir ao cliente", """
-<p>A arquiteta registra o entregável e a versão; você faz a revisão interna. Só depois de aprovado internamente ele pode ser marcado como enviado ao cliente.</p>
-""" + fig("coord-entregavel-revisao", "Revisão interna: observações e os botões Aprovar internamente / Pedir ajustes (só coordenação, gestão e administração).", alta=True) + fig("coord-entregaveis", "Lista de entregáveis com indicadores: aguardando revisão interna, aguardando o cliente, ajustes pedidos.") + passos([
- 'No Painel ou em Entregáveis, filtre <b>aguardando revisão interna</b>.',
- 'Abra, veja a versão (link ou arquivo) e decida: <b>Aprovar internamente</b> ou <b>Pedir ajustes</b> (observação obrigatória).',
+<p>A arquiteta registra o entregável e a versão. A revisão interna é em cadeia: <b>arquiteta sênior → coordenação → gerência</b>. Entregável de sênior começa em você (coordenação). Só depois da gerência ele fica “aprovado internamente” e pode ser marcado como enviado ao cliente.</p>
+""" + fig("nov-entregavel-cadeia", "As etapas da revisão aparecem no entregável: o que já foi aprovado (✓) e a etapa atual (●).", alta=True) + """
+""" + fig("coord-entregavel-revisao", "Revisão interna: observações e os botões de aprovar ou pedir ajustes. Cada etapa só aparece para quem é dela.", alta=True) + fig("coord-entregaveis", "Lista de entregáveis com indicadores: aguardando revisão interna, aguardando o cliente, ajustes pedidos.") + passos([
+ 'Em Entregáveis, clique em <b>Para eu revisar</b>: aparecem só os que estão na etapa da coordenação.',
+ 'Abra, veja a versão (link ou arquivo) e decida: <b>Aprovar e seguir</b> (vai para a gerência) ou <b>Pedir ajustes</b> (observação obrigatória; volta para a arquiteta).',
  'Acompanhe "enviado ao cliente" e "ajustes solicitados pelo cliente" — a resposta do cliente é registrada pela arquiteta com evidência.',
  'Cancelar um entregável exige justificativa e fica no histórico.'])),
   ("reunioes", "Reuniões e linha do tempo", "A história decisória de cada projeto", """
@@ -369,7 +373,7 @@ COORD = dict(
  quiz=[
   ("Uma arquiteta está com 14 tarefas na próxima semana e outra com 2. O que a tela de Capacidade está dizendo?", ["Que a primeira é mais produtiva", "Que a distribuição registrada no Vobi está desigual; decida a redistribuição e aplique no Vobi", "Que a segunda está sem trabalho"], 1, "Capacidade é distribuição, não desempenho. A ação é redistribuir no Vobi."),
   ("Um alerta aponta refação depois de uma aprovação do cliente. Primeiro passo?", ["Avisar a arquiteta que errou", "Assumir a análise, ler as evidências e classificar", "Encerrar o alerta"], 1, "Alerta é indício com evidência; a análise e a decisão são suas, registradas no histórico."),
-  ("Entregável chegou em 'revisão interna'. Quem aprova?", ["A arquiteta que criou", "Coordenação, gestão ou administração", "O cliente"], 1, "A revisão interna é da coordenação/gestão; a resposta do cliente é outra etapa, com evidência."),
+  ("Uma júnior subiu um entregável. Qual é a ordem da revisão interna?", ["Coordenação e pronto", "Arquiteta sênior → coordenação → gerência", "Gerência → coordenação"], 1, "Cada etapa aprova e passa para a seguinte; ajustes em qualquer etapa voltam para a arquiteta."),
   ("Os dados do Vobi no A360 são de quando?", ["Tempo real", "Da última sincronização automática, todo dia de manhã" if API else "Da última importação, feita todo dia de manhã pela gestão", "Da semana passada"], 1, "A data aparece no topo de cada tela."),
  ],
 )
@@ -414,9 +418,9 @@ GER = dict(
  'Flags gerais só encerram por resolução (ex.: Vobi passar a exportar o dado) ou aceite consciente com justificativa.',
  'Expansão depende da Vobi (API, identificadores) — decisão D-06 no Painel Mestre.'])),
   ("capacidade", "Capacidade, entregáveis e alertas", "Mesmas ferramentas da coordenação, visão da carteira", """
-<div class="grid">""" + fig("ger-capacidade", "Capacidade e fluxo: carga por pessoa e semana (toda a equipe).") + fig("ger-entregaveis", "Entregáveis: indicadores e lista; você também aprova internamente.") + fig("ger-alertas", "Alertas: tratamento, correção de rota e flags.") + """</div>
+<div class="grid">""" + fig("ger-capacidade", "Capacidade e fluxo: carga por pessoa e semana (toda a equipe).") + fig("ger-entregaveis", "Entregáveis: indicadores e lista; a última etapa da revisão interna é sua.") + fig("ger-alertas", "Alertas: tratamento, correção de rota e flags.") + """</div>
 """ + lista([
- 'Você aprova internamente entregáveis e trata alertas, como a coordenação; use isso para destravar quando a coordenação estiver ausente.',
+ 'Na revisão interna dos entregáveis você é a <b>última etapa</b> (depois da sênior e da coordenação): use <b>Para eu revisar</b>. Você também trata alertas, como a coordenação.',
  'Cancelamento de entregável e aceite de flags são decisões de gestão: exigem justificativa e ficam no histórico.',
  'Capacidade disponível (horas contratadas, férias) não existe em nenhuma fonte: a tela mostra carga planejada, não ocupação.'])),
   ("clientes", "Clientes, Pessoas e Usuários", "Cadastros de apoio", """
@@ -436,7 +440,7 @@ GER = dict(
   (("A sincronização ficou 'aguardando conferência' com 300 projetos não encontrados. O que fazer?", ["Confirmar, o sistema se ajusta", "Não confirmar: ver o erro, sincronizar de novo ou avisar o Rodrigo; nada é gravado antes da confirmação", "Importar por CSV por cima"], 1, "Anomalia na leitura da API não entra sozinha: a gestão confirma ou rejeita.") if API else ("A prévia da importação mostra 300 projetos 'não encontrados'. O que fazer?", ["Confirmar, o sistema se ajusta", "Não confirmar: provavelmente a exportação veio com filtro; refazer no Vobi sem filtro", "Importar só as tarefas"], 1, "Muitos 'não encontrados' é sinal de exportação parcial. Nada é gravado antes da confirmação.")),
   ("Uma flag diz que aprovações do cliente não chegam do Vobi. Como encerrar?", ["Marcar resolvida porque as arquitetas registram no A360", "Só quando a Vobi exportar o dado (resolução) ou com aceite consciente e justificativa", "Apagar a flag"], 1, "Flags encerram por resolução ou aceite consciente; a alternativa (registrar no A360) é um contorno, não a resolução."),
   ("O Painel mostra uma arquiteta com mais refação que as outras. Isso é…", ["Nota de desempenho", "Contexto operacional: contagem de tarefas de refação no Vobi, com a cobertura declarada", "Motivo de desligamento"], 1, "O A360 descreve; a avaliação de pessoas é do People, com critérios próprios."),
-  ("Quem pode aprovar internamente um entregável?", ["Só a coordenação", "Coordenação, gestão e administração", "Qualquer usuário"], 1, "Perfis de gestão aprovam; a arquiteta registra e envia."),
+  ("Quando um entregável fica 'aprovado internamente'?", ["Quando a coordenação aprova", "Depois que a sênior, a coordenação e a gerência aprovam, nesta ordem", "Assim que a versão é registrada"], 1, "A gerência é a última etapa; só então ele pode ir ao cliente."),
  ],
 )
 
@@ -449,6 +453,42 @@ for _c in (COORD, GER):
 ARQ["secoes"].insert(1, PROD_ARQ); ARQ["quiz"] += QUIZ_ARQ_PROD
 COORD["secoes"].insert(1, PROD_COORD); COORD["quiz"] += QUIZ_COORD_PROD
 GER["secoes"].insert(1, PROD_GER); GER["quiz"] += QUIZ_GER_PROD
+
+# -------------------------------------------------------------------- NOVIDADES DE 23/11/2026 (T-293)
+def _nov(itens): return '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">' + ''.join(f'<div class="card"><h3>{t}</h3><p>{c}</p></div>' for t, c in itens) + '</div>'
+N_LOGIN = ("Entrar com Google", "Na tela de entrada, <b>Entrar com Google</b> e a sua conta @rucelle.com.br. Sem senha para lembrar.")
+N_AGENDA = ("Agenda compartilhada", "Em Agenda › <b>Pessoa</b>, veja a agenda de uma colega ou da equipe toda (só consulta). A da direção não é compartilhada.")
+N_CONVITE = ("Convidar com um toque", "Em Nova reunião e Novo compromisso, os botões <b>+ Nome</b> acrescentam a colega aos participantes. <b>Renata (Flavia)</b> convida a Renata, que organiza a agenda da Flávia.")
+N_FERIADOS = ("Feriados nacionais", "Os feriados nacionais já estão na agenda e na programação.")
+N_ENTREGUE = ("Já entregue, no projeto", "Na página do projeto, o bloco <b>Já entregue</b> mostra as etapas concluídas no Vobi, as entregas ao cliente e o que o cliente aprovou.")
+N_LINKS = ("Vários links por versão", "Na versão do entregável, um link por linha (pode pôr um nome antes). Esqueceu algum? <b>+ acrescentar links a esta versão</b>.")
+N_ENTREGAVEL = ("Entregável: anexo no cadastro", "O link ou o arquivo pode ir já no cadastro: o entregável nasce com a versão 1 e vai direto para a revisão.")
+N_CADEIA = ("Revisão em cadeia", "<b>Sênior → coordenação → gerência.</b> A júnior escolhe a sênior (Isys, Amanda ou Luryan). Ajustes em qualquer etapa voltam para a arquiteta. Botão <b>Para eu revisar</b> em Entregáveis.")
+N_REFACAO = ("Refação com motivo", "Na Agenda de Produção, a refação agora tem tipo (layout, 3D, executivo, interiores) e <b>motivo obrigatório</b>.")
+N_INTERNA = ("Entrega interna", "Além de “entrega ao cliente”, dá para marcar <b>entrega interna</b> no dia: a entrega para a revisão da coordenação.")
+N_VIDEO = ("Etapa Vídeo 3D", "Nova etapa na Agenda de Produção e nos entregáveis, logo depois de Imagens 3D (sugestão da Isys).")
+N_ATRASOS = ("Atrasos com motivo", "Menu <b>Atrasos</b>: a coordenação registra por que a tarefa atrasou (cliente, escopo, equipe, terceiros) e a Thaís valida ou define outra medida. A data continua sendo trocada no Vobi.")
+N_FAQ = ("Perguntas frequentes", "Menu Ajuda › <b>Perguntas frequentes</b>: o passo a passo da Minha semana, marcar reunião com cliente e as dúvidas mais comuns.")
+N_TABLET = ("Cancelar no tablet", "No Quadro, Cancelar, Reprogramar e Retornar etapa agora abrem o formulário na tela, sem pular para o topo.")
+_INTRO_NOV = "<p>Tudo o que entrou no A360 em 23/11/2026, a partir das sugestões da equipe.</p>"
+NOV_ARQ = ("novidades", "Novidades de 23/11", "O que mudou hoje", _INTRO_NOV + _nov([N_LOGIN, N_AGENDA, N_CONVITE, N_ENTREGAVEL, N_CADEIA, N_LINKS, N_ENTREGUE, N_REFACAO, N_INTERNA, N_VIDEO, N_FERIADOS, N_FAQ])
+ + '<div class="grid">' + fig("nov-entregavel-novo", "Novo entregável com a sênior que revisa e o arquivo ou link da versão 1.") + fig("nov-entregavel-cadeia", "As etapas da revisão no entregável.") + '</div>'
+ + fig("nov-convites", "Convidar colegas com um toque.") + fig("nov-quadro-refacao", "Refação: tipo, motivo obrigatório e entrega interna.")
+ + fig("nov-ja-entregue", "Bloco Já entregue na página do projeto.")
+ + regra("Se você é sênior (Isys, Amanda ou Luryan), os entregáveis das júnior que indicarem você aparecem em <b>Entregáveis › Para eu revisar</b>.", rot="sênior"))
+_LISTA_GESTAO = [N_ATRASOS, N_CADEIA, N_ENTREGAVEL, N_REFACAO, N_INTERNA, N_VIDEO, N_AGENDA, N_CONVITE, N_LOGIN, N_LINKS, N_ENTREGUE, N_TABLET, N_FERIADOS, N_FAQ]
+NOV_COORD = ("novidades", "Novidades de 23/11", "O que mudou hoje", _INTRO_NOV + _nov(_LISTA_GESTAO)
+ + '<div class="grid">' + fig("nov-atrasos-justificar", "Atrasos › Sem justificativa: registrar categoria, motivo e nova data combinada.") + fig("nov-projeto-justificativa", "No projeto, a tarefa atrasada mostra a justificativa e a situação.") + '</div>'
+ + passos(['Abra <b>Atrasos</b> (ou a página do projeto) e veja as tarefas atrasadas sem justificativa.', 'Em <b>justificar atraso</b>, escolha a categoria, escreva o motivo e, se houver, a nova data combinada.', 'Troque a data também <b>no Vobi</b>: o A360 não altera o Vobi.', 'A Thaís valida (“atraso justificado”) ou define outra medida.'])
+ + fig("nov-entregavel-cadeia", "Revisão em cadeia: a coordenação é a segunda etapa.") + fig("nov-quadro-refacao", "Quadro: refação com tipo e motivo; entrega interna."))
+NOV_GER = ("novidades", "Novidades de 23/11", "O que mudou hoje", _INTRO_NOV + _nov(_LISTA_GESTAO)
+ + '<div class="grid">' + fig("nov-atrasos-validar", "Atrasos › Aguardando validação: validar ou definir outra medida.") + fig("nov-para-revisar", "Entregáveis › Para eu revisar: o que está na etapa da gerência.") + '</div>'
+ + passos(['Abra <b>Atrasos</b>: ela abre em <b>Aguardando validação</b>.', 'Leia a categoria e o motivo. <b>Validar: atraso justificado</b> quando o motivo se sustenta (por exemplo, o cliente mandou medidas erradas).', 'Senão, <b>outra medida</b>: escreva o que fazer (redistribuir, cobrar o cliente, rever o prazo).', 'Em Entregáveis › <b>Para eu revisar</b>, aprove a última etapa da revisão interna.'])
+ + regra("Quem é sênior se marca em <b>Pessoas da agenda › Editar › Arquiteta sênior</b>. Isys, Amanda e Luryan já estão marcadas.", rot="configuração"))
+ARQ["secoes"].insert(0, NOV_ARQ); COORD["secoes"].insert(0, NOV_COORD); GER["secoes"].insert(0, NOV_GER)
+ARQ["quiz"].append(("Você é júnior e vai registrar um entregável. O que precisa indicar?", ["Nada, a coordenação recebe direto", "A arquiteta sênior que vai revisar", "O cliente que vai aprovar"], 1, "A revisão começa pela sênior indicada (Isys, Amanda ou Luryan), depois coordenação e gerência."))
+COORD["quiz"].append(("Uma tarefa atrasou porque o cliente mandou medidas erradas. O que fazer no A360?", ["Nada; só trocar a data no Vobi", "Em Atrasos, justificar (categoria cliente, motivo, nova data) e trocar a data no Vobi", "Cancelar a tarefa"], 1, "A justificativa fica registrada para a Thaís validar; a data continua sendo trocada no Vobi."))
+GER["quiz"].append(("Na página Atrasos, o motivo da coordenação não se sustenta. O que você faz?", ["Valida assim mesmo", "Registra 'outra medida' descrevendo o que fazer", "Apaga a justificativa"], 1, "Outra medida exige o texto da medida e fica no histórico."))
 
 def gerar(cfg):
     nav = ['<div class="grupo">Comece aqui</div><a href="#intro">O que é o A360</a><a href="#acesso">Primeiro acesso</a><div class="grupo">Módulos</div>']
@@ -475,7 +515,7 @@ def gerar(cfg):
 <div><div class="eyebrow">rucelle · Architecture 360 · material de treinamento · {cfg['cab'].lower()}</div><h1>{cfg['titulo'].replace('Treinamento A360 — ','A360 para ')}</h1><p class="lead">{cfg['intro']}</p>
 <p style="margin-top:.5rem"><span class="pill">endereço: {URL.replace('https://','')}</span><span class="pill">{"dados do Vobi: sincronizados pela API todos os dias de manhã" if API else "dados do Vobi: todos os dias de manhã"}</span><span class="pill">Vobi somente leitura</span><span class="pill">clique nas imagens para ampliar</span></p></div>
 {''.join(secs)}
-<div class="rodape">As telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Telas atualizadas em 16/11/2026 com o visual novo (as de programação a partir do Vobi, de conflito, de pendências e da ata por IA são anteriores). Beatriz Teste e Carla Teste são arquitetas fictícias e a programação é de exemplo. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
+<div class="rodape">As telas do módulo “Novidades de 23/11” foram capturadas no ambiente de teste em 23/11/2026, com dados de teste. As demais telas desta página foram capturadas no ambiente de teste do A360 com a exportação do Vobi de 08/11/2026; nomes de projetos e pessoas são os reais da operação, e os exemplos de reunião e entregável são de teste. Telas atualizadas em 16/11/2026 com o visual novo (as de programação a partir do Vobi, de conflito, de pendências e da ata por IA são anteriores). Beatriz Teste e Carla Teste são arquitetas fictícias e a programação é de exemplo. Dúvidas de uso: coordenação e gerência. Problemas no sistema: Rodrigo.</div>
 </main></div></div>
 <div class="lightbox" role="dialog" aria-label="Imagem ampliada"><img alt=""></div>
 <script>{JS}</script>
