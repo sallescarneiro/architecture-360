@@ -3,11 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { exigirUsuario } from "@/lib/auth";
-import { EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, historicoDe, podeEditar, podeVer, porId, versoesDe } from "@/lib/entregaveis";
+import { EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, historicoDe, lerLinks, podeEditar, podeVer, porId, versoesDe } from "@/lib/entregaveis";
 import { reuniaoPorId, reunioesDoProjeto } from "@/lib/reunioes";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
-import { aprovacaoClienteAction, aprovacaoInternaAction, ajustesInternaAction, comentarAction, novaVersaoAction, statusEntregavelAction } from "../actions";
+import { aprovacaoClienteAction, aprovacaoInternaAction, ajustesInternaAction, comentarAction, adicionarLinksAction, novaVersaoAction, statusEntregavelAction } from "../actions";
 
 export default async function EntregavelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const u = await exigirUsuario();
@@ -23,7 +23,7 @@ export default async function EntregavelPage({ params, searchParams }: { params:
   const responsavel = e.responsavelId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.responsavelId)).limit(1))[0]?.nome ?? null : null;
   const fmt = (d: Date) => d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
   const st = STATUS[e.status];
-  const OK: Record<string, string> = { criado: "Entregável registrado.", editado: "Dados salvos.", versao: "Versão registrada.", status: "Situação atualizada.", interna: "Revisão interna registrada.", cliente: "Resposta do cliente registrada com evidência.", comentario: "Comentário registrado." };
+  const OK: Record<string, string> = { criado: "Entregável registrado.", editado: "Dados salvos.", versao: "Versão registrada.", links: "Links acrescentados à versão.", status: "Situação atualizada.", interna: "Revisão interna registrada.", cliente: "Resposta do cliente registrada com evidência.", comentario: "Comentário registrado." };
   const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   const aprovClienteAtual = aprovacoes.find((a) => a.instancia === "cliente" && a.decisao === "aprovado" && a.versaoNumero === e.versaoAtual);
   const podeInterna = gestao(u) && e.status !== "cancelado" && e.versaoAtual >= 1 && ["em_elaboracao", "revisao_interna", "ajustes_cliente"].includes(e.status);
@@ -48,7 +48,14 @@ export default async function EntregavelPage({ params, searchParams }: { params:
                 <li key={v.id} className="py-2 text-[0.88rem]">
                   <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-semibold">v{v.numero}{v.numero === e.versaoAtual && <Badge tone="info">atual</Badge>}</span><span className="text-xs text-[var(--muted)]">{fmt(v.enviadoEm)}</span></div>
                   {v.descricao && <p className="text-[var(--txt-2)]">{v.descricao}</p>}
-                  <div className="flex flex-wrap gap-3 text-xs">{v.link && <a className="underline" href={v.link} target="_blank" rel="noreferrer">abrir link ↗</a>}{v.nomeArquivo && <a className="underline" href={`/api/entregaveis/arquivo?v=${v.id}`}>baixar {v.nomeArquivo} ({Math.round((v.tamanho ?? 0) / 1024)} KB)</a>}</div>
+                  <div className="flex flex-wrap gap-3 text-xs">{lerLinks(v.link).map((l, i) => <a key={i} className="underline" href={l.url} target="_blank" rel="noreferrer">{l.nome} ↗</a>)}{v.nomeArquivo && <a className="underline" href={`/api/entregaveis/arquivo?v=${v.id}`}>baixar {v.nomeArquivo} ({Math.round((v.tamanho ?? 0) / 1024)} KB)</a>}</div>
+                  {edita && v.numero === e.versaoAtual && (
+                    <details className="mt-1 text-xs"><summary className="cursor-pointer text-[var(--vinho)]">+ acrescentar links a esta versão</summary>
+                      <form action={adicionarLinksAction} className="mt-1.5 flex flex-col gap-1.5"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="versao" value={v.id} />
+                        <textarea name="links" rows={3} required className="input" placeholder={"um por linha; pode pôr um nome antes\nPlanta baixa: https://drive.google.com/...\nImagens 3D: https://drive.google.com/..."} />
+                        <div><Button variant="secondary" className="btn-sm">Acrescentar</Button></div></form>
+                    </details>
+                  )}
                 </li>
               ))}</ul>
             ) : <p className="text-[0.85rem] text-[var(--muted)]">Nenhuma versão ainda.</p>}
@@ -57,7 +64,7 @@ export default async function EntregavelPage({ params, searchParams }: { params:
                 <input type="hidden" name="id" value={e.id} />
                 <label className="text-xs font-semibold text-[var(--txt-2)]">Nova versão — o que mudou<textarea name="descricao" rows={2} className="input mt-1" maxLength={2000} placeholder="ex.: v2 com piso emborrachado na área de peso livre, conforme pedido do cliente" /></label>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="text-xs font-semibold text-[var(--txt-2)]">Link (Drive, Vobi…)<input name="link" type="url" className="input mt-1" placeholder="https://" /></label>
+                  <label className="text-xs font-semibold text-[var(--txt-2)]">Links (Drive, Vobi…) — um por linha<textarea name="link" rows={3} className="input mt-1" placeholder={"pode pôr um nome antes do link\nPlanta baixa: https://drive.google.com/...\nImagens 3D: https://drive.google.com/..."} /></label>
                   <label className="text-xs font-semibold text-[var(--txt-2)]">ou arquivo (até 15 MB)<input name="arquivo" type="file" className="input mt-1" /></label>
                 </div>
                 <div><Button variant="secondary">Registrar versão v{e.versaoAtual + 1}</Button></div>

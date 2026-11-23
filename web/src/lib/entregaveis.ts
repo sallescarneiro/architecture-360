@@ -129,13 +129,46 @@ export async function editar(u: Usuario, e: Entregavel, d: Dados): Promise<strin
 }
 
 /** Nova versão: descrição e link e/ou arquivo. Volta o status para "em revisão interna" se já havia aprovação (a versão nova precisa ser aprovada de novo). */
+/** Vários links por versão (pedido de Rodrigo em 23/11/2026): um por linha, guardados no mesmo campo, separados por quebra de linha.
+ *  Cada linha pode ter um nome antes do endereço: "Planta baixa: https://drive...". */
+export type LinkVersao = { nome: string; url: string };
+export function lerLinks(texto: string | null | undefined): LinkVersao[] {
+  return (texto ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const i = l.search(/https?:\/\//i);
+    const url = i >= 0 ? l.slice(i).trim() : l;
+    let nome = i > 0 ? l.slice(0, i).replace(/[\s:–—-]+$/, "").trim() : "";
+    if (!nome) { try { nome = new URL(url).hostname.replace(/^www\./, ""); } catch { nome = "link"; } }
+    return { nome, url };
+  });
+}
+export function validarLinks(texto: string): string | null {
+  for (const l of lerLinks(texto)) if (!/^https?:\/\/\S+$/i.test(l.url)) return `Link inválido: "${l.url.slice(0, 60)}". Use um endereço começando com https://, um por linha.`;
+  if (lerLinks(texto).length > 20) return "Até 20 links por versão.";
+  return null;
+}
+const juntarLinks = (texto: string) => lerLinks(texto).map((l) => (l.nome && !l.url.includes(l.nome) ? `${l.nome}: ${l.url}` : l.url)).join("\n");
+
+/** Acrescenta links a uma versão já registrada (sem criar versão nova). */
+export async function adicionarLinks(u: Usuario, e: Entregavel, versaoId: number, texto: string): Promise<string | null> {
+  if (!(await podeEditar(u, e))) return "Sem permissão.";
+  if (!lerLinks(texto).length) return "Informe ao menos um link.";
+  const erro = validarLinks(texto); if (erro) return erro;
+  const v = (await db.select().from(schema.versoesEntregavel).where(eq(schema.versoesEntregavel.id, versaoId)).limit(1))[0];
+  if (!v || v.entregavelId !== e.id) return "Versão não encontrada.";
+  const novo = [v.link ?? "", juntarLinks(texto)].filter(Boolean).join("\n");
+  await db.update(schema.versoesEntregavel).set({ link: novo }).where(eq(schema.versoesEntregavel.id, v.id));
+  await registrar(e.id, u.id, "versao", `${lerLinks(texto).length} link(s) acrescentado(s) à versão ${v.numero}`, null, null);
+  return null;
+}
+
 export async function novaVersao(u: Usuario, e: Entregavel, descricao: string, link: string, arquivo: File | null): Promise<string | null> {
   if (!(await podeEditar(u, e))) return "Sem permissão.";
   if (!descricao.trim() && !link.trim() && !(arquivo && arquivo.size)) return "Descreva o que mudou, informe um link ou anexe o arquivo.";
   if (arquivo && arquivo.size > LIMITE_ARQUIVO) return "Arquivo acima de 15 MB. Use um link para o Drive.";
+  const erroLink = validarLinks(link); if (erroLink) return erroLink;
   const numero = e.versaoAtual + 1;
   const buf = arquivo && arquivo.size ? Buffer.from(await arquivo.arrayBuffer()) : null;
-  await db.insert(schema.versoesEntregavel).values({ entregavelId: e.id, numero, descricao: descricao.trim() || null, link: link.trim() || null, nomeArquivo: buf ? arquivo!.name : null, tipoMime: buf ? arquivo!.type || "application/octet-stream" : null, tamanho: buf ? buf.length : null, conteudo: buf, enviadoPor: u.id });
+  await db.insert(schema.versoesEntregavel).values({ entregavelId: e.id, numero, descricao: descricao.trim() || null, link: juntarLinks(link) || null, nomeArquivo: buf ? arquivo!.name : null, tipoMime: buf ? arquivo!.type || "application/octet-stream" : null, tamanho: buf ? buf.length : null, conteudo: buf, enviadoPor: u.id });
   const voltaRevisao = ["aprovado_interno", "enviado_cliente", "ajustes_cliente", "aprovado_cliente"].includes(e.status);
   await db.update(schema.entregaveis).set({ versaoAtual: numero, status: voltaRevisao ? "revisao_interna" : e.status === "em_elaboracao" ? "revisao_interna" : e.status }).where(eq(schema.entregaveis.id, e.id));
   await registrar(e.id, u.id, "versao", `Versão ${numero} registrada${buf ? ` (${arquivo!.name})` : ""}${voltaRevisao ? " — volta para revisão interna" : ""}`, { versaoAtual: e.versaoAtual, status: e.status }, { versaoAtual: numero, descricao });

@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
-import { aprovacaoCliente, aprovacaoInterna, comentar, criar, editar, lerDados, mudarStatus, novaVersao, porId } from "@/lib/entregaveis";
+import { adicionarLinks, aprovacaoCliente, aprovacaoInterna, comentar, criar, editar, lerDados, mudarStatus, novaVersao, porId } from "@/lib/entregaveis";
 
 const volta = (id: number, erro?: string | null, ok?: string) => `/entregaveis/${id}${erro ? `?erro=${encodeURIComponent(erro)}` : ok ? `?ok=${ok}` : ""}`;
 
@@ -43,6 +43,14 @@ export async function cancelarDaListaAction(fd: FormData) {
   revalidatePath(`/entregaveis/${id}`); revalidatePath("/entregaveis");
   const v = String(fd.get("volta") ?? "/entregaveis"), base = v.startsWith("/entregaveis") ? v : "/entregaveis", sep = base.includes("?") ? "&" : "?";
   redirect(`${base}${sep}${erro ? `erro=${encodeURIComponent(erro)}` : `ok=${encodeURIComponent(`“${e.titulo}” cancelado. Fica no histórico e pode ser reaberto.`)}`}`);
+}
+
+export async function adicionarLinksAction(fd: FormData) {
+  const u = await exigirUsuario();
+  const id = Number(fd.get("id")); const e = await porId(id); if (!e) redirect("/entregaveis");
+  const erro = await adicionarLinks(u, e, Number(fd.get("versao")), String(fd.get("links") ?? ""));
+  revalidatePath(`/entregaveis/${id}`);
+  redirect(volta(id, erro, "links"));
 }
 
 export async function statusEntregavelAction(fd: FormData) {
