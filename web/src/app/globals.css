@@ -334,3 +334,9 @@ form:has(select[name="etapa"] option[data-ref]:checked) .campo-refacao { display
 .justif-selo{display:grid;gap:3px;margin-top:4px;max-width:420px}
 .justif-texto{font-size:12px;color:var(--txt-2);white-space:normal}
 .justif-meta{color:var(--muted)}
+
+/* T-292 — etapas da revisão interna do entregável */
+.cadeia{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;list-style:none;padding:0}
+.cadeia li{border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted);background:var(--surface-2)}
+.cadeia li.feito{color:var(--ok);background:var(--ok-bg);border-color:transparent}
+.cadeia li.atual{color:#fff;background:var(--vinho);border-color:var(--vinho);font-weight:600}

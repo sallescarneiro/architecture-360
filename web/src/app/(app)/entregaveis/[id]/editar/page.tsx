@@ -1,3 +1,4 @@
+import { seniores } from "@/lib/entregaveis";
 import { notFound, redirect } from "next/navigation";
 import { exigirUsuario, listarUsuarios } from "@/lib/auth";
 import { projetosParaAssociacao } from "@/lib/agenda/sync";
@@ -17,7 +18,7 @@ export default async function EditarEntregavelPage({ params, searchParams }: { p
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <PageHeader eyebrow="Architecture 360 · Entregáveis" title="Editar entregável" subtitle={e.titulo} actions={<LinkButton href={`/entregaveis/${e.id}`}>← Voltar</LinkButton>} />
-      <FormularioEntregavel action={editarEntregavelAction} id={e.id} edicao valores={{ titulo: e.titulo, tipo: e.tipo, descricao: e.descricao ?? "", projetoCodigo: e.projetoCodigo, responsavelId: e.responsavelId, reuniaoId: e.reuniaoId }} projetos={projetos} usuarios={usuarios.filter((x) => x.ativo).map((x) => ({ id: x.id, nome: x.nome }))} reunioes={reunioes.map((r) => ({ id: r.id, titulo: r.titulo }))} volta={`/entregaveis/${e.id}`} erro={sp.erro} />
+      <FormularioEntregavel action={editarEntregavelAction} id={e.id} edicao valores={{ titulo: e.titulo, tipo: e.tipo, descricao: e.descricao ?? "", projetoCodigo: e.projetoCodigo, responsavelId: e.responsavelId, reuniaoId: e.reuniaoId, revisorId: e.revisorId }} projetos={projetos} seniores={await seniores()} usuarios={usuarios.filter((x) => x.ativo).map((x) => ({ id: x.id, nome: x.nome }))} reunioes={reunioes.map((r) => ({ id: r.id, titulo: r.titulo }))} volta={`/entregaveis/${e.id}`} erro={sp.erro} />
     </div>
   );
 }

@@ -25,6 +25,38 @@ export const STATUS: Record<string, { rotulo: string; tom: "ok" | "warn" | "bad"
 export const EVIDENCIAS: Record<string, string> = { email: "E-mail do cliente", mensagem: "Mensagem (WhatsApp etc.)", ata: "Ata de reunião", item_reuniao: "Item de aprovação de reunião do A360", documento_assinado: "Documento assinado", verbal_registrada: "Aprovação verbal registrada (quem, quando, onde)", outro: "Outro" };
 export const LIMITE_ARQUIVO = 15 * 1024 * 1024;
 
+// T-292 (23/11/2026, regra de Rodrigo): revisão interna em cadeia. A júnior sobe; a sênior indicada aprova; depois a coordenação;
+// por fim a gerência. Entregável de sênior começa na coordenação; o da coordenação, na gerência. Ajustes em qualquer etapa voltam
+// para "em elaboração" e a versão nova recomeça a cadeia. A direção (admin) pode registrar qualquer etapa.
+export const ETAPAS_REVISAO: Record<string, string> = { senior: "Arquiteta sênior", coordenacao: "Coordenação", gerencia: "Gerência" };
+const ORDEM_REVISAO = ["senior", "coordenacao", "gerencia"];
+export async function seniores(): Promise<{ id: number; nome: string }[]> {
+  return (await db.execute(sql`select u.id, u.nome from usuario u join agenda_pessoa a on a.usuario_id = u.id where a.senior and u.ativo order by u.nome`)).rows as { id: number; nome: string }[];
+}
+async function ehSenior(id: number) { return (await db.execute(sql`select 1 from agenda_pessoa where usuario_id = ${id} and senior`)).rows.length > 0; }
+async function perfilDe(id: number | null) { return id ? (await db.select({ p: schema.usuarios.perfil }).from(schema.usuarios).where(eq(schema.usuarios.id, id)).limit(1))[0]?.p ?? null : null; }
+/** Primeira etapa da cadeia, conforme quem é responsável pelo entregável. */
+export async function etapaInicial(e: { responsavelId: number | null; criadoPor: number }): Promise<string> {
+  const id = e.responsavelId ?? e.criadoPor, perfil = await perfilDe(id);
+  if (perfil === "coordenacao") return "gerencia";
+  if (perfil === "gestao" || perfil === "admin") return "gerencia";
+  return (await ehSenior(id)) ? "coordenacao" : "senior";
+}
+/** Quem registra a etapa atual: sênior (a indicada ou, sem indicação, qualquer sênior), coordenação, gerência; direção em qualquer uma. */
+export async function podeRevisarEtapa(u: Usuario, e: Entregavel): Promise<boolean> {
+  if (e.status !== "revisao_interna") return false;
+  if (u.perfil === "admin") return true;
+  const etapa = e.etapaRevisao ?? "coordenacao";
+  if (etapa === "senior") return e.revisorId ? u.id === e.revisorId : await ehSenior(u.id);
+  if (etapa === "coordenacao") return u.perfil === "coordenacao";
+  return u.perfil === "gestao";
+}
+/** Júnior precisa indicar a sênior que revisa. */
+async function exigeRevisor(d: { responsavelId: number | null }, criador: number): Promise<boolean> {
+  const id = d.responsavelId ?? criador, perfil = await perfilDe(id);
+  return perfil === "arquiteta" && !(await ehSenior(id));
+}
+
 export const gestao = (u: Usuario) => u.perfil === "admin" || u.perfil === "gestao" || u.perfil === "coordenacao";
 
 /** Arquiteta vê entregáveis dos projetos em que participa (dados do Vobi) ou que ela criou/é responsável. */
@@ -33,7 +65,7 @@ async function sqlVisivel(u: Usuario): Promise<string> {
   const r = await restricaoDe(u.email);
   const carga = await ultimaCargaAceita();
   const porProjeto = carga ? `exists (select 1 from projeto p where p.codigo = e.projeto_codigo and ${sqlParticipa(r.email, r.nomes, carga.id, "p")})` : "false";
-  return `(e.criado_por = ${u.id} or e.responsavel_id = ${u.id} or ${porProjeto})`;
+  return `(e.criado_por = ${u.id} or e.responsavel_id = ${u.id} or e.revisor_id = ${u.id} or ${porProjeto})`;
 }
 export async function podeVer(u: Usuario, e: Entregavel): Promise<boolean> {
   if (gestao(u)) return true;
@@ -49,10 +81,10 @@ export async function podeVerProjeto(u: Usuario, codigo: number): Promise<boolea
 }
 export const podeEditar = async (u: Usuario, e: Entregavel) => e.status !== "cancelado" && (await podeVer(u, e));
 
-export type Filtros = { projeto: number | null; status: string; tipo: string; q: string };
+export type Filtros = { projeto: number | null; status: string; tipo: string; q: string; revisar?: boolean };
 export function lerFiltros(sp: Record<string, string | string[] | undefined>): Filtros {
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
-  return { projeto: /^\d+$/.test(um(sp.projeto)) ? Number(um(sp.projeto)) : null, status: um(sp.status) in STATUS || ["abertos", "todos"].includes(um(sp.status)) ? um(sp.status) : "abertos", tipo: um(sp.tipo) in TIPOS ? um(sp.tipo) : "", q: um(sp.q).slice(0, 80) };
+  return { projeto: /^\d+$/.test(um(sp.projeto)) ? Number(um(sp.projeto)) : null, status: um(sp.status) in STATUS || ["abertos", "todos"].includes(um(sp.status)) ? um(sp.status) : "abertos", tipo: um(sp.tipo) in TIPOS ? um(sp.tipo) : "", q: um(sp.q).slice(0, 80), revisar: um(sp.revisar) === "1" };
 }
 export type EntregavelLista = Entregavel & { projetoNome: string | null; clienteNome: string | null; responsavelNome: string | null; versoes: number; aguardandoInterna: boolean; aguardandoCliente: boolean };
 
@@ -62,6 +94,11 @@ export async function listar(u: Usuario, f: Filtros): Promise<EntregavelLista[]>
   if (f.projeto) where.push(`e.projeto_codigo = ${f.projeto}`);
   if (f.status === "abertos") where.push(`e.status not in ('aprovado_cliente','cancelado')`); else if (f.status && f.status !== "todos") where.push(`e.status = '${esc(f.status)}'`);
   if (f.tipo) where.push(`e.tipo = '${esc(f.tipo)}'`);
+  if (f.revisar) { // T-292: o que está na etapa de revisão desta pessoa
+    const minhas = u.perfil === "admin" ? `true` : u.perfil === "coordenacao" ? `e.etapa_revisao = 'coordenacao'` : u.perfil === "gestao" ? `e.etapa_revisao = 'gerencia'`
+      : `(e.etapa_revisao = 'senior' and (e.revisor_id = ${u.id} or (e.revisor_id is null and exists (select 1 from agenda_pessoa a where a.usuario_id = ${u.id} and a.senior))))`;
+    where.push(`e.status = 'revisao_interna' and ${minhas}`);
+  }
   if (f.q) where.push(`(e.titulo ilike '%${esc(f.q)}%' or p.nome ilike '%${esc(f.q)}%' or c.nome ilike '%${esc(f.q)}%')`);
   const rows = (await db.execute(sql.raw(`select e.*, p.nome projeto_nome, c.nome cliente_nome, u.nome responsavel_nome,
       (select count(*)::int from entregavel_versao v where v.entregavel_id=e.id) versoes
@@ -69,7 +106,7 @@ export async function listar(u: Usuario, f: Filtros): Promise<EntregavelLista[]>
     where ${where.join(" and ")} order by e.atualizado_em desc limit 300`))).rows as Record<string, unknown>[];
   return rows.map((r) => ({
     id: Number(r.id), projetoCodigo: Number(r.projeto_codigo), clienteCodigo: r.cliente_codigo == null ? null : Number(r.cliente_codigo), titulo: String(r.titulo), tipo: String(r.tipo), descricao: (r.descricao as string | null) ?? null,
-    responsavelId: r.responsavel_id == null ? null : Number(r.responsavel_id), status: String(r.status), versaoAtual: Number(r.versao_atual), reuniaoId: r.reuniao_id == null ? null : Number(r.reuniao_id),
+    responsavelId: r.responsavel_id == null ? null : Number(r.responsavel_id), revisorId: r.revisor_id == null ? null : Number(r.revisor_id), etapaRevisao: (r.etapa_revisao as string | null) ?? null, status: String(r.status), versaoAtual: Number(r.versao_atual), reuniaoId: r.reuniao_id == null ? null : Number(r.reuniao_id),
     criadoPor: Number(r.criado_por), criadoEm: new Date(String(r.criado_em)), atualizadoEm: new Date(String(r.atualizado_em)),
     projetoNome: (r.projeto_nome as string | null) ?? null, clienteNome: (r.cliente_nome as string | null) ?? null, responsavelNome: (r.responsavel_nome as string | null) ?? null, versoes: Number(r.versoes),
     aguardandoInterna: r.status === "revisao_interna", aguardandoCliente: r.status === "enviado_cliente",
@@ -101,21 +138,28 @@ async function registrar(entregavelId: number, usuarioId: number, acao: string, 
   await db.update(schema.entregaveis).set({ atualizadoEm: new Date() }).where(eq(schema.entregaveis.id, entregavelId));
 }
 
-export type Dados = { titulo: string; tipo: string; descricao: string; projetoCodigo: number; responsavelId: number | null; reuniaoId: number | null };
+export type Dados = { titulo: string; tipo: string; descricao: string; projetoCodigo: number; responsavelId: number | null; reuniaoId: number | null; revisorId: number | null };
 export function lerDados(fd: FormData): { dados: Dados } | { erro: string } {
   const titulo = String(fd.get("titulo") ?? "").trim(); const tipo = String(fd.get("tipo") ?? "");
-  const projetoCodigo = Number(fd.get("projeto")); const resp = String(fd.get("responsavel") ?? ""); const reuniao = String(fd.get("reuniao") ?? "");
+  const projetoCodigo = Number(fd.get("projeto")); const resp = String(fd.get("responsavel") ?? ""); const reuniao = String(fd.get("reuniao") ?? ""); const rev = String(fd.get("revisor") ?? "");
   if (titulo.length < 3) return { erro: "Informe o título do entregável." };
   if (!(tipo in TIPOS)) return { erro: "Tipo inválido." };
   if (!Number.isInteger(projetoCodigo) || projetoCodigo <= 0) return { erro: "Escolha o projeto (do Vobi)." };
-  return { dados: { titulo, tipo, descricao: String(fd.get("descricao") ?? "").trim(), projetoCodigo, responsavelId: /^\d+$/.test(resp) ? Number(resp) : null, reuniaoId: /^\d+$/.test(reuniao) ? Number(reuniao) : null } };
+  return { dados: { titulo, tipo, descricao: String(fd.get("descricao") ?? "").trim(), projetoCodigo, responsavelId: /^\d+$/.test(resp) ? Number(resp) : null, reuniaoId: /^\d+$/.test(reuniao) ? Number(reuniao) : null, revisorId: /^\d+$/.test(rev) ? Number(rev) : null } };
+}
+
+async function checarRevisor(d: Dados, criador: number): Promise<string | null> {
+  if (d.revisorId && !(await ehSenior(d.revisorId))) return "A revisora indicada não está marcada como arquiteta sênior.";
+  if (!d.revisorId && (await exigeRevisor({ responsavelId: d.responsavelId ?? criador }, criador))) return "Escolha a arquiteta sênior que vai revisar este entregável.";
+  return null;
 }
 
 export async function criar(u: Usuario, d: Dados): Promise<{ ok: true; id: number } | { ok: false; erro: string }> {
   if (!(await podeVerProjeto(u, d.projetoCodigo))) return { ok: false, erro: "Você não participa deste projeto." };
   const p = (await db.select({ c: schema.projetos.clienteCodigo }).from(schema.projetos).where(eq(schema.projetos.codigo, d.projetoCodigo)).limit(1))[0];
   if (!p) return { ok: false, erro: "Projeto não encontrado na última carga do Vobi." };
-  const [r] = await db.insert(schema.entregaveis).values({ projetoCodigo: d.projetoCodigo, clienteCodigo: p.c ?? null, titulo: d.titulo, tipo: d.tipo, descricao: d.descricao || null, responsavelId: d.responsavelId ?? u.id, reuniaoId: d.reuniaoId, criadoPor: u.id }).returning({ id: schema.entregaveis.id });
+  const erroRev = await checarRevisor(d, u.id); if (erroRev) return { ok: false, erro: erroRev };
+  const [r] = await db.insert(schema.entregaveis).values({ projetoCodigo: d.projetoCodigo, clienteCodigo: p.c ?? null, titulo: d.titulo, tipo: d.tipo, descricao: d.descricao || null, responsavelId: d.responsavelId ?? u.id, reuniaoId: d.reuniaoId, revisorId: d.revisorId, criadoPor: u.id }).returning({ id: schema.entregaveis.id });
   await registrar(r.id, u.id, "criado", `Entregável criado: ${d.titulo}`, null, d);
   return { ok: true, id: r.id };
 }
@@ -123,8 +167,9 @@ export async function criar(u: Usuario, d: Dados): Promise<{ ok: true; id: numbe
 export async function editar(u: Usuario, e: Entregavel, d: Dados): Promise<string | null> {
   if (!(await podeEditar(u, e))) return "Sem permissão.";
   if (d.projetoCodigo !== e.projetoCodigo) return "O projeto do entregável não muda; crie outro entregável.";
-  await db.update(schema.entregaveis).set({ titulo: d.titulo, tipo: d.tipo, descricao: d.descricao || null, responsavelId: d.responsavelId, reuniaoId: d.reuniaoId }).where(eq(schema.entregaveis.id, e.id));
-  await registrar(e.id, u.id, "editado", "Dados do entregável alterados", { titulo: e.titulo, tipo: e.tipo, descricao: e.descricao, responsavelId: e.responsavelId, reuniaoId: e.reuniaoId }, d);
+  const erroRev = await checarRevisor(d, e.criadoPor); if (erroRev) return erroRev;
+  await db.update(schema.entregaveis).set({ titulo: d.titulo, tipo: d.tipo, descricao: d.descricao || null, responsavelId: d.responsavelId, reuniaoId: d.reuniaoId, revisorId: d.revisorId }).where(eq(schema.entregaveis.id, e.id));
+  await registrar(e.id, u.id, "editado", "Dados do entregável alterados", { titulo: e.titulo, tipo: e.tipo, descricao: e.descricao, responsavelId: e.responsavelId, reuniaoId: e.reuniaoId, revisorId: e.revisorId }, d);
   return null;
 }
 
@@ -170,7 +215,9 @@ export async function novaVersao(u: Usuario, e: Entregavel, descricao: string, l
   const buf = arquivo && arquivo.size ? Buffer.from(await arquivo.arrayBuffer()) : null;
   await db.insert(schema.versoesEntregavel).values({ entregavelId: e.id, numero, descricao: descricao.trim() || null, link: juntarLinks(link) || null, nomeArquivo: buf ? arquivo!.name : null, tipoMime: buf ? arquivo!.type || "application/octet-stream" : null, tamanho: buf ? buf.length : null, conteudo: buf, enviadoPor: u.id });
   const voltaRevisao = ["aprovado_interno", "enviado_cliente", "ajustes_cliente", "aprovado_cliente"].includes(e.status);
-  await db.update(schema.entregaveis).set({ versaoAtual: numero, status: voltaRevisao ? "revisao_interna" : e.status === "em_elaboracao" ? "revisao_interna" : e.status }).where(eq(schema.entregaveis.id, e.id));
+  const novoStatus = voltaRevisao || e.status === "em_elaboracao" ? "revisao_interna" : e.status;
+  const etapa = novoStatus === "revisao_interna" ? await etapaInicial(e) : e.etapaRevisao; // versão nova recomeça a cadeia
+  await db.update(schema.entregaveis).set({ versaoAtual: numero, status: novoStatus, etapaRevisao: etapa }).where(eq(schema.entregaveis.id, e.id));
   await registrar(e.id, u.id, "versao", `Versão ${numero} registrada${buf ? ` (${arquivo!.name})` : ""}${voltaRevisao ? " — volta para revisão interna" : ""}`, { versaoAtual: e.versaoAtual, status: e.status }, { versaoAtual: numero, descricao });
   return null;
 }
@@ -183,21 +230,26 @@ export async function mudarStatus(u: Usuario, e: Entregavel, status: string, jus
   if (status === "enviado_cliente" && e.status !== "aprovado_interno") return "Só se envia ao cliente um entregável aprovado internamente.";
   if (status === "cancelado" && !gestao(u)) return "Só coordenação/gestão cancela um entregável.";
   if (status === "cancelado" && justificativa.trim().length < 5) return "Escreva a justificativa do cancelamento.";
-  await db.update(schema.entregaveis).set({ status }).where(eq(schema.entregaveis.id, e.id));
+  if (status === "revisao_interna" && e.versaoAtual < 1) return "Registre ao menos uma versão antes de enviar para revisão.";
+  await db.update(schema.entregaveis).set({ status, etapaRevisao: status === "revisao_interna" ? await etapaInicial(e) : null }).where(eq(schema.entregaveis.id, e.id));
   await registrar(e.id, u.id, status === "cancelado" ? "cancelado" : "status", `Status: ${STATUS[e.status]?.rotulo} → ${STATUS[status].rotulo}${justificativa ? ` — ${justificativa}` : ""}`, { status: e.status }, { status });
   return null;
 }
 
-/** Aprovação interna: só coordenação/gestão/admin; sobre a versão atual. */
+/** Revisão interna em cadeia (T-292): registra a decisão da etapa atual; aprovado avança, ajustes volta para elaboração. */
 export async function aprovacaoInterna(u: Usuario, e: Entregavel, decisao: "aprovado" | "ajustes", observacao: string): Promise<string | null> {
-  if (!gestao(u)) return "Só coordenação, gestão ou administração aprovam internamente.";
   if (e.status === "cancelado") return "Entregável cancelado.";
   if (e.versaoAtual < 1) return "Registre ao menos uma versão antes de aprovar.";
+  if (e.status !== "revisao_interna") return "O entregável não está em revisão interna. Envie para revisão primeiro.";
+  const etapa = e.etapaRevisao ?? "coordenacao";
+  if (!(await podeRevisarEtapa(u, e))) return `Esta etapa da revisão é da ${ETAPAS_REVISAO[etapa].toLowerCase()}${etapa === "senior" && e.revisorId ? " indicada" : ""}.`;
   if (decisao === "ajustes" && observacao.trim().length < 5) return "Descreva os ajustes pedidos.";
-  await db.insert(schema.aprovacoesEntregavel).values({ entregavelId: e.id, versaoNumero: e.versaoAtual, instancia: "interna", decisao, observacao: observacao.trim() || null, registradoPor: u.id });
-  const status = decisao === "aprovado" ? "aprovado_interno" : "em_elaboracao";
-  await db.update(schema.entregaveis).set({ status }).where(eq(schema.entregaveis.id, e.id));
-  await registrar(e.id, u.id, "aprovacao_interna", `${decisao === "aprovado" ? "Aprovado internamente" : "Ajustes pedidos na revisão interna"} (v${e.versaoAtual}) por ${u.nome}${observacao ? `: ${observacao.slice(0, 160)}` : ""}`, { status: e.status }, { status, decisao });
+  await db.insert(schema.aprovacoesEntregavel).values({ entregavelId: e.id, versaoNumero: e.versaoAtual, instancia: "interna", nivel: etapa, decisao, observacao: observacao.trim() || null, registradoPor: u.id });
+  const prox = ORDEM_REVISAO[ORDEM_REVISAO.indexOf(etapa) + 1] ?? null;
+  const status = decisao === "ajustes" ? "em_elaboracao" : prox ? "revisao_interna" : "aprovado_interno";
+  await db.update(schema.entregaveis).set({ status, etapaRevisao: decisao === "aprovado" && prox ? prox : null }).where(eq(schema.entregaveis.id, e.id));
+  const txt = decisao === "aprovado" ? `${ETAPAS_REVISAO[etapa]} aprovou (v${e.versaoAtual})${prox ? ` — segue para ${ETAPAS_REVISAO[prox].toLowerCase()}` : " — aprovado internamente"}` : `${ETAPAS_REVISAO[etapa]} pediu ajustes (v${e.versaoAtual})`;
+  await registrar(e.id, u.id, "aprovacao_interna", `${txt} · ${u.nome}${observacao ? `: ${observacao.slice(0, 160)}` : ""}`, { status: e.status, etapa }, { status, decisao, etapa: prox });
   return null;
 }
 

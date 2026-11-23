@@ -30,7 +30,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
       <div className="flex flex-wrap items-start gap-4">
         <section className="card min-w-0 flex-[999_1_560px] p-4" aria-label="Pessoas">
           <div className="overflow-x-auto"><table className="tbl">
-            <thead><tr><th>Pessoa</th><th>Localidade</th><th>Almoço</th><th>Modelo</th><th>Valida</th>{edita && <th></th>}</tr></thead>
+            <thead><tr><th>Pessoa</th><th>Localidade</th><th>Almoço</th><th>Modelo</th><th>Valida</th><th>Sênior</th>{edita && <th></th>}</tr></thead>
             <tbody>{pessoas.map((p) => (
               <tr key={p.id} className={sel?.id === p.id ? "bg-[#fbf4f1]" : ""}>
                 <td><b>{p.nome}</b><span className="block text-[0.7rem] text-[var(--muted)]">{PERFIL[p.perfil] ?? p.perfil}</span></td>
@@ -38,6 +38,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                 <td>{p.cfg.almocoInicio && p.cfg.almocoFim ? `${p.cfg.almocoInicio}–${p.cfg.almocoFim}` : <span className="text-[var(--muted)]">—</span>}</td>
                 <td>{p.perfil === "arquiteta" ? <span className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${p.cfg.modelo === "indefinido" ? "border border-dashed border-[#b9aea7] text-[var(--muted)]" : "bg-[var(--rose-2)] text-[var(--vinho)]"}`}>{P.MODELOS[p.cfg.modelo].rotulo}</span> : <span className="text-[var(--muted)]">—</span>}</td>
                 <td className="text-xs">{p.cfg.validadora ? "sim" : p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje ? `substituta até ${dataCurta(p.cfg.substitutaAte)}` : "—"}</td>
+                <td className="text-xs">{p.cfg.senior ? "sim" : "—"}</td>
                 {edita && <td><Link href={`/agenda/pessoas?p=${p.id}`} className="btn btn-secondary btn-sm" scroll={false} aria-label={`Editar ${p.nome}`}>Editar</Link></td>}
               </tr>))}
             </tbody>
@@ -78,6 +79,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                 ))}
               </fieldset>
               {pode && <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="validadora" value="1" defaultChecked={sel.cfg.validadora} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Valida propostas das arquitetas autônomas</label>}
+              {sel.perfil === "arquiteta" && <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="senior" value="1" defaultChecked={sel.cfg.senior} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Arquiteta sênior (revisa os entregáveis das júnior)</label>}
               <p className="text-xs text-[var(--muted)]">Mudar o modelo não altera atividades já programadas. Propostas aguardando validação continuam na fila.</p>
               <div className="flex flex-wrap gap-2"><Button variant="primary">Salvar</Button><Link href="/agenda/pessoas" className="btn btn-ghost">Fechar</Link></div>
             </form>

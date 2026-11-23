@@ -62,7 +62,7 @@ export const administraConfig = (u: Usuario) => u.perfil === "admin" || u.perfil
 /** Localidade, almoço e modelo de programação: gestão e coordenação (pedido da gerência em 18/11/2026). Validadoras e substitutas seguem só com a gestão. */
 export const configuraPessoas = (u: Usuario) => gestor(u);
 
-const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
+const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, senior: false, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
 
 export async function configDe(usuarioId: number): Promise<ConfigPessoa> {
   return (await db.select().from(schema.agendaPessoas).where(eq(schema.agendaPessoas.usuarioId, usuarioId)))[0] ?? PADRAO(usuarioId);
@@ -482,6 +482,7 @@ export async function salvarConfig(u: Usuario, usuarioId: number, fd: FormData):
   const novo = {
     uf: s("uf").toUpperCase().slice(0, 2) || null, municipio: s("municipio").slice(0, 80) || null,
     almocoInicio: s("almoco_inicio") || null, almocoFim: s("almoco_fim") || null, modelo: s("modelo"), validadora: administraConfig(u) ? s("validadora") === "1" : atual.validadora,
+    senior: s("senior") === "1", // T-292: arquiteta sênior (revisa entregáveis das júnior)
   };
   if (novo.uf && !/^[A-Z]{2}$/.test(novo.uf)) return { ok: false, mensagem: "UF inválida (duas letras)." };
   if (!MODELOS[novo.modelo]) return { ok: false, mensagem: "Modelo inválido." };
@@ -492,6 +493,7 @@ export async function salvarConfig(u: Usuario, usuarioId: number, fd: FormData):
   if ((atual.almocoInicio ?? "") !== (novo.almocoInicio ?? "") || (atual.almocoFim ?? "") !== (novo.almocoFim ?? "")) mud.push(`almoço ${atual.almocoInicio ?? "—"}–${atual.almocoFim ?? "—"} → ${novo.almocoInicio ?? "—"}–${novo.almocoFim ?? "—"}`);
   if (atual.modelo !== novo.modelo) mud.push(`${MODELOS[atual.modelo].rotulo} → ${MODELOS[novo.modelo].rotulo}`);
   if (atual.validadora !== novo.validadora) mud.push(novo.validadora ? "passa a validar propostas" : "deixa de validar propostas");
+  if (atual.senior !== novo.senior) mud.push(novo.senior ? "passa a ser arquiteta sênior (revisa entregáveis)" : "deixa de ser arquiteta sênior");
   if (!mud.length) return { ok: true };
   await db.insert(schema.agendaPessoas).values({ usuarioId, ...novo, substitutaAte: atual.substitutaAte, atualizadoPorId: u.id, atualizadoEm: new Date() })
     .onConflictDoUpdate({ target: schema.agendaPessoas.usuarioId, set: { ...novo, atualizadoPorId: u.id, atualizadoEm: new Date() } });

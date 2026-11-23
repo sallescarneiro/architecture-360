@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ETAPAS_REVISAO } from "@/lib/entregaveis";
 import { exigirUsuario } from "@/lib/auth";
 import { STATUS, TIPOS, contagens, gestao, lerFiltros, listar } from "@/lib/entregaveis";
 import { Badge, Button, Card, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
@@ -23,6 +24,10 @@ export default async function EntregaveisPage({ searchParams }: { searchParams: 
       <PageHeader eyebrow="Architecture 360 · Entregáveis" title="Entregáveis e aprovações" subtitle="Layouts, apresentações e cadernos com versões, revisão interna e aprovação do cliente registrada com evidência. Registro interno: nada é enviado ao cliente por aqui." actions={<LinkButton href="/entregaveis/novo" variant="primary">+ Novo entregável</LinkButton>} />
       {msg("erro") && <div className="leitura leitura-bad" role="alert"><b>Atenção</b>{msg("erro")}</div>}
       {msg("ok") && <div className="leitura" role="status"><b>OK</b>{msg("ok")}</div>}
+      <div className="flex flex-wrap gap-2" aria-label="Atalhos">
+        <Link href={f.revisar ? "/entregaveis" : "/entregaveis?revisar=1"} className={`btn btn-sm ${f.revisar ? "btn-primary" : "btn-secondary"}`}>Para eu revisar</Link>
+        {f.revisar && <span className="self-center text-xs text-[var(--muted)]">Entregáveis na sua etapa da revisão interna (sênior, coordenação ou gerência).</span>}
+      </div>
       {cont && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Em aberto" value={cont.abertos} href={href({ status: "abertos" })} />
@@ -54,7 +59,7 @@ export default async function EntregaveisPage({ searchParams }: { searchParams: 
                 <td><Link className="underline" href={`/projetos/${e.projetoCodigo}`}>{e.projetoNome ?? e.projetoCodigo}</Link>{e.clienteNome && <span className="text-[var(--muted)]"> · {e.clienteNome}</span>}</td>
                 <td className="text-[var(--txt-2)]">{TIPOS[e.tipo]}</td>
                 <td className="text-center">{e.versaoAtual ? `v${e.versaoAtual}` : <span className="text-[var(--muted)]">—</span>}</td>
-                <td><Badge tone={STATUS[e.status]?.tom}>{STATUS[e.status]?.rotulo}</Badge></td>
+                <td><Badge tone={STATUS[e.status]?.tom}>{STATUS[e.status]?.rotulo}</Badge>{e.status === "revisao_interna" && <span className="block text-[0.7rem] text-[var(--muted)]">etapa: {ETAPAS_REVISAO[e.etapaRevisao ?? "coordenacao"].toLowerCase()}</span>}</td>
                 <td className="text-[var(--txt-2)]">{e.responsavelNome ?? "—"}</td>
                 <td className="whitespace-nowrap text-[var(--muted)]">{fmt(e.atualizadoEm)}</td>
                 {gestao(u) && <td>{e.status !== "cancelado" && (

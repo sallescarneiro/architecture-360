@@ -522,6 +522,8 @@ export const entregaveis = pgTable("entregavel", {
   status: text("status").notNull().default("em_elaboracao"), // em_elaboracao | revisao_interna | aprovado_interno | enviado_cliente | aprovado_cliente | ajustes_cliente | cancelado
   versaoAtual: integer("versao_atual").notNull().default(0),
   reuniaoId: integer("reuniao_id"),                         // reunião de apresentação (opcional)
+  revisorId: integer("revisor_id").references(() => usuarios.id), // T-292: arquiteta sênior que revisa (entregável de júnior)
+  etapaRevisao: text("etapa_revisao"),                      // T-292: senior | coordenacao | gerencia (só em revisão interna)
   criadoPor: integer("criado_por").notNull().references(() => usuarios.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
@@ -547,6 +549,7 @@ export const aprovacoesEntregavel = pgTable("entregavel_aprovacao", {
   entregavelId: integer("entregavel_id").notNull().references(() => entregaveis.id),
   versaoNumero: integer("versao_numero").notNull(),
   instancia: text("instancia").notNull(),                   // interna | cliente
+  nivel: text("nivel"),                                     // T-292: etapa da revisão interna (senior | coordenacao | gerencia)
   decisao: text("decisao").notNull(),                       // aprovado | ajustes | reprovado
   observacao: text("observacao"),
   // evidência (obrigatória para cliente): como a aprovação chegou
@@ -755,6 +758,7 @@ export const agendaPessoas = pgTable("agenda_pessoa", {
   almocoFim: text("almoco_fim"),
   modelo: text("modelo").notNull().default("indefinido"),  // indefinido (= estruturada) | estruturada | autonoma
   validadora: boolean("validadora").notNull().default(false),
+  senior: boolean("senior").notNull().default(false),        // arquiteta sênior: revisa entregáveis das júnior (T-292)
   substitutaAte: text("substituta_ate"),                    // AAAA-MM-DD: valida como substituta até esta data
   atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),

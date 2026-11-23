@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { exigirUsuario } from "@/lib/auth";
-import { EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, historicoDe, lerLinks, podeEditar, podeVer, porId, versoesDe } from "@/lib/entregaveis";
+import { ETAPAS_REVISAO, podeRevisarEtapa, EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, historicoDe, lerLinks, podeEditar, podeVer, porId, versoesDe } from "@/lib/entregaveis";
 import { reuniaoPorId, reunioesDoProjeto } from "@/lib/reunioes";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
@@ -20,19 +20,23 @@ export default async function EntregavelPage({ params, searchParams }: { params:
     db.select({ nome: schema.projetos.nome, cliente: schema.clientesVobi.nome }).from(schema.projetos).leftJoin(schema.clientesVobi, eq(schema.clientesVobi.codigo, schema.projetos.clienteCodigo)).where(eq(schema.projetos.codigo, e.projetoCodigo)).limit(1).then((r) => r[0] ?? null),
     e.reuniaoId ? reuniaoPorId(e.reuniaoId) : Promise.resolve(null), reunioesDoProjeto(e.projetoCodigo)]);
   const itensAprovacao = reunioesProj.length ? await db.select({ id: schema.itensReuniao.id, texto: schema.itensReuniao.texto, reuniaoId: schema.itensReuniao.reuniaoId }).from(schema.itensReuniao).where(and(inArray(schema.itensReuniao.reuniaoId, reunioesProj.map((r) => r.id)), eq(schema.itensReuniao.tipo, "aprovacao"), eq(schema.itensReuniao.confirmado, true))) : [];
+  const revisora = e.revisorId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.revisorId)).limit(1))[0]?.nome ?? null : null;
+  const revisa = await podeRevisarEtapa(u, e); // T-292: só quem é da etapa atual da cadeia
+  const etapaAtual = e.status === "revisao_interna" ? e.etapaRevisao ?? "coordenacao" : null;
+  const aprovadasNaVersao = new Set(aprovacoes.filter((a) => a.instancia === "interna" && a.decisao === "aprovado" && a.versaoNumero === e.versaoAtual && a.nivel).map((a) => a.nivel!));
   const responsavel = e.responsavelId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.responsavelId)).limit(1))[0]?.nome ?? null : null;
   const fmt = (d: Date) => d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
   const st = STATUS[e.status];
-  const OK: Record<string, string> = { criado: "Entregável registrado.", editado: "Dados salvos.", versao: "Versão registrada.", links: "Links acrescentados à versão.", status: "Situação atualizada.", interna: "Revisão interna registrada.", cliente: "Resposta do cliente registrada com evidência.", comentario: "Comentário registrado." };
+  const OK: Record<string, string> = { criado: "Entregável registrado.", criado_v1: "Entregável registrado com a versão 1. Já está na revisão interna.", editado: "Dados salvos.", versao: "Versão registrada.", links: "Links acrescentados à versão.", status: "Situação atualizada.", interna: "Revisão interna registrada.", cliente: "Resposta do cliente registrada com evidência.", comentario: "Comentário registrado." };
   const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   const aprovClienteAtual = aprovacoes.find((a) => a.instancia === "cliente" && a.decisao === "aprovado" && a.versaoNumero === e.versaoAtual);
-  const podeInterna = gestao(u) && e.status !== "cancelado" && e.versaoAtual >= 1 && ["em_elaboracao", "revisao_interna", "ajustes_cliente"].includes(e.status);
+  const podeInterna = revisa;
   const podeCliente = edita && e.versaoAtual >= 1 && ["enviado_cliente", "aprovado_interno", "ajustes_cliente", "aprovado_cliente"].includes(e.status);
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow={`Architecture 360 · Entregáveis · ${TIPOS[e.tipo]}`} title={e.titulo}
-        subtitle={<><Link className="underline" href={`/projetos/${e.projetoCodigo}`}>{projeto?.nome ?? `projeto ${e.projetoCodigo}`}</Link>{projeto?.cliente && <> · {projeto.cliente}</>} · <a className="underline" href={linkVobiProjeto(e.projetoCodigo)} target="_blank" rel="noreferrer">Vobi ↗</a> · responsável: {responsavel ?? "—"} · <Badge tone={st.tom}>{st.rotulo}</Badge>{e.versaoAtual ? <> · versão atual v{e.versaoAtual}</> : " · sem versão registrada"}</>}
+        subtitle={<><Link className="underline" href={`/projetos/${e.projetoCodigo}`}>{projeto?.nome ?? `projeto ${e.projetoCodigo}`}</Link>{projeto?.cliente && <> · {projeto.cliente}</>} · <a className="underline" href={linkVobiProjeto(e.projetoCodigo)} target="_blank" rel="noreferrer">Vobi ↗</a> · responsável: {responsavel ?? "—"}{revisora && <> · revisão sênior: {revisora}</>} · <Badge tone={st.tom}>{st.rotulo}</Badge>{e.versaoAtual ? <> · versão atual v{e.versaoAtual}</> : " · sem versão registrada"}</>}
         actions={<div className="flex gap-2">{edita && <LinkButton href={`/entregaveis/${e.id}/editar`}>Editar</LinkButton>}<LinkButton href="/entregaveis">← Entregáveis</LinkButton></div>} />
       {sp.ok && OK[sp.ok] && <Alert kind="success">{OK[sp.ok]}</Alert>}
       {sp.erro && <Alert>{sp.erro}</Alert>}
@@ -72,7 +76,15 @@ export default async function EntregavelPage({ params, searchParams }: { params:
             )}
           </Card>
 
-          <Card title={`Aprovações (${aprovacoes.length})`} subtitle="Revisão interna (coordenação/gestão) e resposta do cliente — sempre com evidência. Nada aqui é presumido.">
+          <Card title={`Aprovações (${aprovacoes.length})`} subtitle="Revisão interna em etapas (arquiteta sênior, coordenação, gerência) e resposta do cliente, sempre com evidência. Nada aqui é presumido.">
+            {e.status === "revisao_interna" && (
+              <ol className="cadeia mb-3" aria-label="Etapas da revisão interna">
+                {(["senior", "coordenacao", "gerencia"] as const).map((k) => {
+                  const feito = aprovadasNaVersao.has(k), atual = etapaAtual === k;
+                  return <li key={k} className={feito ? "feito" : atual ? "atual" : ""}>{feito ? "✓ " : atual ? "● " : ""}{ETAPAS_REVISAO[k]}{k === "senior" && revisora ? ` (${revisora.split(" ")[0]})` : ""}</li>;
+                })}
+              </ol>
+            )}
             {aprovacoes.length ? (
               <ul className="divide-y divide-[var(--line)]">{aprovacoes.map((a) => (
                 <li key={a.id} className="py-2 text-[0.88rem]">
@@ -90,12 +102,12 @@ export default async function EntregavelPage({ params, searchParams }: { params:
             {podeInterna && (
               <form action={aprovacaoInternaAction} className="mt-3 grid gap-2 border-t border-[var(--line)] pt-3">
                 <input type="hidden" name="id" value={e.id} />
-                <div className="text-xs font-semibold text-[var(--txt-2)]">Revisão interna da v{e.versaoAtual}</div>
+                <div className="text-xs font-semibold text-[var(--txt-2)]">Revisão interna da v{e.versaoAtual} · etapa: {ETAPAS_REVISAO[etapaAtual ?? "coordenacao"]}</div>
                 <textarea name="observacao" rows={2} className="input" maxLength={2000} placeholder="observações (obrigatório ao pedir ajustes)" />
-                <div className="flex gap-2"><Button formAction={aprovacaoInternaAction} variant="primary">Aprovar internamente</Button><Button formAction={ajustesInternaAction} variant="secondary">Pedir ajustes</Button></div>
+                <div className="flex gap-2"><Button formAction={aprovacaoInternaAction} variant="primary">{etapaAtual === "gerencia" ? "Aprovar internamente" : "Aprovar e seguir"}</Button><Button formAction={ajustesInternaAction} variant="secondary">Pedir ajustes</Button></div>
               </form>
             )}
-            {!gestao(u) && e.status === "revisao_interna" && <p className="mt-2 text-[0.8rem] text-[var(--muted)]">Aguardando revisão interna da coordenação/gestão.</p>}
+            {!revisa && e.status === "revisao_interna" && <p className="mt-2 text-[0.8rem] text-[var(--muted)]">Aguardando a revisão da etapa: {ETAPAS_REVISAO[etapaAtual ?? "coordenacao"].toLowerCase()}{etapaAtual === "senior" && revisora ? ` (${revisora})` : ""}.</p>}
 
             {podeCliente && (
               <form action={aprovacaoClienteAction} className="mt-3 grid gap-2 border-t border-[var(--line)] pt-3" encType="multipart/form-data">

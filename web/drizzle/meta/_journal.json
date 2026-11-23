@@ -176,6 +176,13 @@
       "when": 1795454815254,
       "tag": "0024_atraso_justificativa",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795466212021,
+      "tag": "0025_entregavel_revisao_cadeia",
+      "breakpoints": true
     }
   ]
 }

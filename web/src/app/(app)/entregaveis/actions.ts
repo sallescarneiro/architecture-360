@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
-import { adicionarLinks, aprovacaoCliente, aprovacaoInterna, comentar, criar, editar, lerDados, mudarStatus, novaVersao, porId } from "@/lib/entregaveis";
+import { LIMITE_ARQUIVO, validarLinks, adicionarLinks, aprovacaoCliente, aprovacaoInterna, comentar, criar, editar, lerDados, mudarStatus, novaVersao, porId } from "@/lib/entregaveis";
 
 const volta = (id: number, erro?: string | null, ok?: string) => `/entregaveis/${id}${erro ? `?erro=${encodeURIComponent(erro)}` : ok ? `?ok=${ok}` : ""}`;
 
@@ -10,10 +10,21 @@ export async function criarEntregavelAction(fd: FormData) {
   const u = await exigirUsuario();
   const r = lerDados(fd);
   if ("erro" in r) redirect(`/entregaveis/novo?projeto=${String(fd.get("projeto") ?? "")}&erro=${encodeURIComponent(r.erro)}`);
+  // T-292: links/arquivo no cadastro viram a versão 1 (valida antes de criar, para não sobrar entregável sem a versão)
+  const link = String(fd.get("link") ?? ""); const arq = fd.get("arquivo"); const arquivo = arq instanceof File && arq.size ? arq : null;
+  const erroLink = validarLinks(link);
+  if (erroLink || (arquivo && arquivo.size > LIMITE_ARQUIVO)) redirect(`/entregaveis/novo?projeto=${r.dados.projetoCodigo}&erro=${encodeURIComponent(erroLink ?? "Arquivo acima de 15 MB. Use um link para o Drive.")}`);
   const c = await criar(u, r.dados);
   if (!c.ok) redirect(`/entregaveis/novo?projeto=${r.dados.projetoCodigo}&erro=${encodeURIComponent(c.erro)}`);
+  let ok = "criado";
+  if (link.trim() || arquivo) {
+    const e = await porId(c.id);
+    const erro = e ? await novaVersao(u, e, "Versão inicial", link, arquivo) : "Entregável não encontrado.";
+    if (erro) { revalidatePath("/entregaveis"); redirect(volta(c.id, `Entregável registrado, mas a versão 1 não foi salva: ${erro}`)); }
+    ok = "criado_v1";
+  }
   revalidatePath("/entregaveis"); revalidatePath(`/projetos/${r.dados.projetoCodigo}`);
-  redirect(`/entregaveis/${c.id}?ok=criado`);
+  redirect(`/entregaveis/${c.id}?ok=${ok}`);
 }
 
 export async function editarEntregavelAction(fd: FormData) {
@@ -65,7 +76,7 @@ export async function statusEntregavelAction(fd: FormData) {
 export async function aprovacaoInternaAction(fd: FormData) { await revisaoInterna(fd, "aprovado"); }
 export async function ajustesInternaAction(fd: FormData) { await revisaoInterna(fd, "ajustes"); }
 async function revisaoInterna(fd: FormData, decisao: "aprovado" | "ajustes") {
-  const u = await exigirUsuario(["admin", "gestao", "coordenacao"]);
+  const u = await exigirUsuario(); // T-292: quem pode cada etapa (sênior, coordenação, gerência) é decidido em aprovacaoInterna
   const id = Number(fd.get("id")); const e = await porId(id); if (!e) redirect("/entregaveis");
   const erro = await aprovacaoInterna(u, e, decisao, String(fd.get("observacao") ?? ""));
   revalidatePath(`/entregaveis/${id}`); revalidatePath("/entregaveis");
