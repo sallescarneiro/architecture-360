@@ -89,7 +89,7 @@ export default async function EntregavelPage({ params, searchParams }: { params:
               <ul className="divide-y divide-[var(--line)]">{aprovacoes.map((a) => (
                 <li key={a.id} className="py-2 text-[0.88rem]">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span><Badge tone={a.decisao === "aprovado" ? "ok" : a.decisao === "ajustes" ? "warn" : "bad"}>{a.instancia === "interna" ? "interna" : "cliente"} · {a.decisao === "aprovado" ? "aprovado" : a.decisao === "ajustes" ? "ajustes" : "reprovado"}</Badge> <span className="font-semibold">v{a.versaoNumero}</span></span>
+                    <span><Badge tone={a.decisao === "aprovado" ? "ok" : a.decisao === "ajustes" ? "warn" : "bad"}>{a.instancia === "interna" ? (a.nivel ? ETAPAS_REVISAO[a.nivel]?.toLowerCase() ?? "interna" : "interna") : "cliente"} · {a.decisao === "aprovado" ? "aprovado" : a.decisao === "ajustes" ? "ajustes" : "reprovado"}</Badge> <span className="font-semibold">v{a.versaoNumero}</span></span>
                     <span className="text-xs text-[var(--muted)]">{fmt(a.registradoEm)} · registrado por {a.quem}</span>
                   </div>
                   {a.instancia === "cliente" && <p className="text-[var(--txt-2)]">Cliente: {a.evidenciaQuem} em {a.evidenciaData?.split("-").reverse().join("/")} · evidência: {EVIDENCIAS[a.evidenciaTipo ?? "outro"]}{a.itemReuniaoId && <> · <Link className="underline" href={`/reunioes/${itensAprovacao.find((i) => i.id === a.itemReuniaoId)?.reuniaoId ?? ""}#aprovacao`}>item de reunião #{a.itemReuniaoId}</Link></>}{a.nomeArquivo && <> · <a className="underline" href={`/api/entregaveis/arquivo?a=${a.id}`}>baixar evidência</a></>}</p>}
