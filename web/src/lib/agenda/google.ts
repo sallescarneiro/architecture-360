@@ -41,6 +41,26 @@ export function urlAutorizacao(state: string, req?: Request): string {
   return `${AUTH_URL}?${p}`;
 }
 
+/** Entrada no A360 com a conta Google: só identidade (openid, email, profile). Usa o mesmo endereço de retorno já autorizado no Google. */
+export function urlLoginGoogle(state: string, req?: Request): string {
+  const p = new URLSearchParams({
+    client_id: process.env.GOOGLE_OAUTH_CLIENT_ID!, redirect_uri: urlRedirecionamento(req), response_type: "code",
+    scope: "openid email profile", prompt: "select_account", state, hd: "rucelle.com.br",
+  });
+  return `${AUTH_URL}?${p}`;
+}
+
+/** Troca o código do login por tokens e devolve o e-mail verificado da conta da rucelle (id_token recebido direto do Google por TLS). */
+export async function emailDoLoginGoogle(code: string, req?: Request): Promise<string | null> {
+  const t = await pedirToken({ code, client_id: process.env.GOOGLE_OAUTH_CLIENT_ID!, client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET!, redirect_uri: urlRedirecionamento(req), grant_type: "authorization_code" });
+  if (!t.id_token) return null;
+  try {
+    const p = JSON.parse(Buffer.from(t.id_token.split(".")[1], "base64url").toString("utf8")) as { email?: string; email_verified?: boolean; hd?: string; aud?: string };
+    if (p.aud !== process.env.GOOGLE_OAUTH_CLIENT_ID || p.email_verified !== true || p.hd !== "rucelle.com.br" || typeof p.email !== "string") return null;
+    return p.email.toLowerCase();
+  } catch { return null; }
+}
+
 /** Erro de acesso cuja causa é a autorização (token revogado/expirado sem renovação): a conexão passa a "revogada". */
 export class ErroAutorizacao extends Error {}
 

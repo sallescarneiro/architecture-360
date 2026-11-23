@@ -45,13 +45,33 @@ export async function entrar(email: string, senha: string): Promise<boolean> {
   const u = (await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, email.trim().toLowerCase())).limit(1))[0];
   if (!u || !u.ativo) return false;
   if (!(await bcrypt.compare(senha, u.senhaHash))) return false;
+  await abrirSessao(u.id);
+  return true;
+}
+
+async function abrirSessao(usuarioId: number) {
   const id = randomBytes(32).toString("base64url");
   const expiraEm = new Date(Date.now() + dias() * 86400_000);
-  await db.insert(schema.sessoes).values({ id, usuarioId: u.id, expiraEm });
-  await db.update(schema.usuarios).set({ ultimoAcessoEm: new Date() }).where(eq(schema.usuarios.id, u.id));
+  await db.insert(schema.sessoes).values({ id, usuarioId, expiraEm });
+  await db.update(schema.usuarios).set({ ultimoAcessoEm: new Date() }).where(eq(schema.usuarios.id, usuarioId));
   const jar = await cookies();
   jar.set(COOKIE, id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", expires: expiraEm });
-  return true;
+}
+
+/**
+ * Entrada pela conta Google da rucelle (23/11/2026): o Google confirma a identidade e o A360 só aceita e-mail @rucelle.com.br
+ * verificado de um usuário já cadastrado e ativo. Ninguém recebe senha por e-mail. Quem entra assim deixa de ter troca de
+ * senha pendente (a senha provisória continua sem uso até alguém redefini-la).
+ */
+export async function entrarComGoogle(email: string): Promise<"ok" | "sem_cadastro" | "inativo"> {
+  const e = email.trim().toLowerCase();
+  if (!e.endsWith("@rucelle.com.br")) return "sem_cadastro";
+  const u = (await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, e)).limit(1))[0];
+  if (!u) return "sem_cadastro";
+  if (!u.ativo) return "inativo";
+  if (u.trocarSenha) await db.update(schema.usuarios).set({ trocarSenha: false, atualizadoEm: new Date() }).where(eq(schema.usuarios.id, u.id));
+  await abrirSessao(u.id);
+  return "ok";
 }
 
 export async function sair() {
