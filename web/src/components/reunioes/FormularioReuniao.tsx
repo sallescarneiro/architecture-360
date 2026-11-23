@@ -1,4 +1,5 @@
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
+import { EscolherPessoas } from "@/components/EscolherPessoas";
 import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 import { Button, LinkButton } from "@/components/ui";
 import { ORIGENS } from "@/lib/reunioes-motivos";
@@ -51,7 +52,7 @@ export function FormularioReuniao({ action, valores, projetos, motivos, pessoas,
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Local<input name="local" maxLength={300} defaultValue={v.local} className="input mt-1" placeholder="escritório, obra, online" /></label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Participantes <span className="font-normal text-[var(--muted)]">(um por linha ou separados por vírgula; e-mail ou &ldquo;Nome &lt;email&gt;&rdquo;; nomes sem e-mail valem para externos)</span>
         <textarea name="participantes" rows={3} defaultValue={v.participantes} className="input mt-1" placeholder={"thais.valle@rucelle.com.br\nJoão Silva <joao@academia.com>\nMaria (sócia)"} />
-        {pessoas.length > 0 && <span className="sub">E-mails conhecidos: {pessoas.slice(0, 12).map((p) => p.email).join(", ")}{pessoas.length > 12 ? " …" : ""}</span>}
+        <EscolherPessoas pessoas={pessoas} campo="participantes" />
       </label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Pauta<textarea name="pauta" rows={5} maxLength={8000} defaultValue={v.pauta} className="input mt-1" placeholder={"1. Apresentar o anteprojeto\n2. Validar fluxo da área de musculação\n3. Próximos passos"} /></label>
       {!edicao && !eventoId && podeAgenda && (

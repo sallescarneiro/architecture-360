@@ -200,7 +200,12 @@ export async function obterAtividade(u: Usuario, id: number): Promise<Atividade 
 }
 
 export async function listarAtividades(u: Usuario, f: { responsavelIds: number[] | null; de: Date; ate: Date; projeto?: number | null; incluirCanceladas?: boolean }): Promise<Atividade[]> {
-  const ids = podeGerirAgenda(u.perfil) ? f.responsavelIds : [u.id]; // arquiteta: sempre só ela, qualquer que seja o filtro pedido
+  // Agenda compartilhada (23/11/2026): a arquiteta vê as atividades das colegas, nunca as da direção (perfil administração).
+  let ids = f.responsavelIds;
+  if (!podeGerirAgenda(u.perfil)) {
+    const direcao = new Set((await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.perfil, "admin"))).map((x) => x.id));
+    ids = (f.responsavelIds ?? [u.id]).filter((x) => x === u.id || !direcao.has(x));
+  }
   const cond = [lte(sql`coalesce(${schema.atividades.inicio}, ${schema.atividades.fim})`, f.ate), gte(schema.atividades.fim, f.de)];
   if (ids) cond.push(inArray(schema.atividades.responsavelId, ids.length ? ids : [-1]));
   if (f.projeto) cond.push(eq(schema.atividades.projetoCodigo, f.projeto));

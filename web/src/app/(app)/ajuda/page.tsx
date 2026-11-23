@@ -31,7 +31,15 @@ export default async function AjudaPage() {
       { id: "entrar", p: "Como entro no A360?", r: <>Na tela de entrada, toque em <b>Entrar com Google (@rucelle.com.br)</b> e escolha seu e-mail da rucelle. Não precisa de senha.</> },
       { id: "google", p: "Por que conectar a Google Agenda?", r: <>Para os seus compromissos do Google (reuniões com Meet) aparecerem no A360 e para criar reuniões com convite. Na Agenda, toque em <b>conectar minha Google Agenda</b> uma vez só. A rotina de produção fica no A360; o Google fica para as reuniões.</> },
       { id: "app", p: "Como instalo no celular ou tablet?", r: <>iPhone/iPad (Safari): <b>Compartilhar › Adicionar à Tela de Início</b>. Android (Chrome): <b>Menu do A360 › Instalar o app A360</b> ou os três pontinhos do Chrome › Instalar app.</> },
-      { id: "ver-agendas", p: "Consigo ver a agenda das colegas?", r: <>A agenda de toda a equipe fica com a gestão e a coordenação (Thaís, Ana Paula e direção). Cada arquiteta vê a própria agenda e os projetos de que participa.</> },
+      { id: "ver-agendas", p: "Consigo ver a agenda das colegas?", r: <>Sim. Na <Link href="/agenda" className="underline">Agenda</Link>, em <b>Pessoa</b>, escolha a colega ou <b>Equipe de projetos</b>. Você vê, mas quem programa é você na sua Minha semana (ou a coordenação). A agenda da direção (Rodrigo e Flávia) não é compartilhada. Compromisso marcado como particular no Google aparece só como “ocupado”.</> },
+      { id: "reuniao", p: "Como marco uma reunião com o cliente (e convido a Flávia)?", r: <>
+        <Passos itens={[
+          <>Vá em <Link href="/reunioes/nova" className="underline">Reuniões › Nova reunião</Link>, escolha o projeto, o motivo, o dia e o horário de início e fim: <b>é esse o tempo reservado</b> na agenda.</>,
+          <>Em <b>Participantes</b>, toque nos nomes da rucelle para convidar (a Flávia está lá) e escreva o e-mail do cliente, um por linha.</>,
+          <>Deixe marcado <b>criar também o compromisso na minha Google Agenda</b> e <b>enviar convites por e-mail</b>; marque <b>Google Meet</b> se for online.</>,
+          <>Toque em <b>Registrar reunião</b>. O Google cria o evento na sua agenda e envia o convite por e-mail a todos, inclusive ao cliente.</>,
+        ]} />
+        <p className="mt-2 text-[var(--muted)]">Precisa ter conectado a sua Google Agenda antes. Depois da reunião, cole a transcrição na própria reunião para gerar a ata e exportar em Word, com ou sem papel timbrado.</p></> },
     ] },
     { titulo: "Vobi e entregáveis", qs: [
       { id: "status", p: "Onde marco uma tarefa do Vobi como concluída?", r: <>No <b>Vobi</b>. O A360 só lê o Vobi (todo dia às 6h) e mostra a mudança no dia seguinte. Marcar nos dois lugares geraria conflito.</> },

@@ -1,4 +1,5 @@
 import type { CalendarioGoogle } from "@/db/schema";
+import { EscolherPessoas } from "@/components/EscolherPessoas";
 import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
 import { Button, LinkButton } from "@/components/ui";
@@ -40,6 +41,7 @@ export function FormularioEvento({ action, valores, projetos, calendarios, pesso
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Participantes <span className="font-normal text-[var(--muted)]">(e-mails separados por vírgula ou espaço)</span>
         <input name="participantes" list="pessoas-a360" defaultValue={v.participantes} className="input mt-1" placeholder="nome@rucelle.com.br, cliente@empresa.com" />
         <datalist id="pessoas-a360">{pessoas.map((p) => <option key={p.email} value={p.email}>{p.nome ?? p.email}</option>)}</datalist>
+        <EscolherPessoas pessoas={pessoas} campo="participantes" separador="," />
       </label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Projeto / cliente relacionado <span className="font-normal text-[var(--muted)]">(Vobi, só leitura)</span>
         <BuscaOpcoes><select name="projeto" className="input mt-1" defaultValue={v.projetoCodigo ?? ""}>
