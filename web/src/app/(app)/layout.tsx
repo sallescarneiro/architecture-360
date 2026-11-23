@@ -56,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...(gestao ? [{ href: "/pessoas", label: "Pessoas", icon: "users" as const }] : []),
       ...(u.perfil === "admin" ? [{ href: "/usuarios", label: "Usuários", icon: "users" as const }] : []), // T-205: acessos e perfis (só admin)
     ] },
-    { label: "Ajuda", items: [{ href: `/treinamento/${trilhaDoPerfil(u.perfil)}`, label: "Como usar o A360", icon: "check" as const }] }, // T-213: trilha de treinamento por perfil
+    { label: "Ajuda", items: [{ href: "/ajuda", label: "Perguntas frequentes", icon: "bell" as const }, { href: `/treinamento/${trilhaDoPerfil(u.perfil)}`, label: "Como usar o A360", icon: "check" as const }] }, // T-213: trilha de treinamento por perfil
   ];
   const marca = (
     <Link href="/" className="block leading-none no-underline">
