@@ -166,7 +166,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   <input type="hidden" name="id" value={sel.id} /><input type="hidden" name="volta" value={q({ ver: sel.id })} />
                   <p className="text-xs text-[var(--muted)]">Use quando a atividade não será mais executada (ex.: o cliente cancelou o projeto). Sai do quadro e fica no histórico.</p>
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Motivo (obrigatório)<input name="motivo" required minLength={5} maxLength={300} className="input mt-1" placeholder="ex.: cliente cancelou o projeto" /></label>
-                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Confirmar cancelamento</button><LinkButton href={q({ ver: sel.id })} variant="ghost">Voltar</LinkButton></div>
+                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Confirmar cancelamento</button><LinkButton href={q({ ver: sel.id })} variant="ghost" scroll={false}>Voltar</LinkButton></div>
                 </form>
               ) : sp.ret ? (
                 <form action={retornarEtapaAction} className="flex flex-col gap-2.5">
@@ -175,7 +175,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Volta para a etapa<select name="etapa" required className="input mt-1" defaultValue=""><option value="">Escolha a etapa</option>{P.ETAPAS.filter((e) => e.k !== sel.etapaRucelle).map((e) => <option key={e.k} value={e.k}>{e.n}</option>)}</select></label>
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Dia da refação<select name="dia" required className="input mt-1" defaultValue=""><option value="">Escolha o dia</option>{diasRep.map((d) => <option key={d} value={d}>{P.rotuloDia(d)}</option>)}</select></label>
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Motivo (obrigatório)<input name="motivo" required minLength={5} maxLength={300} className="input mt-1" placeholder="ex.: cliente pediu revisão do layout" /></label>
-                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Interromper e programar refação</button><LinkButton href={q({ ver: sel.id })} variant="ghost">Voltar</LinkButton></div>
+                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Interromper e programar refação</button><LinkButton href={q({ ver: sel.id })} variant="ghost" scroll={false}>Voltar</LinkButton></div>
                 </form>
               ) : sp.rep ? (
                 <form action={reprogramarAction} className="flex flex-col gap-2.5">
@@ -184,7 +184,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Motivo<select name="motivo" required className="input mt-1" defaultValue=""><option value="">Escolha o motivo</option>{P.MOTIVOS_REPROG.map((m) => <option key={m}>{m}</option>)}</select></label>
                   <label className="block text-xs font-semibold text-[var(--txt-2)]">Detalhe (opcional)<input name="detalhe" maxLength={200} className="input mt-1" /></label>
                   {sel.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar o dia a devolve para validação.</p>}
-                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Confirmar reprogramação</button><LinkButton href={q({ ver: sel.id })} variant="ghost">Voltar</LinkButton></div>
+                  <div className="flex flex-wrap gap-2"><button className="btn btn-primary">Confirmar reprogramação</button><LinkButton href={q({ ver: sel.id })} variant="ghost" scroll={false}>Voltar</LinkButton></div>
                   <p className="text-xs text-[var(--muted)]">Para outra data, use “Dia” no formulário de edição.</p>
                 </form>
               ) : (<>
@@ -193,9 +193,9 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                   valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, entregaInterna: sel.entregaInterna, motivoRefacao: sel.motivoRefacao, obs: sel.descricao ?? "" }} />
                 {sel.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, executora, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
                 <div className="flex flex-wrap gap-2">
-                  <LinkButton href={q({ rep: sel.id })}>Reprogramar</LinkButton>
-                  <LinkButton href={q({ ret: sel.id })}>Retornar etapa / refação</LinkButton>
-                  <LinkButton href={q({ can: sel.id })} variant="ghost">Cancelar</LinkButton>
+                  <LinkButton href={q({ rep: sel.id })} scroll={false}>Reprogramar</LinkButton>
+                  <LinkButton href={q({ ret: sel.id })} scroll={false}>Retornar etapa / refação</LinkButton>
+                  <LinkButton href={q({ can: sel.id })} variant="ghost" scroll={false}>Cancelar</LinkButton>
                 </div>
                 <p className="text-xs text-[var(--muted)]">Reprogramar muda só a data. Retornar etapa interrompe esta etapa e programa a anterior. Cancelar encerra o que não será mais feito.</p>
               </>)}

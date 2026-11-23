@@ -9,8 +9,8 @@ export function Button({ variant = "primary", className = "", ...p }: ComponentP
   return <button className={`btn btn-${variant} ${className}`} {...p} />;
 }
 
-export function LinkButton({ href, children, variant = "secondary", className = "" }: { href: string; children: ReactNode; variant?: Variant; className?: string }) {
-  return <Link href={href} className={`btn btn-${variant} ${className}`}>{children}</Link>;
+export function LinkButton({ href, children, variant = "secondary", className = "", scroll }: { href: string; children: ReactNode; variant?: Variant; className?: string; scroll?: boolean }) {
+  return <Link href={href} scroll={scroll} className={`btn btn-${variant} ${className}`}>{children}</Link>;
 }
 
 export function Input(p: ComponentProps<"input">) {
