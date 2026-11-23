@@ -5,7 +5,7 @@ import { calendariosEscrita, conexaoDe, projetosParaAssociacao } from "./sync";
 
 /** Pessoas da rucelle que não usam o A360 mas são convidadas com frequência (pedido da Maiara, 23/11/2026). */
 const CONVIDADOS_FIXOS: { email: string; nome: string; rotulo: string }[] = [
-  { email: "renatamuraro@rucelle.com.br", nome: "Renata Muraro", rotulo: "Renata (assistente da Flávia)" },
+  { email: "renata.muraro@rucelle.com.br", nome: "Renata Muraro", rotulo: "Renata (Flavia)" },
 ];
 
 export async function apoioFormulario(usuarioId: number) {
