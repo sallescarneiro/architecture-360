@@ -64,7 +64,7 @@ export async function listarTarefas(f: FiltrosTarefas, restricao?: { email: stri
   const [tot] = await contagem(`select count(*)::int n ${base}`);
   const rows = await contagem(`select t.chave, t.nome, t.etapa_csv etapa, t.status, t.data_fim, t.data_inicio, t.responsavel_nome responsavel, t.projeto_codigo, p.nome projeto_nome,
      c.nome cliente, p.cliente_codigo, ${sp} prazo, case when t.sem_fim=false then (t.data_fim::date - date '${hoje}') else null end dias
-     ${base} order by ${ordem[f.ord]} limit ${f.n} offset ${(f.pag - 1) * f.n}`);
+     ${base} order by ${ordem[f.ord]}, t.chave asc limit ${f.n} offset ${(f.pag - 1) * f.n}`); // desempate fixo: sem ele, tarefas empatadas (mesmo prazo e projeto) repetiam numa página e sumiam de outra
   // opções de filtro (sempre sobre a carga inteira, não sobre o filtro atual)
   const etapas = (await contagem(`select distinct etapa_csv k from tarefa where ultima_carga=${cid} and orfa=false and etapa_csv<>'' order by 1`)).map((r) => String(r.k));
   const responsaveis = (await contagem(`select distinct responsavel_nome k from tarefa where ultima_carga=${cid} and orfa=false and responsavel_nome is not null ${restricao ? `and responsavel_email='${esc(restricao.email)}'` : ""} order by 1`)).map((r) => String(r.k));
@@ -142,7 +142,7 @@ export async function listarProjetos(f: FiltrosProjetos, restricao?: Restricao) 
     abertas: `x.abertas ${f.dir}, x.nome asc`, prazo: `x.proximo_prazo ${f.dir} nulls last, x.nome asc`, status: `x.status ${f.dir}, x.nome asc`,
   };
   const [tot] = await contagem(`select count(*)::int n from (${agreg}) x ${whereX}`);
-  const rows = await contagem(`select x.*, ${acomp} acompanhar from (${agreg}) x ${whereX} order by ${ordem[f.ord]} limit ${f.n} offset ${(f.pag - 1) * f.n}`);
+  const rows = await contagem(`select x.*, ${acomp} acompanhar from (${agreg}) x ${whereX} order by ${ordem[f.ord]}, x.codigo asc limit ${f.n} offset ${(f.pag - 1) * f.n}`);
   return {
     carga, hoje, total: Number(tot.n),
     linhas: rows.map((r) => ({
