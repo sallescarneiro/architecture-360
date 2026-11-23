@@ -663,6 +663,8 @@ export const atividades = pgTable("atividade", {
   etapaRucelle: text("etapa_rucelle"),                       // etapa de produção Rucelle (independente do Vobi; etapa_vobi_id guarda a correspondência quando houver)
   periodo: text("periodo"),                                  // dia | manha | tarde | hora (null = atividade antiga, pelo horário)
   entrega: boolean("entrega").notNull().default(false),      // entrega ao cliente neste dia
+  entregaInterna: boolean("entrega_interna").notNull().default(false), // entrega interna (para revisão da coordenação) neste dia (23/11/2026)
+  motivoRefacao: text("motivo_refacao"),                     // obrigatório quando a etapa é refação (23/11/2026)
   validacao: text("validacao").notNull().default("confirmada"), // confirmada | rascunho | aguardando | aprovada | devolvida
   validacaoComentario: text("validacao_comentario"),
   validadoPorId: integer("validado_por_id").references(() => usuarios.id),

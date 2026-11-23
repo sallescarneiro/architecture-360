@@ -22,13 +22,21 @@ export const ETAPAS: { k: string; n: string; bg: string; fg: string }[] = [
   { k: "PN", n: "Programa de necessidades", bg: "#ede5f5", fg: "#56367a" },
   { k: "LAY", n: "Layout e conceito", bg: "#e1f0e7", fg: "#1f5a3b" },
   { k: "3D", n: "Imagens 3D", bg: "#fbe7dc", fg: "#86370f" },
-  { k: "REF", n: "Refação", bg: "#fcefcf", fg: "#6e4a00" },
+  { k: "REF", n: "Refação", bg: "#fcefcf", fg: "#6e4a00" }, // antiga (sem tipo): segue valendo para o que já foi programado
+  { k: "RLAY", n: "Refação de layout", bg: "#fcefcf", fg: "#6e4a00" },
+  { k: "R3D", n: "Refação 3D", bg: "#fcefcf", fg: "#6e4a00" },
+  { k: "REXE", n: "Refação de executivo", bg: "#fcefcf", fg: "#6e4a00" },
+  { k: "RINT", n: "Refação de interiores", bg: "#fcefcf", fg: "#6e4a00" },
   { k: "INT", n: "Interiores", bg: "#e1eff2", fg: "#1c5461" },
   { k: "EXE", n: "Executivo", bg: "#f4dfe3", fg: "#6b1a24" },
   { k: "LEG", n: "Projeto legal", bg: "#eae8e2", fg: "#46433c" },
   { k: "CF", n: "Caderno de franquia", bg: "#f5e3ee", fg: "#742a57" },
 ];
 export const etapa = (k: string | null | undefined) => ETAPAS.find((e) => e.k === k) ?? null;
+/** Etapas de refação: exigem o motivo (pedido do cliente, ajuste interno…) ao programar (23/11/2026). */
+export const ehRefacao = (k: string | null | undefined) => !!k && (k === "REF" || /^R(LAY|3D|EXE|INT)$/.test(k));
+/** Etapas oferecidas ao programar: a "Refação" sem tipo fica só para o que já existe. */
+export const ETAPAS_PROGRAMAVEIS = ETAPAS.filter((e) => e.k !== "REF");
 export const PERIODOS: Record<string, string> = { dia: "Dia inteiro", manha: "Manhã", tarde: "Tarde", hora: "Horário específico" };
 const HORARIO_PERIODO: Record<string, [string, string]> = { dia: ["08:00", "18:00"], manha: ["08:00", "12:00"], tarde: ["13:30", "18:00"] };
 export const VALIDACAO: Record<string, { rotulo: string; tom: "ok" | "warn" | "bad" | "info" | "neutral" }> = {
@@ -161,16 +169,18 @@ export const histAgenda = (entidade: string, entidadeId: number | null, resumo: 
   db.insert(schema.agendaHistorico).values({ entidade, entidadeId, resumo, usuarioId });
 
 // ---------------------------------------------------------------------------------------------- blocos de produção
-export type DadosBloco = { pessoaId: number; dia: string; projetoCodigo: number; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string };
+export type DadosBloco = { pessoaId: number; dia: string; projetoCodigo: number; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string; entregaInterna?: boolean; motivoRefacao?: string };
 
 export function lerBloco(fd: FormData): { d: DadosBloco } | { erro: string } {
   const s = (k: string) => String(fd.get(k) ?? "").trim();
   const pessoaId = Number(s("pessoa")), projetoCodigo = Number(s("projeto"));
-  const d: DadosBloco = { pessoaId, dia: s("dia"), projetoCodigo, etapa: s("etapa"), periodo: s("periodo") || "dia", hi: s("hora_inicio"), hf: s("hora_fim"), entrega: s("entrega") === "1", obs: s("obs").slice(0, 500) };
+  const d: DadosBloco = { pessoaId, dia: s("dia"), projetoCodigo, etapa: s("etapa"), periodo: s("periodo") || "dia", hi: s("hora_inicio"), hf: s("hora_fim"), entrega: s("entrega") === "1", obs: s("obs").slice(0, 500), entregaInterna: s("entrega_interna") === "1", motivoRefacao: s("motivo_refacao").slice(0, 500) };
   if (!Number.isInteger(pessoaId) || pessoaId <= 0) return { erro: "Escolha a arquiteta." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.dia)) return { erro: "Dia inválido." };
   if (!Number.isInteger(projetoCodigo) || projetoCodigo <= 0) return { erro: "Escolha o projeto." };
   if (!etapa(d.etapa)) return { erro: "Escolha a etapa de produção." };
+  if (ehRefacao(d.etapa) && (d.motivoRefacao ?? "").length < 5) return { erro: "Refação: escreva o motivo (ex.: cliente pediu mudar a recepção; ajuste interno de compatibilização)." };
+  if (!ehRefacao(d.etapa)) d.motivoRefacao = "";
   if (!PERIODOS[d.periodo]) return { erro: "Período inválido." };
   if (d.periodo === "hora") {
     if (!/^\d{2}:\d{2}$/.test(d.hi) || !/^\d{2}:\d{2}$/.test(d.hf)) return { erro: "Informe o horário de início e de fim." };
@@ -220,10 +230,10 @@ export async function criarBloco(u: Usuario, d: DadosBloco): Promise<R<{ id: num
   const e = etapa(d.etapa)!;
   const [a] = await db.insert(schema.atividades).values({
     vinculo: "independente", tipo: "producao", titulo: `${e.n} · ${proj}`, descricao: d.obs || null, responsavelId: d.pessoaId,
-    ...horarios(d), prioridade: 2, status: 1, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega,
+    ...horarios(d), prioridade: 2, status: 1, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, entregaInterna: !!d.entregaInterna, motivoRefacao: d.motivoRefacao || null,
     validacao, criadoPorId: u.id, atualizadoPorId: u.id,
   }).returning({ id: schema.atividades.id });
-  await histAtv(a.id, u.id, validacao === "confirmada" ? `Programada para ${rotuloDia(d.dia)} · entra confirmada (criada pela ${u.perfil === "coordenacao" ? "coordenação" : "gestão"})` : `Proposta (rascunho) para ${rotuloDia(d.dia)}`, null, d);
+  await histAtv(a.id, u.id, validacao === "confirmada" ? `Programada para ${rotuloDia(d.dia)} · entra confirmada (criada pela ${u.perfil === "coordenacao" ? "coordenação" : "gestão"})` : `Proposta (rascunho) para ${rotuloDia(d.dia)}` + (d.motivoRefacao ? ` · motivo da refação: ${d.motivoRefacao}` : ""), null, d);
   return { ok: true, id: a.id, avisos: await avisosDoDia(d.pessoaId, d.dia, a.id) };
 }
 
@@ -254,12 +264,14 @@ export async function editarBloco(u: Usuario, id: number, d: DadosBloco): Promis
   if (dia0 !== d.dia) mud.push(`dia ${rotuloDia(dia0)} → ${rotuloDia(d.dia)}`);
   if (a.periodo !== d.periodo || a.inicio?.getTime() !== h.inicio.getTime() || a.fim.getTime() !== h.fim.getTime()) mud.push(`período ${rotuloPeriodo(a)} → ${rotuloPeriodo({ periodo: d.periodo, inicio: h.inicio, fim: h.fim, diaInteiro: h.diaInteiro })}`);
   if (a.entrega !== d.entrega) mud.push(d.entrega ? "marcada como entrega" : "deixou de ser entrega");
-  const obsMudou = (a.descricao ?? "") !== d.obs;
+  if (a.entregaInterna !== !!d.entregaInterna) mud.push(d.entregaInterna ? "marcada como entrega interna" : "deixou de ser entrega interna");
+  const motivoMudou = (a.motivoRefacao ?? "") !== (d.motivoRefacao ?? "");
+  const obsMudou = (a.descricao ?? "") !== d.obs || motivoMudou;
   if (!mud.length && !obsMudou) return { ok: true, avisos: [] };
   const validacao = novaValidacao(a, mud.length > 0);
   const e = etapa(d.etapa)!;
   await db.update(schema.atividades).set({
-    titulo: `${e.n} · ${proj}`, descricao: d.obs || null, responsavelId: d.pessoaId, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, ...h,
+    titulo: `${e.n} · ${proj}`, descricao: d.obs || null, responsavelId: d.pessoaId, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, entregaInterna: !!d.entregaInterna, motivoRefacao: d.motivoRefacao || null, ...h,
     validacao, ...(validacao !== a.validacao ? { validadoPorId: null, validadoEm: null, validacaoComentario: null } : {}),
     reprogramacoes: a.reprogramacoes + (dia0 !== d.dia ? 1 : 0), atualizadoPorId: u.id, atualizadoEm: new Date(),
   }).where(eq(schema.atividades.id, id));
@@ -313,7 +325,7 @@ export async function retornarEtapa(u: Usuario, id: number, etapaNova: string, d
   if (motivo.trim().length < 5) return { ok: false, mensagem: "Escreva o motivo do retorno." };
   const de = etapa(a.etapaRucelle ?? "")?.n ?? "etapa atual", para = etapa(etapaNova)!.n, m = motivo.trim().slice(0, 300);
   const nova = await criarBloco(u, { pessoaId: a.responsavelId, dia, projetoCodigo: a.projetoCodigo, etapa: etapaNova, periodo: a.periodo ?? "dia",
-    hi: a.inicio ? horaInput(a.inicio) : "09:00", hf: horaInput(a.fim), entrega: false, obs: `Refação: volta de ${de} para ${para} · ${m}` });
+    hi: a.inicio ? horaInput(a.inicio) : "09:00", hf: horaInput(a.fim), entrega: false, motivoRefacao: m, obs: `Refação: volta de ${de} para ${para} · ${m}` });
   if (!nova.ok) return nova;
   await db.update(schema.atividades).set({ status: 5, atualizadoPorId: u.id, atualizadoEm: new Date() }).where(eq(schema.atividades.id, id));
   await histAtv(id, u.id, `Interrompida: projeto voltou de ${de} para ${para} · motivo: ${m}. Refação programada para ${rotuloDia(dia)}; esta etapa pode ser programada de novo depois.`);

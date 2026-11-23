@@ -5,7 +5,7 @@ import { exigirUsuario } from "@/lib/auth";
 import * as P from "@/lib/agenda/producao";
 import { diaValido, hojeLocal, horaInput, inicioSemana, somaDias } from "@/lib/agenda/datas";
 import { Button, LinkButton, PageHeader } from "@/components/ui";
-import { ChipEtapa, curto, Entrega, SeloValidacao } from "@/components/agenda/Producao";
+import { ChipEtapa, curto, Entrega, EntregaInterna, SeloValidacao } from "@/components/agenda/Producao";
 import { FormBloco } from "@/components/agenda/FormBloco";
 import { andamentoAction, descartarAction, editarBlocoAction, enviarAction, criarBlocoAction, indispAction, registrarDiaAction } from "../quadro/actions";
 
@@ -77,8 +77,9 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
                   const confirmada = b.validacao === "confirmada" || b.validacao === "aprovada";
                   return (
                     <div key={b.id} className={`flex flex-col gap-1.5 rounded-[10px] bg-white p-2.5 ${b.entrega ? "border-2 border-[var(--vinho)]" : b.validacao === "rascunho" ? "border border-dashed border-[#b9aea7]" : "border border-[var(--line)]"}`}>
-                      <span className="flex flex-wrap items-center gap-1.5"><ChipEtapa k={b.etapaRucelle} /><b>{b.etapaRucelle ? curto(nomes.get(b.projetoCodigo ?? 0)) : b.titulo}</b>{b.entrega && <Entrega />}</span>
+                      <span className="flex flex-wrap items-center gap-1.5"><ChipEtapa k={b.etapaRucelle} /><b>{b.etapaRucelle ? curto(nomes.get(b.projetoCodigo ?? 0)) : b.titulo}</b>{b.entrega && <Entrega />}{b.entregaInterna && <EntregaInterna />}</span>
                       <span className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--txt-2)]">{P.rotuloPeriodo(b)} · {P.etapa(b.etapaRucelle)?.n ?? "atividade"}<SeloValidacao v={b.validacao} sempre />{confirmada && <span className="font-semibold">{b.impedimento ? "Impedimento avisado" : STATUS[b.status]}</span>}</span>
+                      {b.motivoRefacao && <span className="text-xs text-[var(--txt-2)]"><b>Motivo da refação:</b> {b.motivoRefacao}</span>}
                       {b.descricao && <span className="text-xs text-[var(--muted)]">{b.descricao}</span>}
                       {b.validacao === "devolvida" && b.validacaoComentario && <div className="rounded-lg bg-[#fbe2dd] px-2.5 py-1.5 text-xs text-[#7d2416]"><b>Devolvida por {validadores.get(b.validadoPorId ?? 0) ?? "validação"}:</b> {b.validacaoComentario}</div>}
                       {b.validacao === "aprovada" && b.validacaoComentario && <span className="text-xs text-[#21613a]">Aprovada por {validadores.get(b.validadoPorId ?? 0)}: “{b.validacaoComentario}”</span>}
@@ -114,7 +115,7 @@ export default async function SemanaPage({ searchParams }: { searchParams: Promi
               <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Editar proposta</h2>
               {editar.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
               <FormBloco action={editarBlocoAction} id={editar.id} volta={base()} rotulo="Salvar" projetos={await P.projetosAtivos()}
-                valores={{ pessoaId: pid, dia: P.diaDoBloco(editar), projetoCodigo: editar.projetoCodigo, etapa: editar.etapaRucelle ?? "", periodo: editar.periodo ?? "dia", hi: editar.inicio ? horaInput(editar.inicio) : "09:00", hf: horaInput(editar.fim), entrega: editar.entrega, obs: editar.descricao ?? "" }} />
+                valores={{ pessoaId: pid, dia: P.diaDoBloco(editar), projetoCodigo: editar.projetoCodigo, etapa: editar.etapaRucelle ?? "", periodo: editar.periodo ?? "dia", hi: editar.inicio ? horaInput(editar.inicio) : "09:00", hf: horaInput(editar.fim), entrega: editar.entrega, entregaInterna: editar.entregaInterna, motivoRefacao: editar.motivoRefacao, obs: editar.descricao ?? "" }} />
               <LinkButton href={base()} variant="ghost">Cancelar</LinkButton>
             </section>
           )}

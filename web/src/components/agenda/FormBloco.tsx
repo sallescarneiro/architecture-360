@@ -1,9 +1,9 @@
 // Formulário do bloco de produção (incluir, editar, propor). Sem JavaScript: período "Horário específico" usa os campos de hora.
-import { ETAPAS } from "@/lib/agenda/producao";
+import { ETAPAS_PROGRAMAVEIS, ehRefacao, etapa as etapaDe } from "@/lib/agenda/producao";
 import { Button } from "@/components/ui";
 import { curto } from "./Producao";
 
-export type ValoresBloco = { pessoaId: number; dia: string; projetoCodigo: number | null; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string };
+export type ValoresBloco = { pessoaId: number; dia: string; projetoCodigo: number | null; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string; entregaInterna?: boolean; motivoRefacao?: string | null };
 
 export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotulo, travarDia }: {
   action: (fd: FormData) => Promise<void>; id?: number; valores: ValoresBloco; projetos: { codigo: number; nome: string }[];
@@ -30,8 +30,12 @@ export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotul
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Etapa de produção
         <select name="etapa" defaultValue={valores.etapa} required className="input mt-1">
           <option value="">Escolha a etapa</option>
-          {ETAPAS.map((e) => <option key={e.k} value={e.k}>{e.n}</option>)}
+          {ETAPAS_PROGRAMAVEIS.map((e) => <option key={e.k} value={e.k} data-ref={ehRefacao(e.k) ? "1" : undefined}>{e.n}</option>)}
+          {valores.etapa === "REF" && <option value="REF" data-ref="1">{etapaDe("REF")!.n}</option>}
         </select>
+      </label>
+      <label className="campo-refacao block text-xs font-semibold text-[var(--txt-2)]">Motivo da refação (obrigatório)
+        <textarea name="motivo_refacao" rows={2} maxLength={500} defaultValue={valores.motivoRefacao ?? ""} className="input mt-1" placeholder="ex.: cliente pediu mudar a recepção na reunião de 20/11" />
       </label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Período
         <select name="periodo" defaultValue={valores.periodo} className="input mt-1">
@@ -44,6 +48,7 @@ export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotul
       </div>
       <p className="text-[0.72rem] text-[var(--muted)]">Horário específico registra início e fim; aparece em horas, sem conversão em fração de dia.</p>
       <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" name="entrega" value="1" defaultChecked={valores.entrega} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Entrega ao cliente neste dia</label>
+      <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" name="entrega_interna" value="1" defaultChecked={valores.entregaInterna} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Entrega interna neste dia (para revisão da coordenação)</label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Observação (opcional)<input name="obs" defaultValue={valores.obs} maxLength={500} className="input mt-1" placeholder="não exige nova validação" /></label>
       <Button variant="primary">{rotulo}</Button>
     </form>

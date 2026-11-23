@@ -320,3 +320,7 @@ a.gbar:hover .gbar-rot{text-decoration:underline}
 .ev-prazo { border-style: dashed !important; opacity: 0.9; }
 .ev-inicio { font-weight: 400; opacity: 0.75; }
 .ev-feito { opacity: 0.55; text-decoration: line-through; }
+
+/* Bloco de produção: o motivo só aparece quando a etapa escolhida é uma refação (sem JavaScript) */
+.campo-refacao { display: none; }
+form:has(select[name="etapa"] option[data-ref]:checked) .campo-refacao { display: block; }

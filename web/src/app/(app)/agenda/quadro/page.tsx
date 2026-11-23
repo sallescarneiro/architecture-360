@@ -6,7 +6,7 @@ import { exigirUsuario } from "@/lib/auth";
 import * as P from "@/lib/agenda/producao";
 import { dataHora, diaValido, hojeLocal, horaInput, inicioSemana, somaDias } from "@/lib/agenda/datas";
 import { LinkButton, PageHeader } from "@/components/ui";
-import { Bloco, ChipEtapa, curto, Entrega, SeloValidacao } from "@/components/agenda/Producao";
+import { Bloco, ChipEtapa, curto, Entrega, EntregaInterna, SeloValidacao } from "@/components/agenda/Producao";
 import { FormBloco } from "@/components/agenda/FormBloco";
 import { cancelarBlocoAction, criarBlocoAction, editarBlocoAction, modeloAction, reprogramarAction, retornarEtapaAction } from "./actions";
 
@@ -146,7 +146,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
             {sel && (<>
               <div className="eyebrow">{sp.rep ? "Reprogramar" : sp.can ? "Cancelar" : sp.ret ? "Retorno de etapa / refação" : "Atividade"}</div>
               <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">{sel.etapaRucelle ? curto(selProj) : sel.titulo}</h2>
-              <div className="flex flex-wrap items-center gap-1.5"><ChipEtapa k={sel.etapaRucelle} />{sel.entrega && <Entrega />}<SeloValidacao v={sel.validacao} sempre /></div>
+              <div className="flex flex-wrap items-center gap-1.5"><ChipEtapa k={sel.etapaRucelle} />{sel.entrega && <Entrega />}{sel.entregaInterna && <EntregaInterna />}<SeloValidacao v={sel.validacao} sempre /></div>
               <dl className="grid grid-cols-[112px_1fr] gap-x-2.5 gap-y-1 text-[0.8rem]">
                 <dt className="font-semibold text-[var(--muted)]">Execução</dt><dd>{selPessoa?.nome ?? "—"}</dd>
                 <dt className="font-semibold text-[var(--muted)]">Dia</dt><dd>{P.rotuloDia(P.diaDoBloco(sel))} · {P.rotuloPeriodo(sel)}</dd>
@@ -154,6 +154,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
                 <dt className="font-semibold text-[var(--muted)]">Etapa no Vobi</dt><dd>{sel.vinculo === "independente" ? "sem vínculo: a etapa Rucelle vale sozinha" : `tarefa nº ${sel.tarefaVobiId ?? "a criar"}${sel.etapaVobiId ? ` · etapa nº ${sel.etapaVobiId}` : ""}`}</dd>
                 <dt className="font-semibold text-[var(--muted)]">Programada por</dt><dd>{selCriou}</dd>
                 {selValidou && <><dt className="font-semibold text-[var(--muted)]">Validação</dt><dd>{selValidou} · {sel.validadoEm ? dataHora(sel.validadoEm) : ""}</dd></>}
+                {sel.motivoRefacao && <><dt className="font-semibold text-[var(--muted)]">Motivo da refação</dt><dd>{sel.motivoRefacao}</dd></>}
                 {sel.reprogramacoes > 0 && <><dt className="font-semibold text-[var(--muted)]">Reprogramada</dt><dd>{sel.reprogramacoes}×</dd></>}
               </dl>
               {sel.validacao === "devolvida" && sel.validacaoComentario && <div className="rounded-lg bg-[#fbe2dd] px-3 py-2 text-xs text-[#7d2416]"><b>Devolvida por {selValidou}:</b> {sel.validacaoComentario}</div>}
@@ -189,7 +190,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               ) : (<>
                 <FormBloco action={editarBlocoAction} id={sel.id} volta={q({ ver: sel.id })} rotulo="Salvar alterações" projetos={projetos}
                   pessoas={pessoas.map((p) => ({ id: p.id, nome: p.nome }))}
-                  valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, obs: sel.descricao ?? "" }} />
+                  valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, entregaInterna: sel.entregaInterna, motivoRefacao: sel.motivoRefacao, obs: sel.descricao ?? "" }} />
                 {sel.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, executora, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
                 <div className="flex flex-wrap gap-2">
                   <LinkButton href={q({ rep: sel.id })}>Reprogramar</LinkButton>
@@ -212,7 +213,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
         <div className="fold-body flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3" aria-label="Legenda">
             <b>Etapas</b>{P.ETAPAS.map((e) => <span key={e.k} className="inline-flex items-center gap-1"><ChipEtapa k={e.k} />{e.n}</span>)}
-            <span className="inline-flex items-center gap-1"><Entrega /> entrega ao cliente</span>
+            <span className="inline-flex items-center gap-1"><Entrega /> entrega ao cliente</span><span className="inline-flex items-center gap-1"><EntregaInterna /> entrega interna</span>
             <span className="inline-flex flex-wrap items-center gap-2"><SeloValidacao v="aguardando" /><SeloValidacao v="aprovada" /><SeloValidacao v="devolvida" /><SeloValidacao v="rascunho" /> propostas de autônomas; sem selo = confirmada</span>
           </div>
           <p className="text-xs text-[var(--muted)]">Disponível = dias úteis − feriados da localidade − indisponibilidades confirmadas (meio período = 0,5). Pedido de ausência pendente aparece tracejado e não desconta. Programado = dia inteiro 1, manhã ou tarde 0,5; atividades com horário específico aparecem em horas, à parte; rascunhos e devolvidas não contam. Atestado aparece só como “Indisponível”. Nada aqui é enviado ao Vobi.</p>
