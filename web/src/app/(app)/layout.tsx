@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppInstalavel } from "@/components/app-instalavel";
 import { MenuMovel } from "@/components/menu-movel";
 import { redirect } from "next/navigation";
 import { exigirUsuario, veIndicadoresIndividuais } from "@/lib/auth";
@@ -81,12 +82,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="side side-desk sticky top-0 h-screen flex-col gap-4 overflow-y-auto px-3.5 py-5">
         <div className="px-1.5">{marca}</div>
         <div className="flex-1"><NavLinks groups={groups} /></div>
-        <div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
+        <div className="px-1.5"><AppInstalavel /></div><div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>
         {me}
       </aside>
 
       {/* Celular e tablet: a mesma navegação, como painel sobreposto (fecha ao navegar, ESC ou clique fora) */}
-      <MenuMovel groups={groups} marca={marca} rodape={<><div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>{me}</>} />
+      <MenuMovel groups={groups} marca={marca} rodape={<><div className="px-1.5"><AppInstalavel /></div><div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>{me}</>} />
 
       <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="w-full">{children}</div></main>
     </div>
