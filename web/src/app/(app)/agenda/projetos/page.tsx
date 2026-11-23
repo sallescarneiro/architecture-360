@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { jaEntregue } from "@/lib/entregues";
 import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
 import * as P from "@/lib/agenda/producao";
@@ -36,6 +37,7 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
   const selCod = /^\d+$/.test(sp.sel ?? "") ? Number(sp.sel) : null;
   const sel = selCod ? linhas.find((l) => l.codigo === selCod) ?? null : null;
   const hist = sel ? await C.historicoProjeto(sel.codigo) : [];
+  const entregue = sel ? await jaEntregue(sel.codigo) : null;
   const grupos = [...pessoas.map((p) => ({ id: p.id as number | null, nome: p.nome })), ...todas.filter((p) => p.perfil !== "arquiteta").map((p) => ({ id: p.id as number | null, nome: p.nome })), { id: null, nome: "Sem responsável definido" }]
     .map((g) => ({ ...g, itens: vis.filter((l) => l.responsavelId === g.id) })).filter((g) => g.itens.length);
   const hoje = hojeLocal(), volta = q({ sel: selCod });
@@ -133,6 +135,14 @@ export default async function ProjetosAtivosPage({ searchParams }: { searchParam
               <span className="text-xs text-[var(--muted)]">Não vira tarefa sozinho: se exigir produção, a coordenação programa no quadro.</span>
               <Button variant="secondary" className="btn-sm self-start">Registrar pedido</Button>
             </form>
+            {entregue && (
+              <div className="flex flex-col gap-1.5 border-t border-[#f0e8e2] pt-2 text-xs" aria-label="Já entregue">
+                <span className="text-[0.68rem] font-bold uppercase tracking-wider text-[var(--muted)]">Já entregue (Vobi)</span>
+                {entregue.etapas.length ? <span className="flex flex-wrap gap-1">{entregue.etapas.map((e) => <span key={e.etapa} className={`rounded px-1.5 py-0.5 ${e.situacao === "concluida" ? "bg-[#eef7f1] font-semibold text-[#1f5a3b]" : e.situacao === "andamento" ? "bg-[var(--rose-2)]" : "text-[var(--muted)]"}`}>{e.etapa}{e.situacao === "concluida" ? " ✓" : e.situacao === "andamento" ? ` ${e.concluidas}/${e.total}` : ""}</span>)}</span> : <span className="text-[var(--muted)]">Sem tarefas no Vobi.</span>}
+                {entregue.entregas[0] && <span>Última entrega ao cliente: <b>{entregue.entregas[0].nome}</b></span>}
+                <Link href={`/projetos/${sel.codigo}`} className="self-start underline">Ver tudo o que já foi entregue</Link>
+              </div>
+            )}
             <ul className="flex flex-col gap-1.5 border-t border-[#f0e8e2] pt-2 text-xs" aria-label="Histórico">
               {hist.length === 0 ? <li className="text-[var(--muted)]">Sem histórico ainda.</li> : hist.map((h, i) => <li key={i}><span className="text-[var(--muted)]">{dataHora(new Date(h.quando))}{h.quem ? ` · ${h.quem}` : ""}</span><br />{h.resumo}</li>)}
             </ul>

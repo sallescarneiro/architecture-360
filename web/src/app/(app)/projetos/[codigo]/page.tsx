@@ -15,6 +15,8 @@ import { hojeIso, statusPrazo } from "@/lib/prazo";
 import { StatusPrazo } from "@/components/StatusPrazo";
 import { urlCom } from "@/lib/listas";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
+import { JaEntregue } from "@/components/JaEntregue";
+import { jaEntregue } from "@/lib/entregues";
 
 /** Detalhe do projeto (somente leitura): dados do Vobi, cliente vinculado e tarefas da última carga. */
 export default async function ProjetoPage({ params, searchParams }: { params: Promise<{ codigo: string }>; searchParams: Promise<{ vobi?: string }> }) {
@@ -48,6 +50,7 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
   const prazos = new Map(tarefas.map((t) => [t.chave, statusPrazo(t.status, t.dataFim, hoje)]));
   const abertas = tarefas.filter((t) => prazos.get(t.chave)!.aberta);
   const vencidas = abertas.filter((t) => prazos.get(t.chave)!.atrasada).length;
+  const entregue = await jaEntregue(p.codigo);
   const horas = tarefas.reduce((a, t) => a + (t.horasRealizadasMin ?? 0), 0);
 
   const clienteBloco = p.vinculoClienteStatus === "ambiguo"
@@ -97,6 +100,7 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
         <Stat label="Colaboradores (Vobi)" value={p.colaboradores.length} note={p.colaboradores.join(", ") || "—"} />
       </div>
 
+      <JaEntregue d={entregue} />
       <Card title="Tarefas (última carga)" subtitle="Fato importado do Vobi; não é medida de desempenho.">
         {tarefas.length ? (
           <div className="overflow-x-auto"><table className="tbl">
