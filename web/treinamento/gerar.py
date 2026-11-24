@@ -486,6 +486,26 @@ NOV_GER = ("novidades", "Novidades de 23/11", "O que mudou hoje", _INTRO_NOV + _
  + passos(['Abra <b>Atrasos</b>: ela abre em <b>Aguardando validação</b>.', 'Leia a categoria e o motivo. <b>Validar: atraso justificado</b> quando o motivo se sustenta (por exemplo, o cliente mandou medidas erradas).', 'Senão, <b>outra medida</b>: escreva o que fazer (redistribuir, cobrar o cliente, rever o prazo).', 'Em Entregáveis › <b>Para eu revisar</b>, aprove a última etapa da revisão interna.'])
  + regra("Quem é sênior se marca em <b>Pessoas da agenda › Editar › Arquiteta sênior</b>. Isys, Amanda e Luryan já estão marcadas.", rot="configuração"))
 ARQ["secoes"].insert(0, NOV_ARQ); COORD["secoes"].insert(0, NOV_COORD); GER["secoes"].insert(0, NOV_GER)
+# T-302 — férias e cobertura entre coordenação e gerência (24/11/2026)
+COBERTURA = ("cobertura", "Férias e cobertura", "Quando a coordenação ou a gerência sai", """
+<p>Quando a coordenadora ou a gerente entra de férias, o que é dela para <b>aprovar ou validar</b> passa automaticamente para quem responde por ela. Vale nos dois sentidos: Ana Paula ausente → Thaís; Thaís ausente → Ana Paula.</p>
+""" + fig("nov-cobertura-pessoas", "Agenda › Pessoas da agenda › Ausência e cobertura: quem fica ausente, as datas e quem responde por ela.") + """
+<div class="grid"><div class="card"><h3>Como marcar</h3>""" + passos([
+ 'Abra <b>Agenda › Pessoas da agenda</b> e desça até <b>Ausência e cobertura</b>.',
+ 'Escolha quem fica ausente, o primeiro dia (De) e o último (Até) e quem responde por ela.',
+ 'Clique em <b>Marcar ausência</b>. Vale na hora, inclusive para o que já estava pendente.',
+ 'Voltou antes? Clique em <b>Encerrar</b>.']) + """</div>
+<div class="card"><h3>O que passa para quem cobre</h3>""" + lista([
+ 'A etapa da ausente na revisão interna dos entregáveis, em <b>Entregáveis › Para eu revisar</b>.',
+ 'Quem cobre a coordenação e já é a gerência aprova as duas etapas com um clique (fica registrado “cobrindo ausência”).',
+ 'Validação de atrasos, quando a ausente é a gerência.',
+ 'Validação de propostas da agenda.',
+ 'Um aviso no topo do A360 lembra quem está cobrindo e até quando.']) + """</div></div>
+""" + fig("nov-cobertura-entregavel", "No entregável: aviso de quem responde pela etapa e o botão que aprova coordenação e gerência juntas.", alta=True)
+ + regra("Tarefas do Vobi e atividades programadas no nome da pessoa ausente não mudam de dono. Se precisarem andar, reprograme no Quadro ou troque o responsável no Vobi.", rot="atenção"))
+COORD["secoes"].insert(1, COBERTURA); GER["secoes"].insert(1, COBERTURA)
+COORD["quiz"].append(("Você vai entrar de férias. Como garantir que a Thaís aprove o que é seu?", ["Avisar por WhatsApp", "Marcar em Pessoas da agenda › Ausência e cobertura, com a Thaís respondendo por você", "Não precisa fazer nada"], 1, "Marcada a ausência, o que é seu para aprovar ou validar vai para ela, inclusive o que já estava pendente."))
+GER["quiz"].append(("A coordenadora está de férias e você cobre. Onde aparece o que é dela?", ["Em lugar nenhum", "Em Entregáveis › Para eu revisar, na Validação e no aviso no topo", "Só no Vobi"], 1, "A cobertura é aplicada na hora em que a tela abre; na volta dela, tudo retorna sozinho."))
 ARQ["quiz"].append(("Você é júnior e vai registrar um entregável. O que precisa indicar?", ["Nada, a coordenação recebe direto", "A arquiteta sênior que vai revisar", "O cliente que vai aprovar"], 1, "A revisão começa pela sênior indicada (Isys, Amanda ou Luryan), depois coordenação e gerência."))
 COORD["quiz"].append(("Uma tarefa atrasou porque o cliente mandou medidas erradas. O que fazer no A360?", ["Nada; só trocar a data no Vobi", "Em Atrasos, justificar (categoria cliente, motivo, nova data) e trocar a data no Vobi", "Cancelar a tarefa"], 1, "A justificativa fica registrada para a Thaís validar; a data continua sendo trocada no Vobi."))
 GER["quiz"].append(("Na página Atrasos, o motivo da coordenação não se sustenta. O que você faz?", ["Valida assim mesmo", "Registra 'outra medida' descrevendo o que fazer", "Apaga a justificativa"], 1, "Outra medida exige o texto da medida e fica no histórico."))
