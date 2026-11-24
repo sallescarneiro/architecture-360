@@ -4,6 +4,7 @@
 // histórico imutável; visibilidade da arquiteta = projetos em que participa (regra D-A, mesma das reuniões).
 import { desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { papeis } from "@/lib/cobertura";
 import type { Usuario } from "@/lib/auth";
 import { ultimaCargaAceita } from "@/lib/consultas";
 import { restricaoDe, sqlParticipa } from "@/lib/participacao";
@@ -48,8 +49,14 @@ export async function podeRevisarEtapa(u: Usuario, e: Entregavel): Promise<boole
   if (u.perfil === "admin") return true;
   const etapa = e.etapaRevisao ?? "coordenacao";
   if (etapa === "senior") return e.revisorId ? u.id === e.revisorId : await ehSenior(u.id);
-  if (etapa === "coordenacao") return u.perfil === "coordenacao";
-  return u.perfil === "gestao";
+  const meus = await papeis(u); // T-301: inclui o papel de quem a pessoa cobre (férias)
+  if (etapa === "coordenacao") return meus.has("coordenacao");
+  return meus.has("gestao");
+}
+async function cobreEtapa(u: Usuario, etapa: string): Promise<boolean> {
+  if (u.perfil === "admin") return false; // a direção registra uma etapa por vez
+  const meus = await papeis(u);
+  return (etapa === "coordenacao" && meus.has("coordenacao")) || (etapa === "gerencia" && meus.has("gestao"));
 }
 /** Júnior precisa indicar a sênior que revisa. */
 async function exigeRevisor(d: { responsavelId: number | null }, criador: number): Promise<boolean> {
@@ -81,7 +88,7 @@ export async function podeVerProjeto(u: Usuario, codigo: number): Promise<boolea
 }
 export const podeEditar = async (u: Usuario, e: Entregavel) => e.status !== "cancelado" && (await podeVer(u, e));
 
-export type Filtros = { projeto: number | null; status: string; tipo: string; q: string; revisar?: boolean };
+export type Filtros = { projeto: number | null; status: string; tipo: string; q: string; revisar?: boolean; papeis?: Set<string> };
 export function lerFiltros(sp: Record<string, string | string[] | undefined>): Filtros {
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   return { projeto: /^\d+$/.test(um(sp.projeto)) ? Number(um(sp.projeto)) : null, status: um(sp.status) in STATUS || ["abertos", "todos"].includes(um(sp.status)) ? um(sp.status) : "abertos", tipo: um(sp.tipo) in TIPOS ? um(sp.tipo) : "", q: um(sp.q).slice(0, 80), revisar: um(sp.revisar) === "1" };
@@ -95,8 +102,10 @@ export async function listar(u: Usuario, f: Filtros): Promise<EntregavelLista[]>
   if (f.status === "abertos") where.push(`e.status not in ('aprovado_cliente','cancelado')`); else if (f.status && f.status !== "todos") where.push(`e.status = '${esc(f.status)}'`);
   if (f.tipo) where.push(`e.tipo = '${esc(f.tipo)}'`);
   if (f.revisar) { // T-292: o que está na etapa de revisão desta pessoa
-    const minhas = u.perfil === "admin" ? `true` : u.perfil === "coordenacao" ? `e.etapa_revisao = 'coordenacao'` : u.perfil === "gestao" ? `e.etapa_revisao = 'gerencia'`
-      : `(e.etapa_revisao = 'senior' and (e.revisor_id = ${u.id} or (e.revisor_id is null and exists (select 1 from agenda_pessoa a where a.usuario_id = ${u.id} and a.senior))))`;
+    const p = f.papeis ?? new Set([u.perfil]); // T-301: inclui o papel coberto
+    const partes = [p.has("coordenacao") ? `e.etapa_revisao = 'coordenacao'` : null, p.has("gestao") ? `e.etapa_revisao = 'gerencia'` : null,
+      `(e.etapa_revisao = 'senior' and (e.revisor_id = ${u.id} or (e.revisor_id is null and exists (select 1 from agenda_pessoa a where a.usuario_id = ${u.id} and a.senior))))`].filter(Boolean);
+    const minhas = u.perfil === "admin" ? `true` : `(${partes.join(" or ")})`;
     where.push(`e.status = 'revisao_interna' and ${minhas}`);
   }
   if (f.q) where.push(`(e.titulo ilike '%${esc(f.q)}%' or p.nome ilike '%${esc(f.q)}%' or c.nome ilike '%${esc(f.q)}%')`);
@@ -245,7 +254,13 @@ export async function aprovacaoInterna(u: Usuario, e: Entregavel, decisao: "apro
   if (!(await podeRevisarEtapa(u, e))) return `Esta etapa da revisão é da ${ETAPAS_REVISAO[etapa].toLowerCase()}${etapa === "senior" && e.revisorId ? " indicada" : ""}.`;
   if (decisao === "ajustes" && observacao.trim().length < 5) return "Descreva os ajustes pedidos.";
   await db.insert(schema.aprovacoesEntregavel).values({ entregavelId: e.id, versaoNumero: e.versaoAtual, instancia: "interna", nivel: etapa, decisao, observacao: observacao.trim() || null, registradoPor: u.id });
-  const prox = ORDEM_REVISAO[ORDEM_REVISAO.indexOf(etapa) + 1] ?? null;
+  let prox = ORDEM_REVISAO[ORDEM_REVISAO.indexOf(etapa) + 1] ?? null;
+  // T-301: quem cobre a ausente e também responde pela etapa seguinte aprova as duas de uma vez (fica registrado)
+  if (decisao === "aprovado" && etapa !== "senior") while (prox && (await cobreEtapa(u, prox))) {
+    await db.insert(schema.aprovacoesEntregavel).values({ entregavelId: e.id, versaoNumero: e.versaoAtual, instancia: "interna", nivel: prox, decisao, observacao: `aprovado junto com a etapa anterior (cobertura de ausência)${observacao.trim() ? `: ${observacao.trim()}` : ""}`, registradoPor: u.id });
+    await registrar(e.id, u.id, "aprovacao_interna", `${ETAPAS_REVISAO[prox]} aprovou junto (v${e.versaoAtual}) · ${u.nome}, cobrindo ausência`, { etapa: prox }, { etapa: prox });
+    prox = ORDEM_REVISAO[ORDEM_REVISAO.indexOf(prox) + 1] ?? null;
+  }
   const status = decisao === "ajustes" ? "em_elaboracao" : prox ? "revisao_interna" : "aprovado_interno";
   await db.update(schema.entregaveis).set({ status, etapaRevisao: decisao === "aprovado" && prox ? prox : null }).where(eq(schema.entregaveis.id, e.id));
   const txt = decisao === "aprovado" ? `${ETAPAS_REVISAO[etapa]} aprovou (v${e.versaoAtual})${prox ? ` — segue para ${ETAPAS_REVISAO[prox].toLowerCase()}` : " — aprovado internamente"}` : `${ETAPAS_REVISAO[etapa]} pediu ajustes (v${e.versaoAtual})`;

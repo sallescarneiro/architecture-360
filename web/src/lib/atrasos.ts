@@ -1,6 +1,7 @@
 // Justificativa de atraso de tarefa do Vobi (T-287, pedido de Rodrigo em 23/11/2026, caso da Thaís na Academia Fitpong):
 // a coordenação (e a gestão) registra por que a tarefa atrasou; a gestão (Thaís) ou a direção valida ou define outra medida.
 // O A360 não escreve no Vobi: a data nova continua sendo trocada lá; aqui fica o registro e a decisão.
+import { papeis } from "@/lib/cobertura";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Usuario } from "@/lib/auth";
@@ -23,7 +24,7 @@ export const SITUACAO: Record<string, { rotulo: string; tom: "ok" | "warn" | "ba
 /** Registra: coordenação, gestão e direção. Arquitetas não veem (decisão de Rodrigo, 23/11/2026). */
 export const podeJustificar = (u: Usuario) => u.perfil === "coordenacao" || u.perfil === "gestao" || u.perfil === "admin";
 /** Valida: só a gestão (Thaís) e a direção. */
-export const podeValidarAtraso = (u: Usuario) => u.perfil === "gestao" || u.perfil === "admin";
+export const podeValidarAtraso = async (u: Usuario) => u.perfil === "admin" || (await papeis(u)).has("gestao"); // T-301: inclui quem cobre a gerência
 
 export type Justificativa = typeof schema.atrasoJustificativas.$inferSelect & { registradoPor: string; decididoPor: string | null; projetoNome: string | null };
 
@@ -87,7 +88,7 @@ export async function registrar(u: Usuario, chave: string, categoria: string, mo
 }
 
 export async function decidir(u: Usuario, id: number, situacao: "validada" | "medida", decisao: string): Promise<R> {
-  if (!podeValidarAtraso(u)) return { ok: false, mensagem: "Só a gestão valida justificativas de atraso." };
+  if (!(await podeValidarAtraso(u))) return { ok: false, mensagem: "Só a gestão valida justificativas de atraso." };
   if (situacao === "medida" && decisao.trim().length < 5) return { ok: false, mensagem: "Descreva a medida a tomar." };
   const j = (await db.select().from(schema.atrasoJustificativas).where(eq(schema.atrasoJustificativas.id, id)).limit(1))[0];
   if (!j) return { ok: false, mensagem: "Justificativa não encontrada." };

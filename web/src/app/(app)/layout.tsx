@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cobrindo, dataBr } from "@/lib/cobertura";
 import { AppInstalavel } from "@/components/app-instalavel";
 import { MenuMovel } from "@/components/menu-movel";
 import { redirect } from "next/navigation";
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (u.trocarSenha) redirect("/conta/senha"); // T-205: senha provisória → troca obrigatória antes de qualquer tela
   const gestao = veIndicadoresIndividuais(u.perfil);
   const gAgenda = gestorAgenda(u), valida = await podeValidar(u);
+  const cobre = await cobrindo(u); // T-301: aviso de cobertura de ausência
   const groups: NavGroup[] = [
     { label: "Central de Trabalho", items: [
       { href: "/meu-dia", label: "Meu dia", icon: "home" },
@@ -90,7 +92,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Celular e tablet: a mesma navegação, como painel sobreposto (fecha ao navegar, ESC ou clique fora) */}
       <MenuMovel groups={groups} marca={marca} rodape={<><div className="px-1.5"><AppInstalavel /></div><div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>{me}</>} />
 
-      <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="w-full">{children}</div></main>
+      <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="w-full">
+        {cobre.map((c) => <div key={c.ausenteId} className="leitura mb-4" role="status"><b>Cobertura</b>Você responde pela {c.ausentePerfil === "coordenacao" ? "coordenação" : "gerência"} ({c.ausenteNome}) até {dataBr(c.ate)}. O que é dela aparece para você em Entregáveis › Para eu revisar{c.ausentePerfil === "gestao" ? ", Atrasos" : ""}{c.validadora ? " e na Validação" : ""}.</div>)}
+        {children}</div></main>
     </div>
   );
 }

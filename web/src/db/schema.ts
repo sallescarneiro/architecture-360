@@ -759,6 +759,9 @@ export const agendaPessoas = pgTable("agenda_pessoa", {
   modelo: text("modelo").notNull().default("indefinido"),  // indefinido (= estruturada) | estruturada | autonoma
   validadora: boolean("validadora").notNull().default(false),
   senior: boolean("senior").notNull().default(false),        // arquiteta sênior: revisa entregáveis das júnior (T-292)
+  ausenteDe: text("ausente_de"),          // T-301: ausência (férias) de coordenação/gestão
+  ausenteAte: text("ausente_ate"),
+  cobertaPorId: integer("coberta_por_id"),                   // T-301: quem responde por ela durante a ausência
   substitutaAte: text("substituta_ate"),                    // AAAA-MM-DD: valida como substituta até esta data
   atualizadoPorId: integer("atualizado_por_id").references(() => usuarios.id),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),

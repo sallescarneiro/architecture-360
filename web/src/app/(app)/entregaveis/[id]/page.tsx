@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { coberturasAtivas, dataBr, papeis } from "@/lib/cobertura";
 import { notFound, redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
@@ -21,7 +22,8 @@ export default async function EntregavelPage({ params, searchParams }: { params:
     e.reuniaoId ? reuniaoPorId(e.reuniaoId) : Promise.resolve(null), reunioesDoProjeto(e.projetoCodigo)]);
   const itensAprovacao = reunioesProj.length ? await db.select({ id: schema.itensReuniao.id, texto: schema.itensReuniao.texto, reuniaoId: schema.itensReuniao.reuniaoId }).from(schema.itensReuniao).where(and(inArray(schema.itensReuniao.reuniaoId, reunioesProj.map((r) => r.id)), eq(schema.itensReuniao.tipo, "aprovacao"), eq(schema.itensReuniao.confirmado, true))) : [];
   const revisora = e.revisorId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.revisorId)).limit(1))[0]?.nome ?? null : null;
-  const revisa = await podeRevisarEtapa(u, e); // T-292: só quem é da etapa atual da cadeia
+  const revisa = await podeRevisarEtapa(u, e);
+  const ausentes = await coberturasAtivas(); const meusPapeis = await papeis(u); // T-301 // T-292: só quem é da etapa atual da cadeia
   const etapaAtual = e.status === "revisao_interna" ? e.etapaRevisao ?? "coordenacao" : null;
   const aprovadasNaVersao = new Set(aprovacoes.filter((a) => a.instancia === "interna" && a.decisao === "aprovado" && a.versaoNumero === e.versaoAtual && a.nivel).map((a) => a.nivel!));
   const responsavel = e.responsavelId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.responsavelId)).limit(1))[0]?.nome ?? null : null;
@@ -104,9 +106,10 @@ export default async function EntregavelPage({ params, searchParams }: { params:
                 <input type="hidden" name="id" value={e.id} />
                 <div className="text-xs font-semibold text-[var(--txt-2)]">Revisão interna da v{e.versaoAtual} · etapa: {ETAPAS_REVISAO[etapaAtual ?? "coordenacao"]}</div>
                 <textarea name="observacao" rows={2} className="input" maxLength={2000} placeholder="observações (obrigatório ao pedir ajustes)" />
-                <div className="flex gap-2"><Button formAction={aprovacaoInternaAction} variant="primary">{etapaAtual === "gerencia" ? "Aprovar internamente" : "Aprovar e seguir"}</Button><Button formAction={ajustesInternaAction} variant="secondary">Pedir ajustes</Button></div>
+                <div className="flex gap-2"><Button formAction={aprovacaoInternaAction} variant="primary">{etapaAtual === "gerencia" ? "Aprovar internamente" : etapaAtual === "coordenacao" && u.perfil !== "admin" && meusPapeis.has("gestao") ? "Aprovar internamente (coordenação e gerência)" : etapaAtual === "senior" ? "Aprovar e seguir" : u.perfil !== "admin" && meusPapeis.has("coordenacao") && meusPapeis.has("gestao") ? "Aprovar internamente (coordenação e gerência)" : "Aprovar e seguir"}</Button><Button formAction={ajustesInternaAction} variant="secondary">Pedir ajustes</Button></div>
               </form>
             )}
+            {e.status === "revisao_interna" && ausentes.filter((c) => (etapaAtual === "coordenacao" && c.ausentePerfil === "coordenacao") || (etapaAtual === "gerencia" && c.ausentePerfil === "gestao")).map((c) => <p key={c.ausenteId} className="mt-2 text-[0.8rem] text-[var(--txt-2)]">{c.ausenteNome} está ausente até {dataBr(c.ate)}: {c.cobreNome} responde por esta etapa.</p>)}
             {!revisa && e.status === "revisao_interna" && <p className="mt-2 text-[0.8rem] text-[var(--muted)]">Aguardando a revisão da etapa: {ETAPAS_REVISAO[etapaAtual ?? "coordenacao"].toLowerCase()}{etapaAtual === "senior" && revisora ? ` (${revisora})` : ""}.</p>}
 
             {podeCliente && (

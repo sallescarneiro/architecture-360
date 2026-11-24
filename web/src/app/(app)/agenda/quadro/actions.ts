@@ -102,6 +102,11 @@ export async function substitutaAction(fd: FormData) {
   fim(volta(fd, "/agenda/pessoas"), await P.designarSubstituta(u, id(fd), String(fd.get("ate") ?? "")), String(fd.get("ate") ?? "") ? "Substituta designada." : "Substituição encerrada.");
 }
 
+export async function ausenciaAction(fd: FormData) { // T-301
+  const u = await exigirUsuario(); const ate = String(fd.get("ate") ?? "");
+  fim(volta(fd, "/agenda/pessoas#ausencias"), await P.definirAusencia(u, id(fd), String(fd.get("de") ?? ""), ate, Number(fd.get("cobre")) || null), ate ? "Ausência marcada. Quem cobre já recebe o que é dela." : "Ausência encerrada.");
+}
+
 export async function modeloAction(fd: FormData) {
   const u = await exigirUsuario();
   fim(volta(fd, "/agenda/quadro"), await P.definirModelo(u, id(fd), String(fd.get("modelo") ?? "")), "Modelo de programação atualizado.");

@@ -19,7 +19,7 @@ const br = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "
 export default async function AtrasosPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const u = await exigirUsuario();
   if (!podeJustificar(u)) redirect("/sem-permissao");
-  const valida = podeValidarAtraso(u);
+  const valida = await podeValidarAtraso(u);
   const sp = await searchParams;
   const aba = ABAS.some(([k]) => k === sp.aba) ? sp.aba! : valida ? "aguardando" : "sem";
   const [n, sem] = await Promise.all([contagens(), atrasadasSemJustificativa()]);

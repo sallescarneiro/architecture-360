@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
 import * as P from "@/lib/agenda/producao";
 import { dataCurta, dataHora, hojeLocal } from "@/lib/agenda/datas";
-import { Button, PageHeader } from "@/components/ui";
-import { configAction, substitutaAction } from "../quadro/actions";
+import { Badge, Button, PageHeader } from "@/components/ui";
+import { ausenciaAction, configAction, substitutaAction } from "../quadro/actions";
 import * as C from "@/lib/agenda/carteira";
 import { desativarTercAction, desativarTipoAction, incluirTercAction, incluirTipoAction, regrasAction } from "../projetos/actions";
 
@@ -21,6 +21,8 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
   const hoje = hojeLocal();
   const validadoras = pessoas.filter((p) => p.cfg.validadora);
   const substitutas = pessoas.filter((p) => p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje);
+  const lideranca = pessoas.filter((p) => p.perfil === "coordenacao" || p.perfil === "gestao"); // T-301
+  const ausencias = pessoas.filter((p) => p.cfg.ausenteAte && p.cfg.ausenteAte >= hoje && p.cfg.cobertaPorId);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader eyebrow={`Agenda · configuração${edita ? "" : " · consulta"}`} title="Pessoas da agenda"
@@ -51,6 +53,23 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
               <label className="block text-xs font-semibold text-[var(--txt-2)]">Substituta temporária<select name="id" required className="input mt-1" defaultValue=""><option value="">Escolha a pessoa</option>{pessoas.filter((p) => !p.cfg.validadora).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
               <label className="block text-xs font-semibold text-[var(--txt-2)]">Até (vazio encerra)<input type="date" name="ate" className="input mt-1" /></label>
               <Button variant="secondary" className="btn-sm">Salvar substituição</Button>
+            </form>
+          )}
+          <h2 id="ausencias" className="mb-1 mt-4 font-[family-name:var(--font-display)] text-lg font-semibold">Ausência e cobertura</h2>
+          <p className="text-sm">Férias ou ausência da coordenação ou da gerência: enquanto valer, quem cobre recebe o que é dela (etapa da revisão de entregáveis, “Para eu revisar”, validação de atrasos e de propostas).</p>
+          {ausencias.length ? <ul className="mt-1 flex flex-col gap-1 text-sm">{ausencias.map((p) => (
+            <li key={p.id} className="flex flex-wrap items-center gap-2"><b>{p.nome}</b> ausente {p.cfg.ausenteDe ? `de ${dataCurta(p.cfg.ausenteDe)} ` : ""}até {dataCurta(p.cfg.ausenteAte!)} · responde por ela: <b>{pessoas.find((x) => x.id === p.cfg.cobertaPorId)?.nome ?? "—"}</b>
+              {(!p.cfg.ausenteDe || p.cfg.ausenteDe <= hoje) ? <Badge tone="warn">valendo</Badge> : <Badge tone="neutral">agendada</Badge>}
+              {edita && <form action={ausenciaAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="ate" value="" /><input type="hidden" name="volta" value="/agenda/pessoas#ausencias" /><Button variant="ghost" className="btn-sm">Encerrar</Button></form>}</li>))}</ul>
+            : <p className="text-xs text-[var(--muted)]">Nenhuma ausência marcada.</p>}
+          {edita && (
+            <form action={ausenciaAction} className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="volta" value="/agenda/pessoas#ausencias" />
+              <label className="block text-xs font-semibold text-[var(--txt-2)]">Quem fica ausente<select name="id" required className="input mt-1" defaultValue=""><option value="">Escolha</option>{lideranca.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+              <label className="block text-xs font-semibold text-[var(--txt-2)]">De<input type="date" name="de" className="input mt-1" /></label>
+              <label className="block text-xs font-semibold text-[var(--txt-2)]">Até (volta)<input type="date" name="ate" required className="input mt-1" /></label>
+              <label className="block text-xs font-semibold text-[var(--txt-2)]">Quem responde por ela<select name="cobre" required className="input mt-1" defaultValue=""><option value="">Escolha</option>{lideranca.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+              <Button variant="secondary" className="btn-sm">Marcar ausência</Button>
             </form>
           )}
           <h2 className="mb-1 mt-4 font-[family-name:var(--font-display)] text-lg font-semibold">Histórico de configuração</h2>

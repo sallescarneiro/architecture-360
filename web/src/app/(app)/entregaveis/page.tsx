@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { papeis } from "@/lib/cobertura";
 import { ETAPAS_REVISAO } from "@/lib/entregaveis";
 import { exigirUsuario } from "@/lib/auth";
 import { STATUS, TIPOS, contagens, gestao, lerFiltros, listar } from "@/lib/entregaveis";
@@ -14,7 +15,7 @@ export const metadata = { title: "Entregáveis — Architecture 360" };
 export default async function EntregaveisPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const u = await exigirUsuario();
   const sp = await searchParams;
-  const f = lerFiltros(sp);
+  const f = lerFiltros(sp); f.papeis = await papeis(u); // T-301
   const msg = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);
   const [lista, cont] = await Promise.all([listar(u, f), gestao(u) ? contagens() : Promise.resolve(null)]);
   const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });

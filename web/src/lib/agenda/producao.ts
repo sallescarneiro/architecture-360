@@ -2,6 +2,7 @@
 // Quadro da equipe (pessoas × dias úteis), blocos de produção, validação das propostas das arquitetas autônomas,
 // indisponibilidades, feriados e configuração por pessoa. Nada aqui escreve no Vobi: blocos criados no quadro são
 // atividades independentes (vinculo "independente"); atividades já ligadas ao Vobi continuam no fluxo da T-219.
+import { cobrindo } from "@/lib/cobertura";
 import { and, asc, eq, gte, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Usuario } from "@/lib/auth";
@@ -62,7 +63,7 @@ export const administraConfig = (u: Usuario) => u.perfil === "admin" || u.perfil
 /** Localidade, almoço e modelo de programação: gestão e coordenação (pedido da gerência em 18/11/2026). Validadoras e substitutas seguem só com a gestão. */
 export const configuraPessoas = (u: Usuario) => gestor(u);
 
-const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, senior: false, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
+const PADRAO = (usuarioId: number): ConfigPessoa => ({ usuarioId, uf: null, municipio: null, almocoInicio: null, almocoFim: null, modelo: "indefinido", validadora: false, senior: false, ausenteDe: null, ausenteAte: null, cobertaPorId: null, substitutaAte: null, atualizadoPorId: null, atualizadoEm: new Date(0) });
 
 export async function configDe(usuarioId: number): Promise<ConfigPessoa> {
   return (await db.select().from(schema.agendaPessoas).where(eq(schema.agendaPessoas.usuarioId, usuarioId)))[0] ?? PADRAO(usuarioId);
@@ -76,7 +77,10 @@ export function validaComConfig(u: Usuario, c: ConfigPessoa | undefined): boolea
   if (!c) return false;
   return c.validadora || (!!c.substitutaAte && c.substitutaAte >= hojeLocal());
 }
-export async function podeValidar(u: Usuario) { return validaComConfig(u, await configDe(u.id)); }
+export async function podeValidar(u: Usuario) {
+  if (validaComConfig(u, await configDe(u.id))) return true;
+  return (await cobrindo(u)).some((c) => c.validadora); // T-301: cobre uma validadora ausente
+}
 export const autonoma = (c: ConfigPessoa) => c.modelo === "autonoma";
 
 // ---------------------------------------------------------------------------------------------- leitura
@@ -498,6 +502,28 @@ export async function salvarConfig(u: Usuario, usuarioId: number, fd: FormData):
   await db.insert(schema.agendaPessoas).values({ usuarioId, ...novo, substitutaAte: atual.substitutaAte, atualizadoPorId: u.id, atualizadoEm: new Date() })
     .onConflictDoUpdate({ target: schema.agendaPessoas.usuarioId, set: { ...novo, atualizadoPorId: u.id, atualizadoEm: new Date() } });
   await histAgenda("pessoa", usuarioId, `${u.nome} alterou ${nome}: ${mud.join("; ")}`, u.id);
+  return { ok: true };
+}
+/** T-301 — ausência (férias) de coordenação/gestão e quem responde por ela. Datas vazias encerram. Gestão e coordenação marcam. */
+export async function definirAusencia(u: Usuario, usuarioId: number, de: string, ate: string, cobreId: number | null): Promise<R> {
+  if (!configuraPessoas(u)) return { ok: false, mensagem: "Só a gestão e a coordenação marcam ausência." };
+  const nome = await nomeUsuario(usuarioId), atual = await configDe(usuarioId);
+  if (!ate) {
+    await db.insert(schema.agendaPessoas).values({ ...atual, ausenteDe: null, ausenteAte: null, cobertaPorId: null, atualizadoPorId: u.id, atualizadoEm: new Date() })
+      .onConflictDoUpdate({ target: schema.agendaPessoas.usuarioId, set: { ausenteDe: null, ausenteAte: null, cobertaPorId: null, atualizadoPorId: u.id, atualizadoEm: new Date() } });
+    await histAgenda("pessoa", usuarioId, `${u.nome} encerrou a ausência de ${nome}`, u.id);
+    return { ok: true };
+  }
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (!iso.test(ate) || (de && !iso.test(de))) return { ok: false, mensagem: "Data inválida." };
+  if (de && de > ate) return { ok: false, mensagem: "A data de volta precisa ser depois do início." };
+  if (ate < hojeLocal()) return { ok: false, mensagem: "A data final já passou." };
+  if (!cobreId || cobreId === usuarioId) return { ok: false, mensagem: "Escolha quem responde por ela durante a ausência." };
+  const quem = (await db.select({ nome: schema.usuarios.nome, perfil: schema.usuarios.perfil }).from(schema.usuarios).where(eq(schema.usuarios.id, cobreId)).limit(1))[0];
+  if (!quem || !["coordenacao", "gestao", "admin"].includes(quem.perfil)) return { ok: false, mensagem: "Quem cobre precisa ser da coordenação ou da gestão." };
+  await db.insert(schema.agendaPessoas).values({ ...atual, ausenteDe: de || null, ausenteAte: ate, cobertaPorId: cobreId, atualizadoPorId: u.id, atualizadoEm: new Date() })
+    .onConflictDoUpdate({ target: schema.agendaPessoas.usuarioId, set: { ausenteDe: de || null, ausenteAte: ate, cobertaPorId: cobreId, atualizadoPorId: u.id, atualizadoEm: new Date() } });
+  await histAgenda("pessoa", usuarioId, `${u.nome} marcou ${nome} ausente ${de ? `de ${dataCurta(de)} ` : ""}até ${dataCurta(ate)}; ${quem.nome} responde por ela`, u.id);
   return { ok: true };
 }
 /** Gestão designa uma substituta para validar até uma data (registrado no histórico). Data vazia encerra a substituição. */
