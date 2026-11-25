@@ -1,9 +1,10 @@
 // Formulário do bloco de produção (incluir, editar, propor). Sem JavaScript: período "Horário específico" usa os campos de hora.
+import { EscolherCor } from "./EscolherCor";
 import { ETAPAS_PROGRAMAVEIS, ehRefacao, etapa as etapaDe } from "@/lib/agenda/producao";
 import { Button } from "@/components/ui";
 import { curto } from "./Producao";
 
-export type ValoresBloco = { pessoaId: number; dia: string; projetoCodigo: number | null; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string; entregaInterna?: boolean; motivoRefacao?: string | null };
+export type ValoresBloco = { pessoaId: number; dia: string; projetoCodigo: number | null; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string; entregaInterna?: boolean; motivoRefacao?: string | null; cor?: string | null };
 
 export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotulo, travarDia }: {
   action: (fd: FormData) => Promise<void>; id?: number; valores: ValoresBloco; projetos: { codigo: number; nome: string }[];
@@ -48,6 +49,7 @@ export function FormBloco({ action, id, valores, projetos, pessoas, volta, rotul
       </div>
       <p className="text-[0.72rem] text-[var(--muted)]">Horário específico registra início e fim; aparece em horas, sem conversão em fração de dia.</p>
       <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" name="entrega" value="1" defaultChecked={valores.entrega} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Entrega ao cliente neste dia</label>
+      <EscolherCor nome="cor" valor={valores.cor ?? null} padrao="cor da etapa" dica="Mesma paleta do Google Agenda." />
       <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" name="entrega_interna" value="1" defaultChecked={valores.entregaInterna} className="h-[18px] w-[18px] accent-[var(--vinho)]" />Entrega interna neste dia (para revisão da coordenação)</label>
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Observação (opcional)<input name="obs" defaultValue={valores.obs} maxLength={500} className="input mt-1" placeholder="não exige nova validação" /></label>
       <Button variant="primary">{rotulo}</Button>

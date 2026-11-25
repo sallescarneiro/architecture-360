@@ -190,7 +190,7 @@ export default async function QuadroPage({ searchParams }: { searchParams: Promi
               ) : (<>
                 <FormBloco action={editarBlocoAction} id={sel.id} volta={q({ ver: sel.id })} rotulo="Salvar alterações" projetos={projetos}
                   pessoas={pessoas.map((p) => ({ id: p.id, nome: p.nome }))}
-                  valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, entregaInterna: sel.entregaInterna, motivoRefacao: sel.motivoRefacao, obs: sel.descricao ?? "" }} />
+                  valores={{ pessoaId: sel.responsavelId, dia: P.diaDoBloco(sel), projetoCodigo: sel.projetoCodigo, etapa: sel.etapaRucelle ?? "", periodo: sel.periodo ?? (sel.diaInteiro ? "dia" : "hora"), hi: sel.inicio ? horaInput(sel.inicio) : "09:00", hf: horaInput(sel.fim), entrega: sel.entrega, entregaInterna: sel.entregaInterna, motivoRefacao: sel.motivoRefacao, obs: sel.descricao ?? "" , cor: sel.cor}} />
                 {sel.validacao === "aprovada" && <p className="text-xs text-[var(--muted)]">Já aprovada: mudar projeto, executora, etapa, dia, período ou entrega a devolve para validação. Observação não.</p>}
                 <div className="flex flex-wrap gap-2">
                   <LinkButton href={q({ rep: sel.id })} scroll={false}>Reprogramar</LinkButton>

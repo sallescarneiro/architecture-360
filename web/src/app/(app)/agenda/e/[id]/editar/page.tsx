@@ -22,7 +22,7 @@ export default async function EditarEventoPage({ params, searchParams }: { param
       <PageHeader eyebrow="Architecture 360 · Agenda" title="Editar compromisso" subtitle="As alterações são gravadas no Google Agenda. Se o evento tiver mudado no Google desde a última sincronização, o A360 avisa em vez de sobrescrever." actions={<LinkButton href={`/agenda/e/${e.id}?volta=${encodeURIComponent(volta)}`}>← Voltar</LinkButton>} />
       <FormularioEvento action={editarEventoAction} id={e.id} edicao temMeet={Boolean(e.meetLink)} volta={volta} projetos={projetos} calendarios={calendarios} pessoas={pessoas} erro={sp.erro}
         valores={{ titulo: e.titulo ?? "", descricao: e.descricao ?? "", local: e.local ?? "", data: diaDe(e.inicio), diaInteiro: e.diaInteiro, horaInicio: e.diaInteiro ? "09:00" : horaInput(e.inicio), horaFim: e.diaInteiro ? "10:00" : horaInput(e.fim),
-          participantes: e.participantes.map((p) => p.email).join(", "), projetoCodigo: e.projetoCodigo, criarMeet: false, calendarioId: e.calendarioId, enviarConvites: e.participantes.length > 0 }} />
+          participantes: e.participantes.map((p) => p.email).join(", "), projetoCodigo: e.projetoCodigo, criarMeet: false, calendarioId: e.calendarioId, cor: e.corGoogle, enviarConvites: e.participantes.length > 0 }} />
     </div>
   );
 }

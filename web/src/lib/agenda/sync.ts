@@ -56,7 +56,7 @@ export function converter(usuarioId: number, e: EventoGoogle, calendarioId: stri
     status: e.status ?? null, atualizadoGoogleEm: e.updated ? new Date(e.updated) : null, sincronizadoEm: agora,
     calendarioId, organizadorEmail: privado ? null : organizador, souOrganizador, etag: e.etag ?? null, recorrenteDe: e.recurringEventId ?? null,
     tipo: classificar({ privado, titulo, local: e.location ?? null, externos, participantes: participantes.length }),
-    projetoCodigo, projetoOrigem,
+    projetoCodigo, projetoOrigem, corGoogle: e.colorId ?? null,
   };
 }
 

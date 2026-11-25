@@ -1,6 +1,7 @@
 // Operações de escrita da Agenda (T-187 Etapa 2, decisão D6): criar, editar, excluir e associar a projeto.
 // Regras: só o usuário da sessão, só nos seus calendários com permissão de escrita, só eventos de que é organizador;
 // toda escrita vai ao Google primeiro e o espelho é atualizado com a resposta; auditoria interna sem dados do evento.
+import { corValida } from "./cores";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -14,6 +15,7 @@ export type DadosEvento = {
   participantes: string[]; // e-mails
   projetoCodigo: number | null;
   criarMeet: boolean; calendarioId: string; enviarConvites: boolean;
+  cor?: string | null; // T-310: colorId do Google (1–11); null = cor da agenda; ausente = não mexe
 };
 
 export type ResultadoOp = { ok: true; id: number | null } | { ok: false; codigo: "validacao" | "sem_conexao" | "sem_escopo" | "sem_permissao" | "conflito" | "nao_encontrado" | "invalido" | "revogada" | "outro"; mensagem: string };
@@ -40,7 +42,7 @@ export function lerFormulario(fd: FormData): { dados: DadosEvento } | { erro: st
   const proj = g("projeto");
   return { dados: {
     titulo, descricao: g("descricao").slice(0, 4000), local: g("local").slice(0, 300), data, diaInteiro, horaInicio, horaFim, participantes,
-    projetoCodigo: /^\d+$/.test(proj) ? Number(proj) : null, criarMeet: fd.get("meet") === "1", calendarioId: g("calendario") || "primary", enviarConvites: fd.get("convites") === "1",
+    projetoCodigo: /^\d+$/.test(proj) ? Number(proj) : null, criarMeet: fd.get("meet") === "1", calendarioId: g("calendario") || "primary", enviarConvites: fd.get("convites") === "1", cor: corValida(g("cor")),
   } };
 }
 
@@ -50,6 +52,7 @@ function corpoDe(d: DadosEvento, incluirProjeto: boolean): CorpoEvento {
     end: d.diaInteiro ? { date: proximoDia(d.data) } : { dateTime: `${d.data}T${d.horaFim}:00`, timeZone: FUSO },
     attendees: d.participantes.map((email) => ({ email })) };
   if (incluirProjeto) corpo.extendedProperties = { private: { a360_projeto: d.projetoCodigo ? String(d.projetoCodigo) : "" } };
+  if (d.cor !== undefined) corpo.colorId = d.cor; // T-310: a cor escolhida no A360 vai para o Google (null volta à cor da agenda)
   return corpo;
 }
 

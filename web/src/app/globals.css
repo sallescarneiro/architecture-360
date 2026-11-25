@@ -388,3 +388,20 @@ body { letter-spacing: -0.003em; }
 @media (min-width: 640px) { .stat-destaque { order: -1; } }
 @media (min-width: 1280px) { .bento-4 > .stat-destaque { grid-column: span 2; } }
 .kpi-val.num-relevante { color: var(--st-relevante); } .kpi-val.num-hoje { color: var(--st-hoje); } .kpi-val.num-ok { color: var(--st-ok); }
+/* T-310 — blocos da agenda preenchidos com a cor (mesma paleta do Google Agenda) */
+.ev-bloco.ev-cor,.ev-chip.ev-cor{background:var(--cor);color:var(--cor-txt);border-left:0;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.ev-bloco.ev-cor{padding-left:7px}
+.ev-bloco.ev-cor b,.ev-bloco.ev-cor span,.ev-chip.ev-cor b,.ev-chip.ev-cor span{color:inherit}
+.ev-bloco.ev-cor span{opacity:.9}
+.ev-bloco.ev-cor:hover,.ev-chip.ev-cor:hover{filter:brightness(.94);background:var(--cor)}
+.cores{border:0;padding:0;margin:0;display:grid;gap:6px}
+.cores-lista{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cor{position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.cor input{position:absolute;opacity:0;width:1px;height:1px}
+.cor span{width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);transition:transform .12s}
+.cor:hover span{transform:scale(1.12)}
+.cor input:checked+span{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--grafite)}
+.cor input:focus-visible+span{outline:2px solid var(--terracota);outline-offset:3px}
+.cor-padrao span{background:var(--surface-2);color:var(--muted);font-size:.8rem}
+.cor-padrao em{font-style:normal;font-size:.75rem;color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

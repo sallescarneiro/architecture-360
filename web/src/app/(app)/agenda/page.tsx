@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hexAtividade, hexEvento } from "@/lib/agenda/cores";
 import { exigirUsuario } from "@/lib/auth";
 import { agendaConfigurada } from "@/lib/agenda/cifra";
 import { podeEscrever } from "@/lib/agenda/google";
@@ -70,7 +71,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const itens: ItemCal[] = ativs.flatMap((a) => {
     const base = {
       privado: false, local: null, tipo: "atividade", href: gestao || a.responsavelId === u.id ? `/agenda/atividade/${a.id}?volta=${encodeURIComponent(atual)}` : params({ v: "dia", d: hojeLocal(a.fim) }), // atividade de colega: só a visão do dia
-      tom: a.vinculo === "independente" ? TOM_INDEPENDENTE : TOM_VINCULADA, quem: consolidada ? iniciais(nomePor.get(a.responsavelId) ?? "?") : undefined, classe: "ev-ativ",
+      tom: a.vinculo === "independente" ? TOM_INDEPENDENTE : TOM_VINCULADA, cor: hexAtividade(a), quem: consolidada ? iniciais(nomePor.get(a.responsavelId) ?? "?") : undefined, classe: "ev-ativ",
       dica: `${a.vinculo === "independente" ? "Atividade independente" : "Tarefa do Vobi"} · ${nomePor.get(a.responsavelId) ?? ""} · ${a.titulo} · prazo ${dataHora(a.fim)}`,
     };
     const ini = a.inicio ?? a.fim; // tarefa do Vobi só com término: aparece como prazo
@@ -85,8 +86,10 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     const quem = grupo;
     for (const id of quem) {
       const evs = await eventosDe(id, de, ate);
+      const cals = id === u.id ? c?.calendarios : (await conexaoDe(id))?.calendarios; // T-310: cor da agenda quando o evento não tem cor própria
       for (const e of evs) {
         const it = deEvento(e, atual, consolidada ? iniciais(nomePor.get(id) ?? "?") : undefined);
+        it.cor = hexEvento(e, cals ?? []) ?? "#039be5"; // sem cor do evento nem da agenda: Pavão, o padrão do Google
         if (id !== u.id) it.href = params({ v: "dia", d: hojeLocal(e.inicio) }); // compromisso de outra pessoa: só a visão do dia
         itens.push(it);
       }
@@ -202,7 +205,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       {v === "mes" ? <Mes dias={dias} eventos={itens} hoje={hoje} mesRef={d} volta={atual} novo={novo} /> : <Semana dias={dias} eventos={itens} hoje={hoje} volta={atual} agora={agora} novo={novo} />}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-[0.72rem] text-[var(--muted)]">
-          <Badge color={TOM_VINCULADA}>atividade · tarefa do Vobi</Badge><Badge color={TOM_INDEPENDENTE}>atividade independente</Badge>{comVobi && <Badge color={TOM_PRAZO}>Programação do Vobi (ainda não programada no A360)</Badge>}
+          <span>Cores: as mesmas do Google Agenda (compromissos com a cor que têm lá; atividades na cor da etapa ou na escolhida)</span>{comVobi && <Badge color={TOM_PRAZO}>Programação do Vobi (ainda não programada no A360)</Badge>}
           {consolidada && <span>· iniciais = pessoa · nome curto do projeto antes da atividade</span>}
         </div>
         {comGoogle && <Legenda />}

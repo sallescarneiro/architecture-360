@@ -2,6 +2,7 @@
 // Quadro da equipe (pessoas × dias úteis), blocos de produção, validação das propostas das arquitetas autônomas,
 // indisponibilidades, feriados e configuração por pessoa. Nada aqui escreve no Vobi: blocos criados no quadro são
 // atividades independentes (vinculo "independente"); atividades já ligadas ao Vobi continuam no fluxo da T-219.
+import { corValida } from "./cores";
 import { cobrindo } from "@/lib/cobertura";
 import { and, asc, eq, gte, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -174,12 +175,12 @@ export const histAgenda = (entidade: string, entidadeId: number | null, resumo: 
   db.insert(schema.agendaHistorico).values({ entidade, entidadeId, resumo, usuarioId });
 
 // ---------------------------------------------------------------------------------------------- blocos de produção
-export type DadosBloco = { pessoaId: number; dia: string; projetoCodigo: number; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string; entregaInterna?: boolean; motivoRefacao?: string };
+export type DadosBloco = { pessoaId: number; dia: string; projetoCodigo: number; etapa: string; periodo: string; hi: string; hf: string; entrega: boolean; obs: string; entregaInterna?: boolean; motivoRefacao?: string; cor?: string | null };
 
 export function lerBloco(fd: FormData): { d: DadosBloco } | { erro: string } {
   const s = (k: string) => String(fd.get(k) ?? "").trim();
   const pessoaId = Number(s("pessoa")), projetoCodigo = Number(s("projeto"));
-  const d: DadosBloco = { pessoaId, dia: s("dia"), projetoCodigo, etapa: s("etapa"), periodo: s("periodo") || "dia", hi: s("hora_inicio"), hf: s("hora_fim"), entrega: s("entrega") === "1", obs: s("obs").slice(0, 500), entregaInterna: s("entrega_interna") === "1", motivoRefacao: s("motivo_refacao").slice(0, 500) };
+  const d: DadosBloco = { pessoaId, dia: s("dia"), projetoCodigo, etapa: s("etapa"), periodo: s("periodo") || "dia", hi: s("hora_inicio"), hf: s("hora_fim"), entrega: s("entrega") === "1", obs: s("obs").slice(0, 500), entregaInterna: s("entrega_interna") === "1", motivoRefacao: s("motivo_refacao").slice(0, 500), cor: corValida(s("cor")) };
   if (!Number.isInteger(pessoaId) || pessoaId <= 0) return { erro: "Escolha a arquiteta." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.dia)) return { erro: "Dia inválido." };
   if (!Number.isInteger(projetoCodigo) || projetoCodigo <= 0) return { erro: "Escolha o projeto." };
@@ -235,7 +236,7 @@ export async function criarBloco(u: Usuario, d: DadosBloco): Promise<R<{ id: num
   const e = etapa(d.etapa)!;
   const [a] = await db.insert(schema.atividades).values({
     vinculo: "independente", tipo: "producao", titulo: `${e.n} · ${proj}`, descricao: d.obs || null, responsavelId: d.pessoaId,
-    ...horarios(d), prioridade: 2, status: 1, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, entregaInterna: !!d.entregaInterna, motivoRefacao: d.motivoRefacao || null,
+    ...horarios(d), prioridade: 2, status: 1, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, entregaInterna: !!d.entregaInterna, motivoRefacao: d.motivoRefacao || null, cor: d.cor ?? null,
     validacao, criadoPorId: u.id, atualizadoPorId: u.id,
   }).returning({ id: schema.atividades.id });
   await histAtv(a.id, u.id, validacao === "confirmada" ? `Programada para ${rotuloDia(d.dia)} · entra confirmada (criada pela ${u.perfil === "coordenacao" ? "coordenação" : "gestão"})` : `Proposta (rascunho) para ${rotuloDia(d.dia)}` + (d.motivoRefacao ? ` · motivo da refação: ${d.motivoRefacao}` : ""), null, d);
@@ -276,7 +277,7 @@ export async function editarBloco(u: Usuario, id: number, d: DadosBloco): Promis
   const validacao = novaValidacao(a, mud.length > 0);
   const e = etapa(d.etapa)!;
   await db.update(schema.atividades).set({
-    titulo: `${e.n} · ${proj}`, descricao: d.obs || null, responsavelId: d.pessoaId, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, entregaInterna: !!d.entregaInterna, motivoRefacao: d.motivoRefacao || null, ...h,
+    titulo: `${e.n} · ${proj}`, descricao: d.obs || null, responsavelId: d.pessoaId, projetoCodigo: d.projetoCodigo, etapaRucelle: d.etapa, periodo: d.periodo, entrega: d.entrega, entregaInterna: !!d.entregaInterna, motivoRefacao: d.motivoRefacao || null, cor: d.cor ?? null, ...h,
     validacao, ...(validacao !== a.validacao ? { validadoPorId: null, validadoEm: null, validacaoComentario: null } : {}),
     reprogramacoes: a.reprogramacoes + (dia0 !== d.dia ? 1 : 0), atualizadoPorId: u.id, atualizadoEm: new Date(),
   }).where(eq(schema.atividades.id, id));

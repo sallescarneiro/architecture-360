@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { textoSobre } from "@/lib/agenda/cores";
 import type { Evento } from "@/lib/agenda/sync";
 
 /**
@@ -8,6 +9,7 @@ import type { Evento } from "@/lib/agenda/sync";
 export type ItemCal = {
   chave: string; inicio: Date; fim: Date; diaInteiro: boolean; privado: boolean; titulo: string | null; local: string | null;
   tipo: string; href: string; tom?: string; quem?: string; classe?: string; dica?: string;
+  cor?: string; // T-310: preenchimento do bloco (paleta do Google)
 };
 export const deEvento = (e: Evento, volta: string, quem?: string): ItemCal => ({
   chave: `g${e.id}`, inicio: e.inicio, fim: e.fim, diaInteiro: e.diaInteiro, privado: e.privado, titulo: e.titulo, local: e.local, tipo: e.tipo,
@@ -59,10 +61,12 @@ export function Tipo({ tipo, pequeno }: { tipo: string; pequeno?: boolean }) {
 
 const rotulo = (e: ItemCal) => `${e.quem ? `${e.quem} · ` : ""}${e.privado ? "ocupado" : e.titulo ?? "(sem título)"}`;
 const tomDe = (e: ItemCal) => e.tom ?? TIPOS[e.tipo as TipoEvento]?.tom ?? "var(--muted)";
+/** T-310: bloco preenchido com a cor (Google ou atividade); privado continua hachurado. */
+const corDe = (e: ItemCal): Record<string, string> => (e.cor && !e.privado ? { ["--cor"]: e.cor, ["--cor-txt"]: textoSobre(e.cor) } : {});
 
 function Chip({ e, comHora = true }: { e: ItemCal; volta?: string; comHora?: boolean }) {
   return (
-    <Link href={e.href} className={`ev-chip ${e.privado ? "ev-priv" : ""} ${e.classe ?? ""}`} style={{ ["--tipo" as string]: tomDe(e) }} title={e.dica ?? (e.privado ? "ocupado (privado)" : `${e.diaInteiro ? "" : `${hora(e.inicio)}–${hora(e.fim)} · `}${rotulo(e)}`)}>
+    <Link href={e.href} className={`ev-chip ${e.privado ? "ev-priv" : ""} ${e.cor && !e.privado ? "ev-cor" : ""} ${e.classe ?? ""}`} style={{ ["--tipo" as string]: tomDe(e), ...corDe(e) }} title={e.dica ?? (e.privado ? "ocupado (privado)" : `${e.diaInteiro ? "" : `${hora(e.inicio)}–${hora(e.fim)} · `}${rotulo(e)}`)}>
       {comHora && !e.diaInteiro && <b>{hora(e.inicio)}</b>} <span>{rotulo(e)}</span>
     </Link>
   );
@@ -129,8 +133,8 @@ export function Semana({ dias, eventos, hoje, volta, agora, novo }: { dias: stri
               {horas.map((h) => <Link key={h} href={nv(dia, `${String(h).padStart(2, "0")}:00`)} className="cal-slot" aria-label={`Novo compromisso ${dataCurta(dia)} às ${h}h`} />)}
               {dia === hoje && linhaAgora !== null && <div className="cal-agora" style={{ top: `${linhaAgora}%` }} />}
               {p.dentro.map(({ e, top, altura, col, cols }) => (
-                <Link key={e.chave} href={e.href} className={`ev-bloco ${e.privado ? "ev-priv" : ""} ${altura < 5 ? "ev-curto" : ""} ${e.classe ?? ""}`}
-                  style={{ top: `${top}%`, height: `${altura}%`, left: `calc(${(col / cols) * 100}% + 2px)`, width: `calc(${100 / cols}% - 4px)`, ["--tipo" as string]: tomDe(e) }}
+                <Link key={e.chave} href={e.href} className={`ev-bloco ${e.privado ? "ev-priv" : ""} ${e.cor && !e.privado ? "ev-cor" : ""} ${altura < 5 ? "ev-curto" : ""} ${e.classe ?? ""}`}
+                  style={{ top: `${top}%`, height: `${altura}%`, left: `calc(${(col / cols) * 100}% + 2px)`, width: `calc(${100 / cols}% - 4px)`, ["--tipo" as string]: tomDe(e), ...corDe(e) }}
                   title={e.dica ?? (e.privado ? "ocupado (privado)" : `${hora(e.inicio)}–${hora(e.fim)} · ${rotulo(e)}${e.local ? ` · ${e.local}` : ""}`)}>
                   <b>{rotulo(e)}</b>
                   <span>{hora(e.inicio)}–{hora(e.fim)}{umDia && e.local && !e.privado ? ` · ${e.local}` : ""}</span>

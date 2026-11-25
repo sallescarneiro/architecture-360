@@ -131,7 +131,7 @@ export type EventoGoogle = {
   attendees?: { email?: string; displayName?: string; self?: boolean; responseStatus?: string; organizer?: boolean }[];
   organizer?: { email?: string; displayName?: string; self?: boolean };
   hangoutLink?: string; conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[]; createRequest?: unknown };
-  eventType?: string; transparency?: string; recurringEventId?: string; recurrence?: string[];
+  colorId?: string; eventType?: string; transparency?: string; recurringEventId?: string; recurrence?: string[];
   extendedProperties?: { private?: Record<string, string> };
 };
 
@@ -164,6 +164,7 @@ export type CorpoEvento = {
   start: { dateTime: string; timeZone: string } | { date: string }; end: { dateTime: string; timeZone: string } | { date: string };
   attendees?: { email: string }[]; conferenceData?: { createRequest: { requestId: string; conferenceSolutionKey: { type: "hangoutsMeet" } } };
   extendedProperties?: { private: Record<string, string> };
+  colorId?: string | null; // T-310: paleta do Google (null volta para a cor da agenda)
 };
 
 export async function obterEvento(accessToken: string, calendarioId: string, eventoId: string): Promise<EventoGoogle> {

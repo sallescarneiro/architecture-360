@@ -1,4 +1,5 @@
 import type { CalendarioGoogle } from "@/db/schema";
+import { EscolherCor } from "./EscolherCor";
 import { EscolherPessoas } from "@/components/EscolherPessoas";
 import { BuscaOpcoes } from "@/components/BuscaOpcoes";
 import type { ProjetoRef } from "@/lib/agenda/classificacao";
@@ -7,6 +8,7 @@ import { Button, LinkButton } from "@/components/ui";
 export type ValoresForm = {
   titulo: string; descricao: string; local: string; data: string; diaInteiro: boolean; horaInicio: string; horaFim: string;
   participantes: string; projetoCodigo: number | null; criarMeet: boolean; calendarioId: string; enviarConvites: boolean;
+  cor?: string | null; // T-310
 };
 
 /** Formulário de compromisso (criar e editar). Server component: campos nativos, validação no servidor. */
@@ -38,6 +40,7 @@ export function FormularioEvento({ action, valores, projetos, calendarios, pesso
           {edicao && <span className="sub">para mover de calendário, use o Google Calendar</span>}
         </label>
       </div>
+      <EscolherCor nome="cor" valor={v.cor ?? null} padrao="cor da agenda" dica="A mesma paleta do Google Agenda: a cor escolhida aparece igual lá." />
       <label className="block text-xs font-semibold text-[var(--txt-2)]">Participantes <span className="font-normal text-[var(--muted)]">(e-mails separados por vírgula ou espaço)</span>
         <input name="participantes" list="pessoas-a360" defaultValue={v.participantes} className="input mt-1" placeholder="nome@rucelle.com.br, cliente@empresa.com" />
         <datalist id="pessoas-a360">{pessoas.map((p) => <option key={p.email} value={p.email}>{p.nome ?? p.email}</option>)}</datalist>

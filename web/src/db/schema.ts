@@ -291,6 +291,7 @@ export const eventosAgenda = pgTable("evento_agenda", {
   etag: text("etag"),
   recorrenteDe: text("recorrente_de"),                     // id da série, quando é uma ocorrência
   tipo: text("tipo").notNull().default("outro"),           // cliente | interna | visita | outro | ocupado
+  corGoogle: text("cor_google"),                            // T-310: colorId do evento no Google (1–11); vazio = cor da agenda
   projetoCodigo: integer("projeto_codigo"),                // associação a projeto do Vobi (nunca escreve no Vobi)
   projetoOrigem: text("projeto_origem"),                   // manual | sugestao | google (propriedade privada a360_projeto)
 }, (t) => [uniqueIndex("evento_agenda_usuario_google_uq").on(t.usuarioId, t.googleId), index("evento_agenda_usuario_inicio_idx").on(t.usuarioId, t.inicio)]);
@@ -667,7 +668,8 @@ export const atividades = pgTable("atividade", {
   periodo: text("periodo"),                                  // dia | manha | tarde | hora (null = atividade antiga, pelo horário)
   entrega: boolean("entrega").notNull().default(false),      // entrega ao cliente neste dia
   entregaInterna: boolean("entrega_interna").notNull().default(false), // entrega interna (para revisão da coordenação) neste dia (23/11/2026)
-  motivoRefacao: text("motivo_refacao"),                     // obrigatório quando a etapa é refação (23/11/2026)
+  motivoRefacao: text("motivo_refacao"),
+  cor: text("cor"),                                          // T-310: cor na agenda (colorId da paleta do Google); vazio = cor da etapa                     // obrigatório quando a etapa é refação (23/11/2026)
   validacao: text("validacao").notNull().default("confirmada"), // confirmada | rascunho | aguardando | aprovada | devolvida
   validacaoComentario: text("validacao_comentario"),
   validadoPorId: integer("validado_por_id").references(() => usuarios.id),
