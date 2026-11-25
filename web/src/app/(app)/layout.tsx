@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { NavProgresso } from "@/components/NavProgresso";
 import { cobrindo, dataBr } from "@/lib/cobertura";
 import { AppInstalavel } from "@/components/app-instalavel";
 import { MenuMovel } from "@/components/menu-movel";
@@ -92,6 +94,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Celular e tablet: a mesma navegação, como painel sobreposto (fecha ao navegar, ESC ou clique fora) */}
       <MenuMovel groups={groups} marca={marca} rodape={<><div className="px-1.5"><AppInstalavel /></div><div className="px-1.5"><span className="selo">Vobi · somente leitura</span></div>{me}</>} />
 
+      <Suspense fallback={null}><NavProgresso /></Suspense>
       <main id="conteudo" className="min-w-0 px-4 py-5 md:px-7 md:py-6"><div className="w-full">
         {cobre.map((c) => <div key={c.ausenteId} className="leitura mb-4" role="status"><b>Cobertura</b>Você responde pela {c.ausentePerfil === "coordenacao" ? "coordenação" : "gerência"} ({c.ausenteNome}) até {dataBr(c.ate)}. O que é dela aparece para você em Entregáveis › Para eu revisar{c.ausentePerfil === "gestao" ? ", Atrasos" : ""}{c.validadora ? " e na Validação" : ""}.</div>)}
         {children}</div></main>
