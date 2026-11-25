@@ -41,7 +41,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
                 <td>{p.perfil === "arquiteta" ? <span className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${p.cfg.modelo === "indefinido" ? "border border-dashed border-[#b9aea7] text-[var(--muted)]" : "bg-[var(--rose-2)] text-[var(--vinho)]"}`}>{P.MODELOS[p.cfg.modelo].rotulo}</span> : <span className="text-[var(--muted)]">—</span>}</td>
                 <td className="text-xs">{p.cfg.validadora ? "sim" : p.cfg.substitutaAte && p.cfg.substitutaAte >= hoje ? `substituta até ${dataCurta(p.cfg.substitutaAte)}` : "—"}</td>
                 <td className="text-xs">{p.cfg.senior ? "sim" : "—"}</td>
-                {edita && <td><Link href={`/agenda/pessoas?p=${p.id}`} className="btn btn-secondary btn-sm" scroll={false} aria-label={`Editar ${p.nome}`}>Editar</Link></td>}
+                {edita && <td><Link href={`/agenda/pessoas?p=${p.id}#editar`} className="btn btn-secondary btn-sm" aria-label={`Editar ${p.nome}`}>Editar</Link></td>}
               </tr>))}
             </tbody>
           </table></div>
@@ -76,7 +76,7 @@ export default async function PessoasAgendaPage({ searchParams }: { searchParams
           {hist.length === 0 ? <p className="text-xs text-[var(--muted)]">Nenhuma alteração ainda.</p> : <ul className="flex flex-col gap-1 text-xs">{hist.map((h, k) => <li key={k}><span className="text-[var(--muted)]">{dataHora(new Date(h.quando))}</span> · {h.resumo}</li>)}</ul>}
         </section>
         {edita && sel && (
-          <aside className="card flex min-w-0 max-w-[400px] flex-[1_1_330px] flex-col gap-3 p-4" aria-label="Editar pessoa">
+          <aside id="editar" className="card flex min-w-0 max-w-[400px] flex-[1_1_330px] scroll-mt-24 flex-col gap-3 p-4" aria-label="Editar pessoa">
             <div className="eyebrow">Editar</div>
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">{sel.nome}</h2>
             <form action={configAction} className="flex flex-col gap-2.5">

@@ -38,7 +38,7 @@ export default async function CarteiraPage({ searchParams }: { searchParams: Pro
           </tr></thead>
           <tbody>{eq.map((r) => (
             <tr key={r.id} className={r.id === selId ? "bg-[#fbf1ec]" : ""}>
-              <td className="border-b border-[#f0e8e2] px-2.5 py-2"><Link href={`/agenda/carteira?sel=${r.id}`} scroll={false} className="font-bold text-[var(--vinho)] no-underline">{r.nome}</Link><span className="block text-[0.7rem] text-[var(--muted)]">{r.modelo}</span></td>
+              <td className="border-b border-[#f0e8e2] px-2.5 py-2"><Link href={`/agenda/carteira?sel=${r.id}#detalhe`} className="font-bold text-[var(--vinho)] no-underline">{r.nome}</Link><span className="block text-[0.7rem] text-[var(--muted)]">{r.modelo}</span></td>
               <td className="border-b border-[#f0e8e2] px-2.5 py-2"><b>{r.projetos}</b>{r.semEtapa ? <span className="block text-[0.7rem] text-[var(--muted)]">{r.semEtapa} sem etapa</span> : null}</td>
               <td className="border-b border-[#f0e8e2] px-2.5 py-2"><div className="relative h-2 w-[110px] overflow-hidden rounded-full bg-[#efe7e1]" aria-hidden="true"><i className="block h-full" style={{ width: `${Math.min(100, (r.projetos / esc) * 100)}%`, background: corCarga(r.carga) }} /><span className="absolute top-0 h-full w-px bg-[#6f6763]" style={{ left: `${(ref.alta / esc) * 100}%` }} /></div><span className="mt-1 inline-block"><SelCarga c={r.carga} /></span></td>
               {P.ETAPAS.map((e) => <td key={e.k} className={`border-b border-[#f0e8e2] px-1.5 py-2 text-center ${r.porEtapa[e.k] ? "font-semibold" : "text-[#c9bdb6]"}`}>{r.porEtapa[e.k] ?? "·"}</td>)}
@@ -51,7 +51,7 @@ export default async function CarteiraPage({ searchParams }: { searchParams: Pro
         <p className="text-xs text-[var(--muted)]">Projetos = projetos em andamento ou aguardando cliente em que ela é a responsável, sem os terceirizados. Pausados e concluídos não contam. Dias livres = dias úteis disponíveis nas próximas duas semanas (feriados da localidade e ausências confirmadas) menos o que já está programado no quadro. Entregas = entregas programadas para ela nos próximos 7 dias.</p>
       </section>
       <div className="flex flex-wrap items-start gap-4">
-        {sel && <section className="card flex flex-[2_1_420px] flex-col gap-2 p-4" aria-label={`Projetos de ${sel.nome}`}>
+        {sel && <section id="detalhe" className="card flex flex-[2_1_420px] scroll-mt-24 flex-col gap-2 p-4" aria-label={`Projetos de ${sel.nome}`}>
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Projetos de {sel.nome}</h2>
           {sel.lista.length === 0 ? <p className="text-sm text-[var(--muted)]">Nenhum projeto ativo com ela como responsável.</p> : (
             <ul className="flex flex-col gap-1.5 text-[0.84rem]">{sel.lista.map((l) => (
