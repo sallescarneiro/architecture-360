@@ -167,8 +167,8 @@ async function Arquiteta({ email, nome, periodo }: { email: string; nome: string
         <div className="leitura"><b>Associação</b>Seu e-mail ({email}) ainda não está ligado a um nome do Vobi em Pessoas; nada é inferido. Peça à gestão o mapeamento.</div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="Minhas atrasadas" value={d.cont.atrasadas} tone={d.cont.atrasadas ? "bad" : "ok"} source="calc" href={urlCom("/tarefas", base, { prazo: "atrasadas" })} note={d.cont.atrasadas ? faixas(d.cont, base) : "nenhuma"} />
+          <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+            <Stat destaque label="Minhas atrasadas" value={d.cont.atrasadas} tone={d.cont.atrasadas ? "bad" : "ok"} source="calc" href={urlCom("/tarefas", base, { prazo: "atrasadas" })} note={d.cont.atrasadas ? faixas(d.cont, base) : "nenhuma"} />
             <Stat label={`Vencem em ${periodo} dias`} value={d.cont.periodo} tone={d.cont.periodo ? "warn" : "neutral"} source="calc" href={urlCom("/tarefas", base, { prazo: "abertas", janela: periodo })} note={`${d.cont.hoje} hoje · ${d.cont.entregasPeriodo} entregas`} />
             <Stat label="Sem prazo" value={d.cont.semPrazo} tone="neutral" source="calc" href={urlCom("/tarefas", base, { prazo: "sem_prazo" })} note={`de ${d.cont.abertas} abertas · limitação da fonte`} />
           </div>
@@ -196,8 +196,8 @@ async function Coordenacao({ nome, periodo }: { nome: string; periodo: Periodo }
   return (
     <div className="flex flex-col gap-3">
       <Cabecalho nome={nome} perfil="Coordenação" ctx={ctx} periodo={periodo} />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href="/tarefas?prazo=atrasadas" note={faixas(cont, {})} />
+      <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+        <Stat destaque label="Atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href="/tarefas?prazo=atrasadas" note={faixas(cont, {})} />
         <Stat label={`Vencem em ${periodo} dias`} value={cont.periodo} tone={cont.periodo ? "warn" : "neutral"} source="calc" href={urlCom("/tarefas", {}, { prazo: "abertas", janela: periodo })} note={`${cont.hoje} hoje · ${cont.entregasPeriodo} entregas`} />
         <Stat label="Decisões pendentes" value={decisoes} tone={decisoes ? "info" : "ok"} href="#atencao" note={`${d.decisoes.ambiguos} vínculos · ${d.decisoes.etapasNaoMapeadas} etapas · ${d.decisoes.pessoasSemEmail} pessoas`} />
       </div>
@@ -238,8 +238,8 @@ async function Gerencia({ nome, periodo }: { nome: string; periodo: Periodo }) {
   return (
     <div className="flex flex-col gap-3">
       <Cabecalho nome={nome} perfil="Gerência" ctx={ctx} periodo={periodo} />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href="/tarefas?prazo=atrasadas" note={faixas(cont, {})} />
+      <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+        <Stat destaque label="Atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href="/tarefas?prazo=atrasadas" note={faixas(cont, {})} />
         <Stat label={`Vencem em ${periodo} dias`} value={cont.periodo} tone={cont.periodo ? "warn" : "neutral"} source="calc" href={urlCom("/tarefas", {}, { prazo: "abertas", janela: periodo })} note={`${cont.hoje} hoje · ${cont.entregasPeriodo} entregas`} />
         <Stat label="Projetos a acompanhar" value={d.risco.length} tone={d.risco.length ? "warn" : "ok"} source="calc" href="/projetos?situacao=acompanhar" note={`de ${ativos} ativos · ${pct(p.horas.refacaoMin, p.horas.totalMin)}% das horas em Refação`} />
       </div>

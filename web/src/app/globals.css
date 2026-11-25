@@ -340,3 +340,51 @@ form:has(select[name="etapa"] option[data-ref]:checked) .campo-refacao { display
 .cadeia li{border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted);background:var(--surface-2)}
 .cadeia li.feito{color:var(--ok);background:var(--ok-bg);border-color:transparent}
 .cadeia li.atual{color:#fff;background:var(--vinho);border-color:var(--vinho);font-weight:600}
+
+/* ===================================================================================
+   T-308 (25/11/2026) · Visual aprovado por Rodrigo: Bento + Editorial clean, Montserrat refinada,
+   cartão principal rosé claro, interatividade. Sobrescreve os tokens e componentes acima.
+   =================================================================================== */
+:root { --bg: #faf7f3; --card: #fffdfb; --line: #ece4dc; --line-2: #e6dcd2; --surface-2: #f5efe9; --areia: #f1e9e1; --areia-2: #ebe0d6; --destaque: #f6e1d9; --destaque-2: #f1d6cc; }
+body { letter-spacing: -0.003em; }
+.display { color: var(--grafite); font-weight: 700; letter-spacing: -0.025em; }
+.eyebrow { letter-spacing: 0.1em; color: var(--muted); }
+.card { box-shadow: none; }
+/* menu lateral: areia, item ativo com traço vinho */
+.side { background: var(--bg); border-right: 1px solid var(--line); }
+.side a.nav:hover { background: var(--areia); color: var(--vinho); }
+.side a.nav[aria-current="page"] { background: transparent; color: var(--vinho); box-shadow: inset 3px 0 0 var(--vinho); border-radius: 0 9px 9px 0; }
+.side a.nav[aria-current="page"] .count { background: var(--vinho); color: #fff; }
+.side .group { letter-spacing: 0.1em; color: var(--muted); }
+/* indicadores (Bento) */
+.stat { background: var(--areia); border: 0; border-radius: 18px; }
+.stat.card-link:hover { background: var(--areia-2); box-shadow: none; transform: translateY(-2px); }
+.stat-destaque { background: var(--destaque); }
+.stat-destaque.card-link:hover { background: var(--destaque-2); }
+.stat-destaque .kpi-val { font-size: 3.1rem; letter-spacing: -0.03em; }
+.stat-destaque:not(:has(.num-relevante, .num-hoje, .num-ok)) .kpi-val { color: var(--vinho); }
+@media (min-width: 640px) { .stat-destaque { grid-row: span 2; display: flex; flex-direction: column; justify-content: center; } }
+.kpi-val { font-weight: 600; font-size: 2.05rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+/* tabelas e status */
+.tbl th { text-transform: none; letter-spacing: 0; font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+.tbl td { font-variant-numeric: tabular-nums; }
+.st { background: transparent !important; padding-left: 0; }
+/* botões */
+.btn-primary { background: var(--grafite); } .btn-primary:hover { background: #000; box-shadow: 0 6px 16px rgba(31, 31, 31, 0.18); }
+.btn { transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.08s, box-shadow 0.15s; }
+.btn:active { transform: scale(0.97); }
+/* interatividade */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--terracota); outline-offset: 2px; }
+.card-link { transition: background 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.18s; }
+.card-link:active { transform: translateY(0) scale(0.99); }
+.tbl tbody tr { transition: background 0.12s; }
+.tbl tbody tr:hover a.ent { text-decoration: underline; }
+#conteudo > div { animation: a360-entra 0.3s ease both; }
+@keyframes a360-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.nav-progresso { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 100; background: linear-gradient(90deg, var(--terracota), var(--vinho)); opacity: 0; pointer-events: none; }
+.nav-progresso.ativo { opacity: 1; width: 80%; transition: width 8s cubic-bezier(0.1, 0.7, 0.2, 1); }
+.nav-progresso.fim { opacity: 0; width: 100%; transition: width 0.2s ease, opacity 0.35s ease 0.2s; }
+@media (prefers-reduced-motion: reduce) { #conteudo > div { animation: none; } .btn:active, .card-link:active, .stat.card-link:hover { transform: none; } .nav-progresso { display: none; } }
+@media (min-width: 640px) { .stat-destaque { order: -1; } }
+@media (min-width: 1280px) { .bento-4 > .stat-destaque { grid-column: span 2; } }
+.kpi-val.num-relevante { color: var(--st-relevante); } .kpi-val.num-hoje { color: var(--st-hoje); } .kpi-val.num-ok { color: var(--st-ok); }

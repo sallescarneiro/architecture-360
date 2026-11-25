@@ -209,10 +209,10 @@ function Painel({ d, periodo, perfil, ind, cf, ent }: { d: PainelCoordenacao | P
     <div className="flex flex-col gap-3">
       <Cabecalho titulo={executiva ? "Painel de Gestão" : "Painel operacional"} ctx={ctx} periodo={periodo} executiva={executiva} />
 
-      <div className={`grid gap-3 sm:grid-cols-2 ${executiva ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
+      <div className="bento-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Projetos ativos" value={ativos} href={L("/projetos", {})} note={`${andamento} em andamento · ${pausados} pausados`} />
         {executiva && <Stat label="Encerrados" value={p.encerrados} tone="neutral" href={L("/projetos", { situacao: "encerrados" })} note={d.encerradosPorTipo.map((e) => `${e.valor} ${e.rotulo.toLowerCase()}`).join(" · ") || "—"} />}
-        <Stat label="Tarefas atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href={L("/tarefas", { prazo: "atrasadas" })}
+        <Stat destaque label="Tarefas atrasadas" value={cont.atrasadas} tone={cont.atrasadas ? "bad" : "ok"} source="calc" href={L("/tarefas", { prazo: "atrasadas" })}
           note={<>&gt;30 d <Link className="underline" href={L("/tarefas", { prazo: "atrasada_30" })}>{cont.a30}</Link> · 8–30 <Link className="underline" href={L("/tarefas", { prazo: "atrasada_8_30" })}>{cont.a8}</Link> · 1–7 <Link className="underline" href={L("/tarefas", { prazo: "atrasada_1_7" })}>{cont.a1}</Link></>} />
         <Stat label={`Entregas em ${periodo} dias`} value={cont.entregasPeriodo} tone={cont.entregasPeriodo ? "warn" : "neutral"} source="calc" href={L("/tarefas", { prazo: "abertas", janela: periodo, entregas: 1 })}
           note={<>de {cont.periodo} tarefas com prazo no período <Ajuda texto={`Entrega = tarefa das etapas ${ETAPAS_ENTREGA.join(", ")} com prazo entre hoje e ${periodo} dias. Só ${pct(p.comFim, p.total)}% das tarefas têm prazo no Vobi.`} /></>} />

@@ -81,10 +81,11 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: strin
 }
 
 /** Indicador clicável (abre os registros que ele conta). Sem `href`, é só leitura. */
-export function Stat({ label, value, note, tone, pill, href, source }: { label: string; value: ReactNode; note?: ReactNode; tone?: "ok" | "warn" | "bad" | "info" | "neutral"; pill?: ReactNode; href?: string; source?: "meta" | "calc" }) {
+export function Stat({ label, value, note, tone, pill, href, source, destaque }: { label: string; value: ReactNode; note?: ReactNode; tone?: "ok" | "warn" | "bad" | "info" | "neutral"; pill?: ReactNode; href?: string; source?: "meta" | "calc"; destaque?: boolean }) {
+  const cls = `card stat${destaque ? " stat-destaque" : ""}`; // T-308: indicadores no estilo Bento + Editorial
   const body = (
     <>
-      <div className="flex items-center justify-between gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-[var(--muted)]">
+      <div className="stat-rot flex items-center justify-between gap-2 text-[0.8rem] font-medium text-[var(--txt-2)]">
         <span className="flex items-center gap-1.5">{label}{source && <SourceTag source={source} />}</span>
         {href && <span aria-hidden className="text-[var(--muted)]">→</span>}
       </div>
@@ -92,7 +93,7 @@ export function Stat({ label, value, note, tone, pill, href, source }: { label: 
       {note && <div className="mt-1 text-[0.74rem] leading-snug text-[var(--muted)]">{note}</div>}
     </>
   );
-  return href ? <Link href={href} className="card card-link block p-3.5 md:p-4">{body}</Link> : <div className="card p-3.5 md:p-4">{body}</div>;
+  return href ? <Link href={href} className={`${cls} card-link block p-4 md:p-[18px]`}>{body}</Link> : <div className={`${cls} p-4 md:p-[18px]`}>{body}</div>;
 }
 
 /** Origem do número: "Vobi" (fato importado) ou "calculado" (conta feita pelo A360 sobre os dados importados). */
