@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
-import { LIMITE_ARQUIVO, validarLinks, adicionarLinks, aprovacaoCliente, aprovacaoInterna, comentar, criar, editar, lerDados, mudarStatus, novaVersao, porId } from "@/lib/entregaveis";
+import { LIMITE_ARQUIVO, validarLinks, adicionarLinks, corrigirAnexo, aprovacaoCliente, aprovacaoInterna, comentar, criar, editar, lerDados, mudarStatus, novaVersao, porId } from "@/lib/entregaveis";
 
 const volta = (id: number, erro?: string | null, ok?: string) => `/entregaveis/${id}${erro ? `?erro=${encodeURIComponent(erro)}` : ok ? `?ok=${ok}` : ""}`;
 
@@ -62,6 +62,15 @@ export async function adicionarLinksAction(fd: FormData) {
   const erro = await adicionarLinks(u, e, Number(fd.get("versao")), String(fd.get("links") ?? ""));
   revalidatePath(`/entregaveis/${id}`);
   redirect(volta(id, erro, "links"));
+}
+
+export async function corrigirAnexoAction(fd: FormData) { // T-312
+  const u = await exigirUsuario();
+  const id = Number(fd.get("id")); const e = await porId(id); if (!e) redirect("/entregaveis");
+  const arq = fd.get("arquivo"); const arquivo = arq instanceof File && arq.size ? arq : null;
+  const erro = await corrigirAnexo(u, e, Number(fd.get("versao")), String(fd.get("links") ?? ""), arquivo, fd.get("remover") === "1");
+  revalidatePath(`/entregaveis/${id}`);
+  redirect(volta(id, erro, "anexo"));
 }
 
 export async function statusEntregavelAction(fd: FormData) {

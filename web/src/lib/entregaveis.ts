@@ -2,7 +2,7 @@
 // Regras: registro interno (sem acesso externo); projeto/cliente vêm do Vobi (só leitura); aprovação interna só por
 // coordenação/gestão/admin; aprovação do cliente sempre com evidência (tipo + texto ou arquivo + data + quem) — nunca presumida;
 // histórico imutável; visibilidade da arquiteta = projetos em que participa (regra D-A, mesma das reuniões).
-import { desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { papeis } from "@/lib/cobertura";
 import type { Usuario } from "@/lib/auth";
@@ -212,6 +212,40 @@ export async function adicionarLinks(u: Usuario, e: Entregavel, versaoId: number
   const novo = [v.link ?? "", juntarLinks(texto)].filter(Boolean).join("\n");
   await db.update(schema.versoesEntregavel).set({ link: novo }).where(eq(schema.versoesEntregavel.id, v.id));
   await registrar(e.id, u.id, "versao", `${lerLinks(texto).length} link(s) acrescentado(s) à versão ${v.numero}`, null, null);
+  return null;
+}
+
+/** T-312 (26/11/2026): corrigir o anexo da versão atual antes do envio — trocar ou remover o arquivo e corrigir os links.
+ *  Só enquanto a versão não recebeu nenhuma aprovação (interna ou do cliente) e o entregável não foi enviado; depois disso, versão nova. */
+export async function podeCorrigirAnexo(e: Entregavel, versaoNumero: number): Promise<string | null> {
+  if (versaoNumero !== e.versaoAtual) return "Só a versão atual pode ter o anexo corrigido.";
+  if (!["em_elaboracao", "revisao_interna"].includes(e.status)) return "Depois do envio ao cliente, registre uma versão nova.";
+  const ap = (await db.select({ id: schema.aprovacoesEntregavel.id }).from(schema.aprovacoesEntregavel)
+    .where(and(eq(schema.aprovacoesEntregavel.entregavelId, e.id), eq(schema.aprovacoesEntregavel.versaoNumero, versaoNumero), eq(schema.aprovacoesEntregavel.decisao, "aprovado"))).limit(1))[0];
+  return ap ? "Esta versão já foi aprovada por alguém na revisão; registre uma versão nova." : null;
+}
+export async function corrigirAnexo(u: Usuario, e: Entregavel, versaoId: number, links: string, arquivo: File | null, removerArquivo: boolean): Promise<string | null> {
+  if (!(await podeEditar(u, e))) return "Sem permissão.";
+  const v = (await db.select().from(schema.versoesEntregavel).where(eq(schema.versoesEntregavel.id, versaoId)).limit(1))[0];
+  if (!v || v.entregavelId !== e.id) return "Versão não encontrada.";
+  const trava = await podeCorrigirAnexo(e, v.numero); if (trava) return trava;
+  if (arquivo && arquivo.size > LIMITE_ARQUIVO) return "Arquivo acima de 15 MB. Use um link para o Drive.";
+  const erroLink = validarLinks(links); if (erroLink) return erroLink;
+  const buf = arquivo && arquivo.size ? Buffer.from(await arquivo.arrayBuffer()) : null;
+  const novoLink = juntarLinks(links) || null;
+  const semArquivo = !buf && (removerArquivo || !v.nomeArquivo);
+  if (!novoLink && semArquivo && !v.descricao) return "A versão ficaria vazia: deixe um link ou um arquivo.";
+  const mud: string[] = [];
+  if (buf) mud.push(v.nomeArquivo ? `arquivo trocado (${v.nomeArquivo} → ${arquivo!.name})` : `arquivo anexado (${arquivo!.name})`);
+  else if (removerArquivo && v.nomeArquivo) mud.push(`arquivo removido (${v.nomeArquivo})`);
+  if ((v.link ?? null) !== novoLink) mud.push("links corrigidos");
+  if (!mud.length) return "Nada mudou.";
+  await db.update(schema.versoesEntregavel).set({
+    link: novoLink,
+    ...(buf ? { nomeArquivo: arquivo!.name, tipoMime: arquivo!.type || "application/octet-stream", tamanho: buf.length, conteudo: buf }
+      : removerArquivo ? { nomeArquivo: null, tipoMime: null, tamanho: null, conteudo: null } : {}),
+  }).where(eq(schema.versoesEntregavel.id, v.id));
+  await registrar(e.id, u.id, "versao", `Anexo da versão ${v.numero} corrigido antes do envio: ${mud.join("; ")}`, { link: v.link, arquivo: v.nomeArquivo }, { link: novoLink, arquivo: buf ? arquivo!.name : removerArquivo ? null : v.nomeArquivo });
   return null;
 }
 

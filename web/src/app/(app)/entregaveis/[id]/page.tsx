@@ -4,11 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { exigirUsuario } from "@/lib/auth";
-import { ETAPAS_REVISAO, podeRevisarEtapa, EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, historicoDe, lerLinks, podeEditar, podeVer, porId, versoesDe } from "@/lib/entregaveis";
+import { ETAPAS_REVISAO, podeCorrigirAnexo, podeRevisarEtapa, EVIDENCIAS, STATUS, TIPOS, aprovacoesDe, comentariosDe, gestao, historicoDe, lerLinks, podeEditar, podeVer, porId, versoesDe } from "@/lib/entregaveis";
 import { reuniaoPorId, reunioesDoProjeto } from "@/lib/reunioes";
 import { linkVobiProjeto } from "@/lib/consultas";
 import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
-import { aprovacaoClienteAction, aprovacaoInternaAction, ajustesInternaAction, comentarAction, adicionarLinksAction, novaVersaoAction, statusEntregavelAction } from "../actions";
+import { aprovacaoClienteAction, aprovacaoInternaAction, ajustesInternaAction, comentarAction, adicionarLinksAction, corrigirAnexoAction, novaVersaoAction, statusEntregavelAction } from "../actions";
 
 export default async function EntregavelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const u = await exigirUsuario();
@@ -23,13 +23,14 @@ export default async function EntregavelPage({ params, searchParams }: { params:
   const itensAprovacao = reunioesProj.length ? await db.select({ id: schema.itensReuniao.id, texto: schema.itensReuniao.texto, reuniaoId: schema.itensReuniao.reuniaoId }).from(schema.itensReuniao).where(and(inArray(schema.itensReuniao.reuniaoId, reunioesProj.map((r) => r.id)), eq(schema.itensReuniao.tipo, "aprovacao"), eq(schema.itensReuniao.confirmado, true))) : [];
   const revisora = e.revisorId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.revisorId)).limit(1))[0]?.nome ?? null : null;
   const revisa = await podeRevisarEtapa(u, e);
+  const travaAnexo = e.versaoAtual ? await podeCorrigirAnexo(e, e.versaoAtual) : "sem versão"; // T-312
   const ausentes = await coberturasAtivas(); const meusPapeis = await papeis(u); // T-301 // T-292: só quem é da etapa atual da cadeia
   const etapaAtual = e.status === "revisao_interna" ? e.etapaRevisao ?? "coordenacao" : null;
   const aprovadasNaVersao = new Set(aprovacoes.filter((a) => a.instancia === "interna" && a.decisao === "aprovado" && a.versaoNumero === e.versaoAtual && a.nivel).map((a) => a.nivel!));
   const responsavel = e.responsavelId ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, e.responsavelId)).limit(1))[0]?.nome ?? null : null;
   const fmt = (d: Date) => d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
   const st = STATUS[e.status];
-  const OK: Record<string, string> = { criado: "Entregável registrado.", criado_v1: "Entregável registrado com a versão 1. Já está na revisão interna.", editado: "Dados salvos.", versao: "Versão registrada.", links: "Links acrescentados à versão.", status: "Situação atualizada.", interna: "Revisão interna registrada.", cliente: "Resposta do cliente registrada com evidência.", comentario: "Comentário registrado." };
+  const OK: Record<string, string> = { criado: "Entregável registrado.", anexo: "Anexo corrigido. A troca ficou registrada no histórico.", criado_v1: "Entregável registrado com a versão 1. Já está na revisão interna.", editado: "Dados salvos.", versao: "Versão registrada.", links: "Links acrescentados à versão.", status: "Situação atualizada.", interna: "Revisão interna registrada.", cliente: "Resposta do cliente registrada com evidência.", comentario: "Comentário registrado." };
   const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   const aprovClienteAtual = aprovacoes.find((a) => a.instancia === "cliente" && a.decisao === "aprovado" && a.versaoNumero === e.versaoAtual);
   const podeInterna = revisa;
@@ -55,6 +56,17 @@ export default async function EntregavelPage({ params, searchParams }: { params:
                   <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-semibold">v{v.numero}{v.numero === e.versaoAtual && <Badge tone="info">atual</Badge>}</span><span className="text-xs text-[var(--muted)]">{fmt(v.enviadoEm)}</span></div>
                   {v.descricao && <p className="text-[var(--txt-2)]">{v.descricao}</p>}
                   <div className="flex flex-wrap gap-3 text-xs">{lerLinks(v.link).map((l, i) => <a key={i} className="underline" href={l.url} target="_blank" rel="noreferrer">{l.nome} ↗</a>)}{v.nomeArquivo && <a className="underline" href={`/api/entregaveis/arquivo?v=${v.id}`}>baixar {v.nomeArquivo} ({Math.round((v.tamanho ?? 0) / 1024)} KB)</a>}</div>
+                  {edita && v.numero === e.versaoAtual && !travaAnexo && (
+                    <details className="mt-1 text-xs"><summary className="cursor-pointer font-semibold text-[var(--vinho)]">trocar arquivo ou corrigir links (antes do envio)</summary>
+                      <form action={corrigirAnexoAction} className="mt-1.5 flex flex-col gap-2"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="versao" value={v.id} />
+                        <label className="font-semibold text-[var(--txt-2)]">Links desta versão (um por linha)<textarea name="links" rows={3} className="input mt-1" defaultValue={v.link ?? ""} placeholder={"Planta baixa: https://drive.google.com/..."} /></label>
+                        <label className="font-semibold text-[var(--txt-2)]">{v.nomeArquivo ? `Trocar o arquivo (${v.nomeArquivo}) por outro` : "Anexar arquivo"} (até 15 MB)<input type="file" name="arquivo" className="input mt-1" /></label>
+                        {v.nomeArquivo && <label className="flex items-center gap-2"><input type="checkbox" name="remover" value="1" className="h-4 w-4 accent-[var(--vinho)]" />Remover o arquivo atual sem colocar outro</label>}
+                        <p className="text-[var(--muted)]">Vale só enquanto ninguém aprovou esta versão. A troca fica registrada no histórico.</p>
+                        <div><Button variant="secondary" className="btn-sm">Salvar correção</Button></div></form>
+                    </details>
+                  )}
+                  {edita && v.numero === e.versaoAtual && travaAnexo && e.status !== "cancelado" && <p className="mt-1 text-xs text-[var(--muted)]">Para trocar o arquivo agora, registre uma versão nova ({travaAnexo.replace(/;.*$/, "").toLowerCase()}).</p>}
                   {edita && v.numero === e.versaoAtual && (
                     <details className="mt-1 text-xs"><summary className="cursor-pointer text-[var(--vinho)]">+ acrescentar links a esta versão</summary>
                       <form action={adicionarLinksAction} className="mt-1.5 flex flex-col gap-1.5"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="versao" value={v.id} />
